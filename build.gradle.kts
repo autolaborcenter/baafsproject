@@ -1,4 +1,3 @@
-import org.jetbrains.kotlin.gradle.plugin.getKotlinPluginVersion
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -14,6 +13,7 @@ buildScan {
 
 version = "1.0-SNAPSHOT"
 
+val libs = fileTree("libs")
 allprojects {
     apply(plugin = "kotlin")
     group = "cn.autolabor"
@@ -22,12 +22,11 @@ allprojects {
         jcenter()
     }
     dependencies {
-        val kotlinVersion = getKotlinPluginVersion()
+        implementation(kotlin("stdlib-jdk8"))
+        implementation(libs)
 
-        "implementation"("org.jetbrains.kotlin", "kotlin-stdlib", kotlinVersion)
-
-        "testImplementation"("junit:junit:4.12")
-        "testImplementation"("org.jetbrains.kotlin", "kotlin-test-junit", kotlinVersion)
+        testImplementation("junit", "junit", "+")
+        testImplementation(kotlin("test-junit"))
     }
     tasks.withType<KotlinCompile> {
         kotlinOptions {
@@ -38,5 +37,4 @@ allprojects {
 
 dependencies {
     implementation(fileTree("libs") { ".jar" in includes })
-    implementation(kotlin("stdlib-jdk8"))
 }
