@@ -7,8 +7,16 @@ package serialport.parser
  * @param parser 网络层解析器
  */
 class ParseEngine<TWord, TResult>(
-    private val parser: Parser<TWord, TResult>
+    private val parser: (List<TWord>) -> ParseInfo<TResult>
 ) {
+    /**
+     * 一次解析结果
+     * @param nextBegin 下一次解析的起始位置
+     * @param passed 已检视的字数量
+     * @param result 此次解析结果
+     */
+    data class ParseInfo<Result>(val nextBegin: Int, val passed: Int, val result: Result)
+
     /**
      * 执行解析
      * @param list 新数据包
