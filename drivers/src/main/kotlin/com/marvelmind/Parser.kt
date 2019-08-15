@@ -1,7 +1,7 @@
 package com.marvelmind
 
-import serialport.parser.ParseEngine
-import serialport.parser.ParseEngine.ParseInfo
+import cn.autolabor.serialport.parser.ParseEngine
+import cn.autolabor.serialport.parser.ParseEngine.ParseInfo
 import kotlin.experimental.xor
 
 private const val DestinationAddress = 0xff.toByte()

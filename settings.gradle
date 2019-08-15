@@ -1,2 +1,4 @@
 rootProject.name = 'baafsproject'
 include 'drivers'
+include 'locator'
+

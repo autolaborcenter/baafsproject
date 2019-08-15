@@ -1,4 +1,4 @@
-package serialport.parser
+package cn.autolabor.serialport.parser
 
 /**
  * 串口链路层解析器

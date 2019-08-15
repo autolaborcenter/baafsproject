@@ -1,7 +1,7 @@
 package com.faselase
 
-import serialport.parser.ParseEngine
-import serialport.parser.ParseEngine.ParseInfo
+import cn.autolabor.serialport.parser.ParseEngine
+import cn.autolabor.serialport.parser.ParseEngine.ParseInfo
 import kotlin.experimental.and
 import kotlin.math.PI
 

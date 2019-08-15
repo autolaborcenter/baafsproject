@@ -1,4 +1,4 @@
-package serialport.parser
+package cn.autolabor.serialport.parser
 
 import com.fazecast.jSerialComm.SerialPort
 

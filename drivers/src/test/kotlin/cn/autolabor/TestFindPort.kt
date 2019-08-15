@@ -1,4 +1,6 @@
-import serialport.parser.SerialPortFinder.Companion.findSerialPort
+package cn.autolabor
+
+import cn.autolabor.serialport.parser.SerialPortFinder.Companion.findSerialPort
 
 object MarvelmindTest {
     @JvmStatic
