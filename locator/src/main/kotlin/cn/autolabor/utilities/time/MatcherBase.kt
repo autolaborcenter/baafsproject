@@ -1,13 +1,21 @@
-package cn.autolabor.time
+package cn.autolabor.utilities.time
 
 import java.util.*
 
 /**
  * 标准非阻塞比较匹配器
+ *
+ * @param T1 第一类对象
+ * @param T2 第二类对象
  */
-class MatcherBase<T1 : Comparable<T2>, T2 : Comparable<T1>>
-    : Matcher<T1, T2> {
+class MatcherBase<
+    T1 : Comparable<T2>,
+    T2 : Comparable<T1>
+    > : Matcher<T1, T2> {
+
+    // 第一类对象队列
     private val queue1 = PriorityQueue<T1>()
+    // 第二类对象队列
     private val queue2 = PriorityQueue<T2>()
 
     override fun add1(item: T1) {
@@ -23,6 +31,11 @@ class MatcherBase<T1 : Comparable<T2>, T2 : Comparable<T1>>
     override fun match2() = match(queue2, queue1)
 
     private companion object {
+        /**
+         * 非对等匹配算法
+         * @param queue1 基准对象队列
+         * @param queue2 匹配对象队列
+         */
         fun <T1 : Comparable<T2>, T2 : Comparable<T1>>
             match(queue1: Queue<T1>, queue2: Queue<T2>)
             : Triple<T1, T2, T2>? {

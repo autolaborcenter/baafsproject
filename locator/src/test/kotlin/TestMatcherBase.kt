@@ -1,5 +1,5 @@
-import cn.autolabor.time.MatcherBase
-import cn.autolabor.time.Stamped
+import cn.autolabor.utilities.time.MatcherBase
+import cn.autolabor.utilities.time.Stamped
 import kotlin.concurrent.thread
 
 fun main() {

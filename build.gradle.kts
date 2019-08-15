@@ -13,7 +13,6 @@ buildScan {
 
 version = "1.0-SNAPSHOT"
 
-val libs = fileTree("libs")
 allprojects {
     apply(plugin = "kotlin")
     group = "cn.autolabor"
@@ -23,7 +22,6 @@ allprojects {
     }
     dependencies {
         implementation(kotlin("stdlib-jdk8"))
-        implementation(libs)
 
         testImplementation("junit", "junit", "+")
         testImplementation(kotlin("test-junit"))

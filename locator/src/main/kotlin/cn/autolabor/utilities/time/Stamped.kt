@@ -1,4 +1,4 @@
-package cn.autolabor.time
+package cn.autolabor.utilities.time
 
 /**
  * 计时数据

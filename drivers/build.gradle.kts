@@ -1,3 +1,5 @@
 version = "1.0-SNAPSHOT"
 
-dependencies {}
+dependencies {
+    implementation("com.fazecast", "jSerialComm", "+")
+}
