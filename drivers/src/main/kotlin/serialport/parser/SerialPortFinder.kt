@@ -38,7 +38,7 @@ class SerialPortFinder<T> private constructor() {
                             var result = false
 
                             while (!result && System.currentTimeMillis() - time < timeoutMs) {
-                                val actual = port.readBytes(array, array.size.toLong())
+                                val actual = port.readBytes(array, array.size.toLong()).also(::println)
                                 if (actual <= 0) continue
                                 engine(array.asList().subList(0, actual)) { temp ->
                                     result = result || predicate(temp)

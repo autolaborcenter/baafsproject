@@ -18,8 +18,8 @@ object FaseLaseTest {
     fun Array<String>.main() {
         findSerialPort(com.faselase.engine(true)) {
             baudRate = 460800
-            timeoutMs = 1000
-            activate = "#SF0/r/n".toByteArray(Charsets.US_ASCII)
+            timeoutMs = 5000
+            activate = "#SF 10\r\n".toByteArray(Charsets.US_ASCII)
             condition { (rho, _) -> rho > 0 }
         }
             ?.descriptivePortName
