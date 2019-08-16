@@ -20,6 +20,9 @@ allprojects {
         mavenCentral()
         jcenter()
     }
+}
+
+subprojects {
     dependencies {
         implementation(kotlin("stdlib-jdk8"))
 
@@ -27,12 +30,19 @@ allprojects {
         testImplementation(kotlin("test-junit"))
     }
     tasks.withType<KotlinCompile> {
-        kotlinOptions {
-            jvmTarget = "1.8"
-        }
+        kotlinOptions { jvmTarget = "1.8" }
     }
 }
 
 dependencies {
-    implementation(fileTree("libs") { ".jar" in includes })
+    api(kotlin("stdlib-jdk8"))
+    api(fileTree("libs"))
+    api(project(":drivers"))
+    api(project(":locator"))
+
+    testImplementation("junit", "junit", "+")
+    testImplementation(kotlin("test-junit"))
+}
+tasks.withType<KotlinCompile> {
+    kotlinOptions { jvmTarget = "1.8" }
 }

@@ -19,6 +19,6 @@ public class Main {
             }
         });
 
-        ServerManager.me().register(new FaselaseTask());
+        ServerManager.me().register(new FaselaseTask("faselase"));
     }
 }

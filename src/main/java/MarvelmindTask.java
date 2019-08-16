@@ -13,7 +13,6 @@ import kotlin.Unit;
 @TaskProperties
 public class MarvelmindTask extends AbstractTask {
     private final MessageHandle<Msg2DPointStamped> topicSender;
-
     private final Resource resource;
 
     // 打开超声资源，翻译数据帧并发送
