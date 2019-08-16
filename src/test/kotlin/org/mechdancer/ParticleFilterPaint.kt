@@ -21,6 +21,7 @@ fun main() {
 
     val marvelmind = com.marvelmind.Resource { time, x, y ->
         filter.measureHelper(Stamped(time, vector2DOf(x, y)))
+        println("$x $y")
         ByteArrayOutputStream()
             .apply {
                 writeEnd("marvelmind")

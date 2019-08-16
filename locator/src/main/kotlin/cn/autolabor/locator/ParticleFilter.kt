@@ -10,6 +10,7 @@ import org.mechdancer.geometry.angle.rotate
 import org.mechdancer.geometry.angle.times
 import org.mechdancer.geometry.angle.toRad
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.sqrt
 
@@ -30,14 +31,13 @@ class ParticleFilter(private val size: Int)
     override fun measureHelper(item: Stamped<Vector2D>) =
         matcher.add2(item).also { update() }
 
-    private var stateSave: Odometry? = null
+    private var stateSave: Pair<Vector2D, Odometry>? = null
     private var expectation = Odometry(.0, .0, vector2DOfZero(), .0.toRad())
 
     private fun update() {
         generateSequence { matcher.match2() }
             // 插值
             .mapNotNull { (measure, before, after) ->
-
                 (after.time - before.time)
                     .takeIf { it in 1..500 }
                     ?.let {
@@ -48,14 +48,17 @@ class ParticleFilter(private val size: Int)
             // 计算
             .forEach { (measure, state) ->
                 // 判断第一帧
-                val last = stateSave ?: run {
-                    initialize(measure, state)
-                    return@forEach
-                }
+                val (lastMeasure, lastState) =
+                    stateSave ?: run {
+                        initialize(measure, state)
+                        return@forEach
+                    }
 
                 // 计算控制量
-                val delta = state minusState last
-                stateSave = state
+                val delta = state minusState lastState
+                val dM = measure - lastMeasure
+                stateSave = measure to state
+                if (abs(delta.p.norm() - dM.norm()) > 0.2) return@forEach
 
                 // 更新粒子群
                 particles = particles.map { it plusDelta delta }
@@ -71,7 +74,7 @@ class ParticleFilter(private val size: Int)
                               initialize(measure, state)
                               return@forEach
                           }
-                println(sum)
+
                 var eP = vector2DOfZero()
                 var eD = .0
                 var eD2 = .0
@@ -99,13 +102,15 @@ class ParticleFilter(private val size: Int)
     }
 
     private fun initialize(measure: Vector2D, state: Odometry) {
-        stateSave = state
+        stateSave = measure to state
         val step = 2 * PI / size
         particles = List(size) { Odometry(state.s, state.a, measure, (it * step).toRad()) }
     }
 
     override operator fun get(item: Stamped<Odometry>) =
-        stateSave?.let { expectation plusDelta (item.data minusState it) }
+        stateSave
+            ?.second
+            ?.let { expectation plusDelta (item.data minusState it) }
 
     private companion object {
         const val AcceptRange = 0.2

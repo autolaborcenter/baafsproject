@@ -2,6 +2,8 @@ package com.marvelmind
 
 import cn.autolabor.serialport.parser.ParseEngine
 import cn.autolabor.serialport.parser.ParseEngine.ParseInfo
+import java.io.ByteArrayInputStream
+import java.io.DataInputStream
 import kotlin.experimental.xor
 
 private const val DestinationAddress = 0xff.toByte()
@@ -29,27 +31,20 @@ private fun crc16Check(list: List<Byte>): Boolean {
 
 class ResolutionCoordinate(private val list: List<Byte>) {
     val timeStamp get() = build(0, 4)
-    val x get() = build(4, 4)
-    val y get() = build(8, 4)
-    val z get() = build(12, 4)
+    val x get() = build(4, 4).readInt()
+    val y get() = build(8, 4).readInt()
+    val z get() = build(12, 4).readInt()
     val flags get() = build(16, 1)
     val address get() = build(17, 1)
     val pair get() = build(18, 2)
-    val delay get() = buildUnsigned(20, 2)
+    val delay get() = build(20, 2).readUnsignedShort()
 
-    private fun build(offset: Int, length: Int): Long {
-        var value = 0.toLong()
-        for (i in offset + length - 1 downTo offset)
-            value = value * 256 + list[i]
-        return value
-    }
-
-    private fun buildUnsigned(offset: Int, length: Int): Long {
-        var value = 0.toLong()
-        for (i in offset + length - 1 downTo offset)
-            value = value * 256 + list[i].toIntUnsigned()
-        return value
-    }
+    private fun build(offset: Int, length: Int) =
+        list.subList(offset, offset + length)
+            .toByteArray()
+            .reversedArray()
+            .let(::ByteArrayInputStream)
+            .let(::DataInputStream)
 }
 
 data class Package(val code: Int, val payload: List<Byte>) {

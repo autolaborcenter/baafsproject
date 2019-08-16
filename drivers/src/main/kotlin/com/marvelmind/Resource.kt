@@ -1,7 +1,7 @@
 package com.marvelmind
 
 import cn.autolabor.Resource
-import cn.autolabor.serialport.parser.SerialPortFinder
+import cn.autolabor.serialport.parser.SerialPortFinder.Companion.findSerialPort
 
 /**
  * Marvelmind 移动标签资源控制器
@@ -13,7 +13,7 @@ class Resource(
 
     private val engine = engine()
     private val port =
-        SerialPortFinder.findSerialPort(engine) {
+        findSerialPort(engine) {
             baudRate = 115200
             timeoutMs = 1000
             bufferSize = 32
