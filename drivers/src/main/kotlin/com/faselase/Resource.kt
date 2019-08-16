@@ -1,9 +1,7 @@
 package com.faselase
 
+import cn.autolabor.Resource
 import cn.autolabor.serialport.parser.SerialPortFinder
-import cn.autolabor.serialport.parser.SerialPortFinder.Companion
-import java.io.Closeable
-import kotlin.concurrent.thread
 
 /**
  * 砝石雷达资源控制器
@@ -11,7 +9,7 @@ import kotlin.concurrent.thread
  */
 class Resource(
     private val callback: (Long, Long, List<Pair<Double, Double>>) -> Unit
-) : Closeable {
+) : Resource {
 
     private val engine = engine(filter = true)
     private val port =
@@ -29,7 +27,7 @@ class Resource(
     private var last = -1.0
     private val list = mutableListOf<Pair<Double, Double>>()
 
-    operator fun invoke() {
+    override operator fun invoke() {
         port.readBytes(buffer, buffer.size.toLong())
             .takeIf { it > 0 }
             ?.let { buffer.asList().subList(0, it) }

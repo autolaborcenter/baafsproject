@@ -1,34 +1,36 @@
 package org.mechdancer
 
-import com.faselase.Resource
+import cn.autolabor.pm1.Resource
+import cn.autolabor.pm1.sdk.PM1
+import org.mechdancer.dependency.must
 import org.mechdancer.remote.presets.remoteHub
 import org.mechdancer.remote.protocol.writeEnd
+import org.mechdancer.remote.resources.MulticastSockets
 import org.mechdancer.remote.resources.UdpCmd
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import kotlin.concurrent.thread
-import kotlin.math.cos
-import kotlin.math.sin
 
 fun main() {
-    val remote = remoteHub("faselase test")
-    val lidar = Resource { _, _, list ->
+    val remote = remoteHub("baafs test")
+    val lidar = Resource { odometry ->
+        println(odometry)
         ByteArrayOutputStream()
             .apply {
-                writeEnd("faselase")
+                writeEnd("odometry")
                 DataOutputStream(this).apply {
-                    writeInt(list.size)
-                    for ((rho, theta) in list) {
-                        writeDouble(rho * cos(theta))
-                        writeDouble(rho * sin(theta))
-                    }
+                    writeDouble(odometry.x)
+                    writeDouble(odometry.y)
+                    writeDouble(odometry.theta)
                 }
             }
             .toByteArray()
             .let { remote.broadcast(UdpCmd.TOPIC_MESSAGE, it) }
     }
+    PM1.locked = false
+    PM1.setCommandEnabled(false)
     remote.openAllNetworks()
-    println("remote launched")
+    println("remote launched on ${remote.components.must<MulticastSockets>().address}")
     thread { while (true) remote() }
     while (true) lidar()
 }

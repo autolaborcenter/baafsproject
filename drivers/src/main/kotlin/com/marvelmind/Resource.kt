@@ -1,7 +1,7 @@
 package com.marvelmind
 
+import cn.autolabor.Resource
 import cn.autolabor.serialport.parser.SerialPortFinder
-import java.io.Closeable
 
 /**
  * Marvelmind 移动标签资源控制器
@@ -9,7 +9,7 @@ import java.io.Closeable
  */
 class Resource(
     private val callback: (Long, Double, Double) -> Unit
-) : Closeable {
+) : Resource {
 
     private val engine = engine()
     private val port =
@@ -22,7 +22,7 @@ class Resource(
 
     private val buffer = ByteArray(32)
 
-    operator fun invoke() {
+    override operator fun invoke() {
         port.readBytes(buffer, buffer.size.toLong())
             .takeIf { it > 0 }
             ?.let { buffer.asList().subList(0, it) }

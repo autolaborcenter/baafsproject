@@ -33,7 +33,7 @@ public class FaselaseTask extends AbstractTask {
                 distances.add(pair.getFirst());
                 angles.add(pair.getSecond());
             });
-            //
+            // 发送
             MsgLidar msg = new MsgLidar();
             msg.getHeader().setStamp(end);
             msg.setDistances(distances);
