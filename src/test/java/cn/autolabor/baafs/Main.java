@@ -1,3 +1,5 @@
+package cn.autolabor.baafs;
+
 import cn.autolabor.core.server.ServerManager;
 import cn.autolabor.core.server.Setup;
 import cn.autolabor.core.server.SystemInfoTask;

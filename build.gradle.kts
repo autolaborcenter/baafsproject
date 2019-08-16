@@ -42,6 +42,10 @@ dependencies {
 
     testImplementation("junit", "junit", "+")
     testImplementation(kotlin("test-junit"))
+
+    testImplementation("org.slf4j", "slf4j-api", "+")
+    testImplementation(kotlin("reflect"))
+    testImplementation(fileTree("libs-test"))
 }
 tasks.withType<KotlinCompile> {
     kotlinOptions { jvmTarget = "1.8" }

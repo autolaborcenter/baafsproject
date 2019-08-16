@@ -1,3 +1,5 @@
+package cn.autolabor.baafs;
+
 import cn.autolabor.util.autobuf.SerializableMessage;
 
 public class Msg2DPointStamped implements SerializableMessage {
