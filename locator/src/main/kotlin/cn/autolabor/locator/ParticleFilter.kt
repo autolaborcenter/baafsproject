@@ -37,6 +37,7 @@ class ParticleFilter(private val size: Int)
         generateSequence { matcher.match2() }
             // 插值
             .mapNotNull { (measure, before, after) ->
+
                 (after.time - before.time)
                     .takeIf { it in 1..500 }
                     ?.let {
@@ -70,6 +71,7 @@ class ParticleFilter(private val size: Int)
                               initialize(measure, state)
                               return@forEach
                           }
+                println(sum)
                 var eP = vector2DOfZero()
                 var eD = .0
                 var eD2 = .0

@@ -14,7 +14,7 @@ class Resource(private val callback: (Odometry) -> Unit) : Resource {
     }
 
     override fun invoke() {
-        callback(PM1.odometry)
+        callback(PM1.odometry.copy(stamp = System.currentTimeMillis()))
         Thread.sleep(100)
     }
 

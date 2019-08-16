@@ -35,12 +35,19 @@ class ResolutionCoordinate(private val list: List<Byte>) {
     val flags get() = build(16, 1)
     val address get() = build(17, 1)
     val pair get() = build(18, 2)
-    val delay get() = build(20, 2)
+    val delay get() = buildUnsigned(20, 2)
 
     private fun build(offset: Int, length: Int): Long {
         var value = 0.toLong()
         for (i in offset + length - 1 downTo offset)
             value = value * 256 + list[i]
+        return value
+    }
+
+    private fun buildUnsigned(offset: Int, length: Int): Long {
+        var value = 0.toLong()
+        for (i in offset + length - 1 downTo offset)
+            value = value * 256 + list[i].toIntUnsigned()
         return value
     }
 }
@@ -65,7 +72,7 @@ fun parse(buffer: List<Byte>): ParseInfo<Package> {
     val `package` =
         begin.takeIf { it + 7 < size }
             ?.let { it + 7 + buffer[it + 4] }
-            ?.takeIf { it < size }
+            ?.takeIf { it in 1 until size }
             ?.let { buffer.subList(begin, it) }
         ?: return ParseInfo(begin, size, Package.nothing)
     // crc 校验

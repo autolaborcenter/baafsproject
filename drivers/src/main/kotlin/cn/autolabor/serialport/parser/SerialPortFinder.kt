@@ -71,6 +71,7 @@ class SerialPortFinder<T> private constructor() {
                                     ?.let { array.asList().subList(0, it) }
                                     ?.let { list -> engine(list) { result = result || predicate(it) } }
                             // 返回
+                            if (!result) port.closePort()
                             result
                         }
                 }

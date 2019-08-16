@@ -26,13 +26,15 @@ class Resource(
         port.readBytes(buffer, buffer.size.toLong())
             .takeIf { it > 0 }
             ?.let { buffer.asList().subList(0, it) }
-            ?.let {
-                engine(it) { (code, payload) ->
+            ?.let { buffer ->
+                engine(buffer) { (code, payload) ->
+                    val now = System.currentTimeMillis()
                     if (code != 0x11) return@engine
                     val value = ResolutionCoordinate(payload)
-                    callback(System.currentTimeMillis() - value.delay,
-                             value.x / 1000.0,
-                             value.y / 1000.0)
+                    value
+                        .delay
+                        .takeIf { it in 1..399 }
+                        ?.let { callback(now - it, value.x / 1000.0, value.y / 1000.0) }
                 }
             }
     }
