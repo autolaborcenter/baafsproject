@@ -3,13 +3,9 @@ package cn.autolabor.utilities
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.plus
 import org.mechdancer.algebra.implement.vector.Vector2D
-import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.rotate
-import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.geometry.angle.unaryMinus
-import kotlin.math.cos
-import kotlin.math.sin
 
 /**
  * 里程计
@@ -52,8 +48,4 @@ data class Odometry(
                  a - mark.a,
                  (p - mark.p).rotate(-mark.d),
                  d.rotate(-mark.d))
-
-    companion object {
-        val unknown = Odometry(.0, .0, vector2DOf(Double.NaN, Double.NaN), Double.NaN.toRad())
-    }
 }

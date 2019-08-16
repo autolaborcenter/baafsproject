@@ -3,22 +3,26 @@ package cn.autolabor.locator
 import cn.autolabor.utilities.Odometry
 import cn.autolabor.utilities.time.MatcherBase
 import cn.autolabor.utilities.time.Stamped
-import org.mechdancer.algebra.function.vector.plus
-import org.mechdancer.algebra.function.vector.times
+import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
+import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.geometry.angle.rotate
 import org.mechdancer.geometry.angle.times
+import org.mechdancer.geometry.angle.toRad
+import kotlin.math.PI
+import kotlin.math.min
+import kotlin.math.sqrt
 
 /**
  * 粒子滤波器
  */
-class ParticleFilter
+class ParticleFilter(private val size: Int)
     : Mixer<
     Stamped<Odometry>,
     Stamped<Vector2D>,
     Odometry> {
     private val matcher = MatcherBase<Stamped<Odometry>, Stamped<Vector2D>>()
-    private val particles = listOf<Odometry>()
+    private var particles = emptyList<Odometry>()
 
     override fun measureMaster(item: Stamped<Odometry>) =
         matcher.add1(item).also { update() }
@@ -26,34 +30,95 @@ class ParticleFilter
     override fun measureHelper(item: Stamped<Vector2D>) =
         matcher.add2(item).also { update() }
 
+    private var stateSave: Odometry? = null
+    private var expectation = Odometry(.0, .0, vector2DOfZero(), .0.toRad())
+
     private fun update() {
-        // 为配对插值
-        val newPairs =
-            generateSequence { matcher.match2() }
-                .mapNotNull { (measure, before, after) ->
-                    (after.time - before.time)
-                        .takeIf { it in 1..500 }
-                        ?.let {
-                            val k = (measure.time - before.time) / it
-                            measure.data to Odometry(
-                                before.data.s * k + after.data.s * (1 - k),
-                                before.data.a * k + after.data.s * (1 - k),
-                                before.data.p * k + after.data.p * (1 - k),
-                                before.data.d * k rotate after.data.d * (1 - k))
-                        }
+        generateSequence { matcher.match2() }
+            // 插值
+            .mapNotNull { (measure, before, after) ->
+                (after.time - before.time)
+                    .takeIf { it in 1..500 }
+                    ?.let {
+                        val k = (measure.time - before.time).toDouble() / it
+                        measure.data to before.data * k + after.data * (1 - k)
+                    }
+            }
+            // 计算
+            .forEach { (measure, state) ->
+                // 判断第一帧
+                val last = stateSave ?: run {
+                    initialize(measure, state)
+                    return@forEach
                 }
-                .toList()
 
-        if (particles.isEmpty()) {
-            initialize(newPairs)
-            return
-        }
+                // 计算控制量
+                val delta = state minusState last
+                stateSave = state
+
+                // 更新粒子群
+                particles = particles.map { it plusDelta delta }
+                // 计算权重
+                val weights = particles.map {
+                    1 - min((it.p - measure).norm(), AcceptRange) / AcceptRange
+                }
+                // 计算方差
+                val sum = weights
+                              .sum()
+                              .takeIf { it > 1 }
+                          ?: run {
+                              initialize(measure, state)
+                              return@forEach
+                          }
+                var eP = vector2DOfZero()
+                var eD = .0
+                var eD2 = .0
+                particles.forEachIndexed { i, (_, _, p, d) ->
+                    val k = weights[i]
+                    eP += p * k
+                    eD += k * d.value
+                    eD2 += k * d.value * d.value
+                }
+                eP = (eP + measure) / (sum + 1)
+                eD /= sum
+                eD2 /= sum
+                val sigma = sqrt((eD2 - eD * eD) clamp 0.1..0.49)
+
+                val random = java.util.Random()
+
+                particles = particles.mapIndexed { i, item ->
+                    if (weights[i] < 0.2) {
+                        Odometry(.0, .0, eP, (random.nextGaussian() * sigma + eD).toRad())
+                    } else item
+                }
+
+                expectation = Odometry(.0, .0, eP, eD.toRad())
+            }
     }
 
-    private fun initialize(list: List<Pair<*, *>>) {
-        for ((measure, state) in list)
-            println("$measure, $state")
+    private fun initialize(measure: Vector2D, state: Odometry) {
+        stateSave = state
+        val step = 2 * PI / size
+        particles = List(size) { Odometry(state.s, state.a, measure, (it * step).toRad()) }
     }
 
-    override operator fun get(item: Stamped<Odometry>) = null
+    override operator fun get(item: Stamped<Odometry>) =
+        stateSave?.let { expectation plusDelta (item.data minusState it) }
+
+    private companion object {
+        const val AcceptRange = 0.2
+
+        operator fun Odometry.times(k: Double) =
+            Odometry(s * k, a * k, p * k, d * k)
+
+        operator fun Odometry.plus(other: Odometry) =
+            Odometry(s + other.s, a + other.a, p + other.p, d rotate other.d)
+
+        infix fun <T : Comparable<T>> T.clamp(range: ClosedRange<T>) =
+            when {
+                this < range.start        -> range.start
+                this > range.endInclusive -> range.endInclusive
+                else                      -> this
+            }
+    }
 }
