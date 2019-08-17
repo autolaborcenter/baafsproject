@@ -26,6 +26,7 @@ fun main() {
             .apply {
                 writeEnd("marvelmind")
                 DataOutputStream(this).apply {
+                    writeByte(2)
                     writeDouble(x)
                     writeDouble(y)
                 }
@@ -44,6 +45,7 @@ fun main() {
             .apply {
                 writeEnd("odometry")
                 DataOutputStream(this).apply {
+                    writeByte(3)
                     writeDouble(odometry.x)
                     writeDouble(odometry.y)
                     writeDouble(odometry.theta)
@@ -57,6 +59,7 @@ fun main() {
                     .apply {
                         writeEnd("filter")
                         DataOutputStream(this).apply {
+                            writeByte(3)
                             writeDouble(p.x)
                             writeDouble(p.y)
                             writeDouble(d.value)

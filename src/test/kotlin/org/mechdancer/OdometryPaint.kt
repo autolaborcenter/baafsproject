@@ -19,6 +19,7 @@ fun main() {
             .apply {
                 writeEnd("odometry")
                 DataOutputStream(this).apply {
+                    writeByte(3)
                     writeDouble(odometry.x)
                     writeDouble(odometry.y)
                     writeDouble(odometry.theta)

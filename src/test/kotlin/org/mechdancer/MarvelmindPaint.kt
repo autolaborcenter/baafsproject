@@ -18,6 +18,7 @@ fun main() {
             .apply {
                 writeEnd("marvelmind")
                 DataOutputStream(this).apply {
+                    writeByte(2)
                     writeDouble(x)
                     writeDouble(y)
                 }

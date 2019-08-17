@@ -15,10 +15,12 @@ import kotlin.math.sin
 fun main() {
     val remote = remoteHub("baafs test")
     val lidar = Resource { _, _, list ->
+        println(list.size)
         ByteArrayOutputStream()
             .apply {
                 writeEnd("faselase")
                 DataOutputStream(this).apply {
+                    writeByte(0)
                     writeInt(list.size)
                     writeByte(1)
                     for ((rho, theta) in list) {
