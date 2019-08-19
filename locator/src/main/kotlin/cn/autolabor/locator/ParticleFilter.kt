@@ -23,7 +23,7 @@ class ParticleFilter(private val size: Int)
     Stamped<Vector2D>,
     Odometry> {
     private val matcher = MatcherBase<Stamped<Odometry>, Stamped<Vector2D>>()
-    private var particles = emptyList<Odometry>()
+    var particles = emptyList<Odometry>()
 
     override fun measureMaster(item: Stamped<Odometry>) =
         matcher.add1(item).also { update() }

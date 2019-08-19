@@ -17,9 +17,9 @@ fun main() {
 
     val marvelmind = com.marvelmind.Resource { time, x, y ->
         println("$x $y")
-        remote.paint("marvelmind", x, y)
+        remote.paint("marvelmind", y, x)
 
-        filter.measureHelper(Stamped(time, vector2DOf(x, y)))
+        filter.measureHelper(Stamped(time, vector2DOf(y, x)))
     }
     val pm1 = cn.autolabor.pm1.Resource { odometry ->
         val inner = Stamped(odometry.stamp,
@@ -30,6 +30,11 @@ fun main() {
         remote.paint("odometry", odometry.x, odometry.y, odometry.theta)
 
         filter.measureMaster(inner)
+        remote.paintFrame3("particles",
+                           filter.particles.map { (_, _, p, d) ->
+                               Triple(p.x, p.y, d.value)
+                           })
+
         filter[inner]?.let { (_, _, p, d) ->
             remote.paint("filter", p.x, p.y, d.value)
         }
