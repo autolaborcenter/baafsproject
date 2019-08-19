@@ -25,6 +25,8 @@ class ParticleFilter(private val size: Int)
     private val matcher = MatcherBase<Stamped<Odometry>, Stamped<Vector2D>>()
     var particles = emptyList<Odometry>()
 
+    var measureWeightTemp = .0
+
     override fun measureMaster(item: Stamped<Odometry>) =
         matcher.add1(item).also { update() }
 
@@ -58,8 +60,16 @@ class ParticleFilter(private val size: Int)
                 val delta = state minusState lastState
                 val dM = measure - lastMeasure
                 stateSave = measure to state
-                val measureWeight = size * 0.5 * (1 - min(abs(delta.p.norm() - dM.norm()), 0.1) / 0.1)
-                if (measureWeight < 0) return@forEach
+
+                // 初步过滤
+                val lengthM = dM.norm()
+                val lengthS = delta.p.norm()
+                if (abs(lengthM - lengthS) > 0.2) return@forEach
+
+                val p0 = (5 * lengthM) clamp 0.0..1.0
+                val p1 = (5 * abs(lengthM - lengthS)) clamp 0.0..1.0
+                val measureWeight = size * (1 - (0.5 * p0 + 0.5 * p1))
+                measureWeightTemp = measureWeight
 
                 // 更新粒子群
                 particles = particles.map { it plusDelta delta }
@@ -114,7 +124,8 @@ class ParticleFilter(private val size: Int)
             ?.let { expectation plusDelta (item.data minusState it) }
 
     private companion object {
-        const val AcceptRange = 0.2
+        const val AcceptRange = 0.1
+        const val AcceptDiff = 0.1
 
         operator fun Odometry.times(k: Double) =
             Odometry(s * k, a * k, p * k, d * k)

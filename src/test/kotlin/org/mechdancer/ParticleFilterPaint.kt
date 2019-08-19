@@ -34,6 +34,7 @@ fun main() {
                            filter.particles.map { (_, _, p, d) ->
                                Triple(p.x, p.y, d.value)
                            })
+        remote.paint("定位权重", filter.measureWeightTemp)
 
         filter[inner]?.let { (_, _, p, d) ->
             remote.paint("filter", p.x, p.y, d.value)
