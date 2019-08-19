@@ -28,6 +28,7 @@ class Resource(
             ?.let { buffer.asList().subList(0, it) }
             ?.let { buffer ->
                 engine(buffer) { (code, payload) ->
+                    println("code = $code")
                     val now = System.currentTimeMillis()
                     if (code != 0x11) return@engine
                     val value = ResolutionCoordinate(payload)

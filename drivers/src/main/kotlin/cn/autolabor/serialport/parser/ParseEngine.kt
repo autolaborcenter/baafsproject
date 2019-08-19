@@ -11,11 +11,15 @@ class ParseEngine<TWord, TResult>(
 ) {
     /**
      * 一次解析结果
-     * @param nextBegin 下一次解析的起始位置
-     * @param passed 已检视的字数量
+     * @param nextHead 下一个包头的位置
+     * @param nextBegin 下一次解析的开始位置
      * @param result 此次解析结果
      */
-    data class ParseInfo<Result>(val nextBegin: Int, val passed: Int, val result: Result)
+    data class ParseInfo<Result>(
+        val nextHead: Int,
+        val nextBegin: Int,
+        val result: Result
+    )
 
     /**
      * 执行解析
@@ -24,7 +28,8 @@ class ParseEngine<TWord, TResult>(
      */
     operator fun invoke(
         list: Iterable<TWord>,
-        callback: (TResult) -> Unit) {
+        callback: (TResult) -> Unit
+    ) {
         // 连接到解析缓冲区
         buffer.addAll(list)
         // 初始化迭代器
@@ -33,15 +38,13 @@ class ParseEngine<TWord, TResult>(
         var passed = 0
         // 解析到全部已检查
         while (begin < size && passed < size) {
-            val (nextBegin, thisPassed, result) = parser(buffer.subList(begin, size))
+            val (nextHead, nextBegin, result) = parser(buffer.subList(begin, size))
             callback(result)
-            passed = begin + thisPassed
-            begin += nextBegin
+            passed = begin + nextBegin
+            begin += nextHead
         }
         // 拷贝未解析部分
-        val newArray = ArrayList<TWord>(size - passed)
-        buffer.subList(begin, size).forEach { newArray.add(it) }
-        buffer = newArray
+        buffer = arrayListOf<TWord>().apply { addAll(buffer.subList(begin, size)) }
     }
 
     // 缓冲
