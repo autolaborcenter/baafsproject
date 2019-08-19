@@ -58,7 +58,8 @@ class ParticleFilter(private val size: Int)
                 val delta = state minusState lastState
                 val dM = measure - lastMeasure
                 stateSave = measure to state
-                if (abs(delta.p.norm() - dM.norm()) > 0.2) return@forEach
+                val measureWeight = size * 0.5 * (1 - min(abs(delta.p.norm() - dM.norm()), 0.1) / 0.1)
+                if (measureWeight < 0) return@forEach
 
                 // 更新粒子群
                 particles = particles.map { it plusDelta delta }
@@ -84,13 +85,13 @@ class ParticleFilter(private val size: Int)
                     eD += k * d.value
                     eD2 += k * d.value * d.value
                 }
-                eP = (eP + measure) / (sum + 1)
+                eP = (eP + measure * measureWeight) / (sum + measureWeight)
                 eD /= sum
                 eD2 /= sum
                 val sigma = sqrt((eD2 - eD * eD) clamp 0.1..0.49)
 
+                // 重采样
                 val random = java.util.Random()
-
                 particles = particles.mapIndexed { i, item ->
                     if (weights[i] < 0.2) {
                         Odometry(.0, .0, eP, (random.nextGaussian() * sigma + eD).toRad())
