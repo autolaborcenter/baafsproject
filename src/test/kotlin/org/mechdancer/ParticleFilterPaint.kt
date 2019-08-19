@@ -8,11 +8,7 @@ import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.dependency.must
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.remote.presets.remoteHub
-import org.mechdancer.remote.protocol.writeEnd
 import org.mechdancer.remote.resources.MulticastSockets
-import org.mechdancer.remote.resources.UdpCmd.TOPIC_MESSAGE
-import java.io.ByteArrayOutputStream
-import java.io.DataOutputStream
 import kotlin.concurrent.thread
 
 fun main() {
@@ -20,19 +16,10 @@ fun main() {
     val filter = ParticleFilter(32)
 
     val marvelmind = com.marvelmind.Resource { time, x, y ->
-        filter.measureHelper(Stamped(time, vector2DOf(x, y)))
         println("$x $y")
-        ByteArrayOutputStream()
-            .apply {
-                writeEnd("marvelmind")
-                DataOutputStream(this).apply {
-                    writeByte(2)
-                    writeDouble(x)
-                    writeDouble(y)
-                }
-            }
-            .toByteArray()
-            .let { remote.broadcast(TOPIC_MESSAGE, it) }
+        remote.paint("marvelmind", x, y)
+
+        filter.measureHelper(Stamped(time, vector2DOf(x, y)))
     }
     val pm1 = cn.autolabor.pm1.Resource { odometry ->
         val inner = Stamped(odometry.stamp,
@@ -40,34 +27,12 @@ fun main() {
                                      odometry.sa,
                                      vector2DOf(odometry.x, odometry.y),
                                      odometry.theta.toRad()))
+        remote.paint("odometry", odometry.x, odometry.y, odometry.theta)
+
         filter.measureMaster(inner)
-        ByteArrayOutputStream()
-            .apply {
-                writeEnd("odometry")
-                DataOutputStream(this).apply {
-                    writeByte(3)
-                    writeDouble(odometry.x)
-                    writeDouble(odometry.y)
-                    writeDouble(odometry.theta)
-                }
-            }
-            .toByteArray()
-            .let { remote.broadcast(TOPIC_MESSAGE, it) }
-        filter[inner]
-            ?.let { (_, _, p, d) ->
-                ByteArrayOutputStream()
-                    .apply {
-                        writeEnd("filter")
-                        DataOutputStream(this).apply {
-                            writeByte(3)
-                            writeDouble(p.x)
-                            writeDouble(p.y)
-                            writeDouble(d.value)
-                        }
-                    }
-            }
-            ?.toByteArray()
-            ?.let { remote.broadcast(TOPIC_MESSAGE, it) }
+        filter[inner]?.let { (_, _, p, d) ->
+            remote.paint("filter", p.x, p.y, d.value)
+        }
     }
 
     PM1.locked = false
