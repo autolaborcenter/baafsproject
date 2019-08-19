@@ -12,10 +12,10 @@ fun main() {
     val remote = remoteHub("baafs test")
     val lidar = Resource { _, _, list ->
         println(list.size)
-        remote.paint("faselase",
-                     list.map { (rho, theta) ->
-                         rho * cos(theta) to rho * sin(theta)
-                     })
+        remote.paintFrame2("faselase",
+                           list.map { (rho, theta) ->
+                               rho * cos(theta) to rho * sin(theta)
+                           })
     }
     remote.openAllNetworks()
     println("remote launched on ${remote.components.must<MulticastSockets>().address}")
