@@ -22,9 +22,14 @@ class ParticleFilter(private val size: Int)
     Stamped<Vector2D>,
     Odometry> {
     private val matcher = MatcherBase<Stamped<Odometry>, Stamped<Vector2D>>()
+
     var particles = emptyList<Odometry>()
 
-    var measureWeightTemp = .0
+    // 过程参数渗透
+    data class StepState(val measureWeight: Double,
+                         val particleWeight: Double)
+
+    var weightTemp = StepState(.0, .0)
 
     override fun measureMaster(item: Stamped<Odometry>) =
         matcher.add1(item).also { update() }
@@ -36,7 +41,7 @@ class ParticleFilter(private val size: Int)
     private var expectation = Odometry(.0, .0, vector2DOfZero(), .0.toRad())
 
     private fun update() {
-        generateSequence { matcher.match2() }
+        generateSequence(matcher::match2)
             // 插值
             .mapNotNull { (measure, before, after) ->
                 (after.time - before.time)
@@ -54,35 +59,29 @@ class ParticleFilter(private val size: Int)
                         initialize(measure, state)
                         return@forEach
                     }
-
                 // 计算控制量
                 val delta = state minusState lastState
                 val dM = measure - lastMeasure
                 stateSave = measure to state
-
                 // 初步过滤
                 val lengthM = dM.norm()
                 val lengthS = delta.p.norm()
                 if (abs(lengthM - lengthS) > 0.2) return@forEach
-
-                val p0 = (5 * lengthM) clamp 0.0..1.0
-                val p1 = (10 * abs(lengthM - lengthS)) clamp 0.0..1.0
+                // 计算定位权重
+                val p0 = (lengthM / 0.2) clamp 0.0..1.0
+                val p1 = (abs(lengthM - lengthS) / 0.1) clamp 0.0..1.0
                 val measureWeight = size * (1 - (0.5 * p0 + 0.5 * p1))
-                measureWeightTemp = measureWeight
-
                 // 更新粒子群
                 particles = particles.map { it plusDelta delta }
                 // 计算权重
                 val weights = particles.map { 1 - ((5 * (it.p - measure).norm()) clamp 0.0..1.0) }
-                // 计算方差
-                val sum = weights
-                              .sum()
-                              .takeIf { it > 1 }
+                val sum = weights.sum().takeIf { it > 1 }
                           ?: run {
                               initialize(measure, state)
                               return@forEach
                           }
-
+                weightTemp = StepState(measureWeight, sum)
+                // 计算期望和方差
                 var eP = vector2DOfZero()
                 var eD = .0
                 var eD2 = .0
@@ -96,7 +95,6 @@ class ParticleFilter(private val size: Int)
                 eD /= sum
                 eD2 /= sum
                 val sigma = sqrt((eD2 - eD * eD) clamp 0.1..0.49)
-
                 // 重采样
                 val random = java.util.Random()
                 particles = particles.mapIndexed { i, item ->
@@ -104,7 +102,7 @@ class ParticleFilter(private val size: Int)
                         Odometry(.0, .0, eP, (random.nextGaussian() * sigma + eD).toRad())
                     } else item
                 }
-
+                // 求期望
                 expectation = Odometry(.0, .0, eP, eD.toRad())
             }
     }
