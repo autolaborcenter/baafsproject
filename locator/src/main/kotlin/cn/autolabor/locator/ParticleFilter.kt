@@ -11,7 +11,6 @@ import org.mechdancer.geometry.angle.times
 import org.mechdancer.geometry.angle.toRad
 import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.min
 import kotlin.math.sqrt
 
 /**
@@ -67,16 +66,14 @@ class ParticleFilter(private val size: Int)
                 if (abs(lengthM - lengthS) > 0.2) return@forEach
 
                 val p0 = (5 * lengthM) clamp 0.0..1.0
-                val p1 = (5 * abs(lengthM - lengthS)) clamp 0.0..1.0
+                val p1 = (10 * abs(lengthM - lengthS)) clamp 0.0..1.0
                 val measureWeight = size * (1 - (0.5 * p0 + 0.5 * p1))
                 measureWeightTemp = measureWeight
 
                 // 更新粒子群
                 particles = particles.map { it plusDelta delta }
                 // 计算权重
-                val weights = particles.map {
-                    1 - min((it.p - measure).norm(), AcceptRange) / AcceptRange
-                }
+                val weights = particles.map { 1 - ((5 * (it.p - measure).norm()) clamp 0.0..1.0) }
                 // 计算方差
                 val sum = weights
                               .sum()
@@ -124,9 +121,6 @@ class ParticleFilter(private val size: Int)
             ?.let { expectation plusDelta (item.data minusState it) }
 
     private companion object {
-        const val AcceptRange = 0.1
-        const val AcceptDiff = 0.1
-
         operator fun Odometry.times(k: Double) =
             Odometry(s * k, a * k, p * k, d * k)
 
