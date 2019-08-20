@@ -39,6 +39,7 @@ dependencies {
     api(fileTree("libs"))
     api(project(":drivers"))
     api(project(":locator"))
+    api(project(":pathfollower"))
 
     testImplementation("junit", "junit", "+")
     testImplementation(kotlin("test-junit"))

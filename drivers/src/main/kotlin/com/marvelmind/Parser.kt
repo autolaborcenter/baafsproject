@@ -77,7 +77,7 @@ fun parse(buffer: List<Byte>): ParseInfo<Package> {
             ?.let { it + 7 + buffer[it + 4] }
             ?.takeIf { it in 1 until size }
             ?.let { buffer.subList(begin, it) }
-            ?: return ParseInfo(begin, size, Package.nothing)
+        ?: return ParseInfo(begin, size, Package.nothing)
     // crc 校验
     val result =
         if (crc16Check(`package`)) {

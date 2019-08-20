@@ -1,12 +1,13 @@
 <component name="ProjectDictionaryState">
-  <dictionary name="*">
-    <words>
-      <w>autolabor</w>
-      <w>baafs</w>
-      <w>faselase</w>
-      <w>lidar</w>
-      <w>marvelmind</w>
-      <w>odometry</w>
-    </words>
-  </dictionary>
+    <dictionary name="*">
+        <words>
+            <w>autolabor</w>
+            <w>baafs</w>
+            <w>faselase</w>
+            <w>lidar</w>
+            <w>marvelmind</w>
+            <w>odometry</w>
+            <w>pathfollower</w>
+        </words>
+    </dictionary>
 </component>
