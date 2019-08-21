@@ -23,7 +23,7 @@ class ParticleFilter(private val size: Int)
     Odometry> {
     private val matcher = MatcherBase<Stamped<Odometry>, Stamped<Vector2D>>()
 
-    var particles = emptyList<Odometry>()
+    var particles = emptyList<Pair<Odometry, Int>>()
 
     // 过程参数渗透
     data class StepState(val measureWeight: Double,
@@ -42,10 +42,13 @@ class ParticleFilter(private val size: Int)
 
     private fun update() {
         generateSequence(matcher::match2)
-            // 插值
+            // 匹配 ↑
+            // 插值 ↓
             .mapNotNull { (measure, before, after) ->
                 (after.time - before.time)
+                    // 一对匹配项间隔不应该超过 500 ms
                     .takeIf { it in 1..500 }
+                    // 进行线性插值
                     ?.let {
                         val k = (measure.time - before.time).toDouble() / it
                         measure.data to before.data * k + after.data * (1 - k)
@@ -72,9 +75,9 @@ class ParticleFilter(private val size: Int)
                 val p1 = (abs(lengthM - lengthS) / 0.1) clamp 0.0..1.0
                 val measureWeight = size * (1 - (0.5 * p0 + 0.5 * p1))
                 // 更新粒子群
-                particles = particles.map { it plusDelta delta }
+                particles = particles.map { (p, i) -> (p plusDelta delta) to (i + 1) }
                 // 计算权重
-                val weights = particles.map { 1 - ((5 * (it.p - measure).norm()) clamp 0.0..1.0) }
+                val weights = particles.map { (p, _) -> 1 - ((5 * (p.p - measure).norm()) clamp 0.0..1.0) }
                 val sum = weights.sum().takeIf { it > 1 }
                           ?: run {
                               initialize(measure, state)
@@ -85,7 +88,8 @@ class ParticleFilter(private val size: Int)
                 var eP = vector2DOfZero()
                 var eD = .0
                 var eD2 = .0
-                particles.forEachIndexed { i, (p, d) ->
+                particles.forEachIndexed { i, (odom, _) ->
+                    val (p, d) = odom
                     val k = weights[i]
                     eP += p * k
                     eD += k * d.value
@@ -99,7 +103,7 @@ class ParticleFilter(private val size: Int)
                 val random = java.util.Random()
                 particles = particles.mapIndexed { i, item ->
                     if (weights[i] < 0.2) {
-                        Odometry(eP, (random.nextGaussian() * sigma + eD).toRad())
+                        Odometry(eP, (random.nextGaussian() * sigma + eD).toRad()) to 0
                     } else item
                 }
                 // 求期望
@@ -107,10 +111,11 @@ class ParticleFilter(private val size: Int)
             }
     }
 
+    // 重新初始化
     private fun initialize(measure: Vector2D, state: Odometry) {
         stateSave = measure to state
         val step = 2 * PI / size
-        particles = List(size) { Odometry(measure, (it * step).toRad()) }
+        particles = List(size) { Odometry(measure, (it * step).toRad()) to 0 }
     }
 
     override operator fun get(item: Stamped<Odometry>) =
@@ -119,12 +124,15 @@ class ParticleFilter(private val size: Int)
             ?.let { expectation plusDelta (item.data minusState it) }
 
     private companion object {
+        // 里程计线性可加性（用于加权平均）
         operator fun Odometry.times(k: Double) =
             Odometry(p * k, d * k)
 
+        // 里程计线性可数乘（用于加权平均）
         operator fun Odometry.plus(other: Odometry) =
             Odometry(p + other.p, d rotate other.d)
 
+        // 限幅算法
         infix fun <T : Comparable<T>> T.clamp(range: ClosedRange<T>) =
             when {
                 this < range.start        -> range.start

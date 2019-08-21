@@ -28,7 +28,7 @@ fun main() {
         remote.paint("odometry", odometry.x, odometry.y, odometry.theta)
 
         filter.measureMaster(inner)
-        remote.paintFrame3("particles", filter.particles.map { (p, d) -> Triple(p.x, p.y, d.value) })
+        remote.paintFrame3("particles", filter.particles.map { (odom, _) -> Triple(odom.p.x, odom.p.y, odom.d.value) })
         val (measureWeight, particleWeight) = filter.weightTemp
         remote.paint("定位权重", measureWeight)
         remote.paint("粒子权重", particleWeight)
