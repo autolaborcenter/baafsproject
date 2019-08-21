@@ -75,9 +75,14 @@ class ParticleFilter(private val size: Int)
                 // 计算定位权重
                 val p0 = (lengthM / 0.2) clamp 0.0..1.0
                 val p1 = (abs(lengthM - lengthS) / 0.1) clamp 0.0..1.0
-                val measureWeight = size * (1 - (0.5 * p0 + 0.5 * p1))
+                val measureWeight = size / 2 * (1 - (0.5 * p0 + 0.5 * p1))
                 // 更新粒子群
-                particles = particles.map { (p, i) -> (p plusDelta delta) to min(i + 1, 10) }
+                val random = java.util.Random()
+                particles = particles.map { (p, i) ->
+                    (p plusDelta delta).let {
+                        it.copy(d = it.d rotate (random.nextGaussian() * 0.1).toRad())
+                    } to min(i + 1, 10)
+                }
                 // 计算权重
                 val weights = particles.map { (p, _) -> 1 - ((5 * (p.p - measure).norm()) clamp 0.0..1.0) }
                 val sum = weights.sum().takeIf { it > 1 }
@@ -102,7 +107,6 @@ class ParticleFilter(private val size: Int)
                 eD2 /= sum
                 val sigma = sqrt((eD2 - eD * eD) clamp 0.1..0.49)
                 // 重采样
-                val random = java.util.Random()
                 particles = particles.mapIndexed { i, item ->
                     if (weights[i] < 0.2) {
                         Odometry(eP, (random.nextGaussian() * sigma + eD).toRad()) to 0
