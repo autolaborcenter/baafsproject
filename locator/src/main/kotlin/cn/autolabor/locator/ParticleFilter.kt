@@ -11,6 +11,7 @@ import org.mechdancer.geometry.angle.times
 import org.mechdancer.geometry.angle.toRad
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.min
 import kotlin.math.sqrt
 
 /**
@@ -23,6 +24,7 @@ class ParticleFilter(private val size: Int)
     Odometry> {
     private val matcher = MatcherBase<Stamped<Odometry>, Stamped<Vector2D>>()
 
+    // 粒子：位姿 - 寿命
     var particles = emptyList<Pair<Odometry, Int>>()
 
     // 过程参数渗透
@@ -75,7 +77,7 @@ class ParticleFilter(private val size: Int)
                 val p1 = (abs(lengthM - lengthS) / 0.1) clamp 0.0..1.0
                 val measureWeight = size * (1 - (0.5 * p0 + 0.5 * p1))
                 // 更新粒子群
-                particles = particles.map { (p, i) -> (p plusDelta delta) to (i + 1) }
+                particles = particles.map { (p, i) -> (p plusDelta delta) to min(i + 1, 10) }
                 // 计算权重
                 val weights = particles.map { (p, _) -> 1 - ((5 * (p.p - measure).norm()) clamp 0.0..1.0) }
                 val sum = weights.sum().takeIf { it > 1 }
