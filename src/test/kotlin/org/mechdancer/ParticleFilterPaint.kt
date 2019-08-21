@@ -13,7 +13,7 @@ import kotlin.concurrent.thread
 
 fun main() {
     val remote = remoteHub("baafs test")
-    val filter = ParticleFilter(32)
+    val filter = ParticleFilter(128)
 
     val marvelmind = com.marvelmind.Resource { time, x, y ->
         println("$x $y")
