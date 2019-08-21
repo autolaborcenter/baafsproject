@@ -3,49 +3,35 @@ package cn.autolabor.utilities
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.plus
 import org.mechdancer.algebra.implement.vector.Vector2D
+import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.rotate
+import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.geometry.angle.unaryMinus
 
 /**
  * 里程计
- * @param s 总里程（米）
- * @param a 总转角（弧度）
  * @param p 位置
  * @param d 方向
  */
 data class Odometry(
-    val s: Double,
-    val a: Double,
-    val p: Vector2D,
-    val d: Angle
+    val p: Vector2D = vector2DOfZero(),
+    val d: Angle = .0.toRad()
 ) {
-    /**
-     * 里程增加
-     */
+    /** 增量 [delta] 累加到里程 */
     infix fun plusDelta(delta: Odometry) =
-        Odometry(s + delta.s,
-                 a + delta.a,
-                 p + delta.p.rotate(d),
+        Odometry(p + delta.p.rotate(d),
                  d rotate delta.d)
 
-    /**
-     * 里程减少
-     */
+    /** 里程回滚到增量 [delta] 之前 */
     infix fun minusDelta(delta: Odometry) =
         (d rotate -delta.d).let {
-            Odometry(s - delta.s,
-                     a - delta.a,
-                     p - delta.p.rotate(-it),
+            Odometry(p - delta.p.rotate(-it),
                      it)
         }
 
-    /**
-     * 里程减少
-     */
+    /** 计算里程从标记 [mark] 到当前状态的增量 */
     infix fun minusState(mark: Odometry) =
-        Odometry(s - mark.s,
-                 a - mark.a,
-                 (p - mark.p).rotate(-mark.d),
+        Odometry((p - mark.p).rotate(-mark.d),
                  d.rotate(-mark.d))
 }

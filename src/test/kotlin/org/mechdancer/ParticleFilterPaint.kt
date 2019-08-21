@@ -23,24 +23,17 @@ fun main() {
     }
     val pm1 = cn.autolabor.pm1.Resource { odometry ->
         val inner = Stamped(odometry.stamp,
-                            Odometry(odometry.s,
-                                     odometry.sa,
-                                     vector2DOf(odometry.x, odometry.y),
+                            Odometry(vector2DOf(odometry.x, odometry.y),
                                      odometry.theta.toRad()))
         remote.paint("odometry", odometry.x, odometry.y, odometry.theta)
 
         filter.measureMaster(inner)
-        remote.paintFrame3("particles",
-                           filter.particles.map { (_, _, p, d) ->
-                               Triple(p.x, p.y, d.value)
-                           })
+        remote.paintFrame3("particles", filter.particles.map { (p, d) -> Triple(p.x, p.y, d.value) })
         val (measureWeight, particleWeight) = filter.weightTemp
         remote.paint("定位权重", measureWeight)
         remote.paint("粒子权重", particleWeight)
 
-        filter[inner]?.let { (_, _, p, d) ->
-            remote.paint("filter", p.x, p.y, d.value)
-        }
+        filter[inner]?.let { (p, d) -> remote.paint("filter", p.x, p.y, d.value) }
     }
 
     PM1.locked = false

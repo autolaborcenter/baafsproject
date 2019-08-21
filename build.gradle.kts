@@ -8,7 +8,7 @@ plugins {
 buildScan {
     termsOfServiceUrl = "https://gradle.com/terms-of-service"
     termsOfServiceAgree = "yes"
-    publishAlways()
+//    publishAlways()
 }
 
 version = "1.0-SNAPSHOT"

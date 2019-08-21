@@ -38,7 +38,7 @@ class ParticleFilter(private val size: Int)
         matcher.add2(item).also { update() }
 
     private var stateSave: Pair<Vector2D, Odometry>? = null
-    private var expectation = Odometry(.0, .0, vector2DOfZero(), .0.toRad())
+    private var expectation = Odometry()
 
     private fun update() {
         generateSequence(matcher::match2)
@@ -85,7 +85,7 @@ class ParticleFilter(private val size: Int)
                 var eP = vector2DOfZero()
                 var eD = .0
                 var eD2 = .0
-                particles.forEachIndexed { i, (_, _, p, d) ->
+                particles.forEachIndexed { i, (p, d) ->
                     val k = weights[i]
                     eP += p * k
                     eD += k * d.value
@@ -99,18 +99,18 @@ class ParticleFilter(private val size: Int)
                 val random = java.util.Random()
                 particles = particles.mapIndexed { i, item ->
                     if (weights[i] < 0.2) {
-                        Odometry(.0, .0, eP, (random.nextGaussian() * sigma + eD).toRad())
+                        Odometry(eP, (random.nextGaussian() * sigma + eD).toRad())
                     } else item
                 }
                 // 求期望
-                expectation = Odometry(.0, .0, eP, eD.toRad())
+                expectation = Odometry(eP, eD.toRad())
             }
     }
 
     private fun initialize(measure: Vector2D, state: Odometry) {
         stateSave = measure to state
         val step = 2 * PI / size
-        particles = List(size) { Odometry(state.s, state.a, measure, (it * step).toRad()) }
+        particles = List(size) { Odometry(measure, (it * step).toRad()) }
     }
 
     override operator fun get(item: Stamped<Odometry>) =
@@ -120,10 +120,10 @@ class ParticleFilter(private val size: Int)
 
     private companion object {
         operator fun Odometry.times(k: Double) =
-            Odometry(s * k, a * k, p * k, d * k)
+            Odometry(p * k, d * k)
 
         operator fun Odometry.plus(other: Odometry) =
-            Odometry(s + other.s, a + other.a, p + other.p, d rotate other.d)
+            Odometry(p + other.p, d rotate other.d)
 
         infix fun <T : Comparable<T>> T.clamp(range: ClosedRange<T>) =
             when {
