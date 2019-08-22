@@ -78,11 +78,7 @@ class ParticleFilter(private val size: Int)
                 val measureWeight = size / 2 * (1 - (0.5 * p0 + 0.5 * p1))
                 // 更新粒子群
                 val random = java.util.Random()
-                particles = particles.map { (p, i) ->
-                    (p plusDelta delta).let {
-                        it.copy(d = it.d rotate (random.nextGaussian() * 0.1).toRad())
-                    } to min(i + 1, 10)
-                }
+                particles = particles.map { (p, i) -> (p plusDelta delta) to min(i + 1, 10) }
                 // 计算权重
                 val weights = particles.map { (p, _) -> 1 - ((5 * (p.p - measure).norm()) clamp 0.0..1.0) }
                 val sum = weights.sum().takeIf { it > 1 }
