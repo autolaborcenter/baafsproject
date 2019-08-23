@@ -2,7 +2,9 @@ package cn.autolabor.transform
 
 import org.mechdancer.algebra.core.Matrix
 import org.mechdancer.algebra.core.Vector
+import org.mechdancer.algebra.core.matrixView
 import org.mechdancer.algebra.function.matrix.dim
+import org.mechdancer.algebra.function.matrix.inverse
 import org.mechdancer.algebra.function.matrix.isNotSquare
 import org.mechdancer.algebra.function.matrix.times
 import org.mechdancer.algebra.implement.matrix.builder.matrix
@@ -31,11 +33,16 @@ class Transformation(private val matrix: Matrix) {
     operator fun times(others: Transformation) =
         Transformation(matrix * others.matrix)
 
+    operator fun unaryMinus() =
+        Transformation(matrix.inverse())
+
+    override fun toString() = matrix.matrixView()
+
     companion object {
         /**
          * 将位姿转化为位姿上坐标系的变换
          */
-        fun tansformation(
+        fun fromPose(
             p: Vector2D,
             d: Angle
         ) = d.toVector()

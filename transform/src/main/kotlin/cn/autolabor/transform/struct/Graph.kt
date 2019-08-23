@@ -53,15 +53,18 @@ fun <TNode : Any, TPath : Path<TNode>>
 
 /**
  * 单源最短路径算法
+ * 通过将无向图表现双向图兼容有向图和无向图
  */
-infix fun <TNode>
-    IMap2D<TNode, TNode, Number>.shortedFrom(
-    source: TNode
-): Map<TNode, Pair<Double, List<TNode>>> {
+fun <T, V>
+    IMap2D<T, T, V>.shortedFrom(
+    source: T,
+    cost: (V) -> Double
+): Map<T, Pair<Double, List<T>>> {
+    // 取出顶点
     val vertex = keys0.toMutableSet().apply { addAll(keys1) }.toSet()
 
-    val queue = LinkedList<TNode>()
-    val mark = hashSetOf<TNode>()
+    val queue = LinkedList<T>()
+    val mark = hashSetOf<T>()
     val d = vertex
         .associateWith {
             (if (source == it) .0 else Double.MAX_VALUE) to listOf(source)
@@ -73,20 +76,18 @@ infix fun <TNode>
         values0(head)
             .asSequence()
             .mapNotNull { (key, value) ->
-                value
-                    ?.toDouble()
-                    ?.let { key to it }
+                value?.let { key to cost(value) }
             }
-            .forEach { (t, c) ->
+            .forEach { (target, c) ->
                 val ds = d[head]!!
-                val dt = d[t]!!
+                val dt = d[target]!!
 
                 val new = ds.first + c
                 if (new < dt.first) {
-                    d[t] = new to (ds.second + t)
-                    if (t !in mark) {
-                        mark.add(t)
-                        queue.offer(t)
+                    d[target] = new to (ds.second + target)
+                    if (target !in mark) {
+                        mark.add(target)
+                        queue.offer(target)
                     }
                 }
             }
