@@ -20,6 +20,20 @@ allprojects {
         mavenCentral()
         jcenter()
     }
+    tasks.withType<KotlinCompile> {
+        kotlinOptions { jvmTarget = "1.8" }
+    }
+    tasks.withType<JavaCompile> {
+        sourceCompatibility = "1.8"
+        targetCompatibility = "1.8"
+    }
+    task<Jar>("sourcesJar") {
+        classifier = "sources"
+        group = "build"
+
+        from(sourceSets["main"].allSource)
+    }
+    tasks["jar"].dependsOn("sourcesJar")
 }
 
 subprojects {
@@ -28,9 +42,6 @@ subprojects {
 
         testImplementation("junit", "junit", "+")
         testImplementation(kotlin("test-junit"))
-    }
-    tasks.withType<KotlinCompile> {
-        kotlinOptions { jvmTarget = "1.8" }
     }
 }
 
@@ -48,7 +59,4 @@ dependencies {
     testImplementation("net.java.dev.jna", "jna", "+")
     testImplementation(kotlin("reflect"))
     testImplementation(fileTree("libs-test"))
-}
-tasks.withType<KotlinCompile> {
-    kotlinOptions { jvmTarget = "1.8" }
 }
