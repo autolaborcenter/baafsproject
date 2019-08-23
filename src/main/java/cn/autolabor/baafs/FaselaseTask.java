@@ -21,6 +21,10 @@ public class FaselaseTask extends AbstractTask {
     private final MessageHandle<MsgLidar> topicSender;
     private final Resource resource;
 
+    public String name(){
+        return resource.getResourceName();
+    }
+
     // 打开雷达资源，翻译数据帧并发送
     public FaselaseTask(String topic) {
         //noinspection unchecked

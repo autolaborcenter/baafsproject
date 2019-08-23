@@ -9,9 +9,7 @@ import cn.autolabor.pm1.sdk.PM1
  * 用户可自选调度器，反复调用 [invoke] 方法以运行
  */
 class Resource(private val callback: (Odometry) -> Unit) : Resource {
-    init {
-        PM1.initialize()
-    }
+    override val resourceName=PM1.initialize()
 
     override fun invoke() {
         callback(PM1.odometry.copy(stamp = System.currentTimeMillis()))

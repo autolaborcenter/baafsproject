@@ -21,6 +21,8 @@ class Resource(
         } ?: throw RuntimeException("cannot find marvelmind mobile beacon")
 
     private val buffer = ByteArray(32)
+    override val resourceName: String
+        get() = port.descriptivePortName
 
     override operator fun invoke() {
         port.readBytes(buffer, buffer.size.toLong())

@@ -51,11 +51,13 @@ class SerialPortFinder<T> private constructor() {
                 .run {
                     SerialPort
                         .getCommPorts()
+                        .also { println(it) }
                         .find { port ->
                             // 设置串口
                             port.baudRate = baudRate
                             port.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 100, 100)
                             if (!port.openPort()) return@find false
+                            println("try port ${port.descriptivePortName}")
                             // 发送激活码
                             if (activate.isNotEmpty()
                                 && activate.size != port.writeBytes(activate, activate.size.toLong())
