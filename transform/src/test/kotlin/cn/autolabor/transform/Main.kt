@@ -1,6 +1,7 @@
 package cn.autolabor.transform
 
 import cn.autolabor.transform.TransformSystem.Companion.Constant
+import cn.autolabor.transform.struct.from
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.geometry.angle.toRad
 import kotlin.math.PI
@@ -17,7 +18,7 @@ fun main() {
 
     Thread.sleep(200)
     println(system)
-    system["lidar" to "odometry"]
+    system["odometry" from "lidar"]
         ?.let { (cost, path, transformation) ->
             println("find transformation from odometry to map:")
             println("cost : $cost")
