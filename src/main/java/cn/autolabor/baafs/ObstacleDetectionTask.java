@@ -15,10 +15,13 @@ import cn.autolabor.message.sensor.MsgLidar;
 import cn.autolabor.util.reflect.TypeNode;
 
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
 
+@SuppressWarnings("WeakerAccess")
 @TaskProperties(name = "ObstacleDetectionTask")
 public class ObstacleDetectionTask extends AbstractTask {
 
@@ -45,15 +48,20 @@ public class ObstacleDetectionTask extends AbstractTask {
 
     private List<MsgPolygon> obstacles = new ArrayList<>();
 
-    @SuppressWarnings("unchecked")
     public ObstacleDetectionTask(String... name) {
         super(name);
-        clusterMaxDistance2 = Math.pow(clusterMaxDistance, 2);
-        Map<String, Map> object = (Map<String, Map>) ServerManager.me().getConfig("urdf", baseLinkFrame);
-        object.forEach((key, value) -> {
-            LidarInfo lidarInfo = new LidarInfo((Double) value.get("x"), (Double) value.get("y"), (Double) value.get("theta"), (Boolean) value.get("reverse"));
-            lidarInfos.put(key, lidarInfo);
-        });
+        clusterMaxDistance2 = clusterMaxDistance * clusterMaxDistance;
+        //noinspection unchecked
+        ((Map<String, Map>) ServerManager.me().getConfig("urdf", baseLinkFrame))
+            .forEach((key, value) -> {
+                LidarInfo lidarInfo = new LidarInfo(
+                    (Double) value.get("x"),
+                    (Double) value.get("y"),
+                    (Double) value.get("theta"),
+                    (Boolean) value.get("reverse")
+                );
+                lidarInfos.put(key, lidarInfo);
+            });
 
         lidarTopics.forEach(topic -> ServerManager.me().getOrCreateMessageHandle(topic, new TypeNode(MsgLidar.class)).addCallback(this, "mergeLidarData", new MessageSourceType[]{}));
     }
@@ -77,27 +85,35 @@ public class ObstacleDetectionTask extends AbstractTask {
 
     @TaskFunction(name = "updateObstaclePoints")
     public void updateObstaclePoints() {
-        List<Msg2DPoint> obstaclePoints = new ArrayList<>();
-        lidarData.forEach((key, value) -> {
-            LidarInfo info = lidarInfos.get(value.getHeader().getCoordinate());
-            for (int i = 0; i < value.getAngles().size(); i++) {
-                obstaclePoints.add(info.transform(value.getAngles().get(i), value.getDistances().get(i)));
-            }
-        });
+        // 雷达数据转障碍物点
+        List<Msg2DPoint> obstaclePoints =
+            lidarData
+                .values()
+                .stream()
+                .flatMap(value -> {
+                    LidarInfo info = lidarInfos.get(value.getHeader().getCoordinate());
+                    return IntStream
+                        .range(0, value.getAngles().size())
+                        .mapToObj(i ->
+                            info.transform(
+                                value.getAngles().get(i),
+                                value.getDistances().get(i)
+                            ));
+                })
+                .collect(Collectors.toList());
+
         obstaclePointsHandle.pushSubData(obstaclePoints);
 
         List<List<Msg2DPoint>> clusterPoints = cluster(obstaclePoints);
         obstacles.clear();
         for (int i = 1; i < clusterPoints.size(); i++) {
-            MsgPolygon msgPolygon = new MsgPolygon(baseLinkFrame, convexHull(clusterPoints.get(i)));
-            obstacles.add(msgPolygon);
+            obstacles.add(new MsgPolygon(baseLinkFrame, convexHull(clusterPoints.get(i))));
         }
 
         for (int j = 0; j < clusterPoints.get(0).size(); j++) {
             List<Msg2DPoint> singleObstacle = new ArrayList<>();
             singleObstacle.add(clusterPoints.get(0).get(j));
-            MsgPolygon msgPolygon = new MsgPolygon(baseLinkFrame, singleObstacle);
-            obstacles.add(msgPolygon);
+            obstacles.add(new MsgPolygon(baseLinkFrame, singleObstacle));
         }
         obstaclesHandle.pushSubData(obstacles);
 //        for (int i = 1; i < obstacles.size(); i++) {
