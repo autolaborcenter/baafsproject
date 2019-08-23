@@ -3,53 +3,10 @@ package cn.autolabor.transform.struct
 import org.mechdancer.common.collection.map2d.IMap2D
 import java.util.*
 
-/** 安全获取链表元素 */
-fun <TNode : Any, TPath : Path<TNode>>
-    Map<TNode, Iterable<TPath>>.getOrEmpty(node: TNode) =
-    getOrDefault(node, emptySet())
-
-/** 获取链表元素的字符串表示 */
-fun <TNode : Any, TPath : Path<TNode>>
-    Map<TNode, Iterable<TPath>>.view(node: TNode) =
-    "$node: ${getOrEmpty(node)}"
-
 /**
- * 从[root]开始（反）拓扑排序
- * @return 连通的、可顺序构造的节点列表
+ * 逆转 [to]
  */
-fun <TNode : Any, TPath : Path<TNode>>
-    Map<TNode, Iterable<TPath>>.sort(root: TNode) =
-    mutableListOf(root)
-        .also { sub ->
-            // 剩余项
-            val rest = keys.toMutableSet().apply { remove(root) }
-            // 已接纳指针
-            var ptr = 0
-            // 若仍有未连通的
-            while (rest.isNotEmpty())
-            // 已连通的全部检查过，直接返回
-            // 否则尝试从邻接表中获取
-                get(sub.getOrNull(ptr++) ?: break)
-                    // 找到所有连接到的节点
-                    ?.map(Path<TNode>::destination)
-                    ?.toMutableSet()
-                    // 取其中非叶子但未连接的
-                    ?.apply { retainAll(rest) }
-                    // 从未连接的移除，添加到已连接的
-                    ?.also {
-                        rest.removeAll(it)
-                        sub.addAll(it)
-                    }
-        }
-
-/** 构造包含[root]的连通子图 */
-fun <TNode : Any, TPath : Path<TNode>>
-    Map<TNode, Iterable<TPath>>.subWith(root: TNode) =
-    sort(root)
-        .associateWith {
-            val list = getOrEmpty(it)
-            (list as? Set) ?: list.toSet()
-        }
+infix fun <A, B> A.from(that: B): Pair<B, A> = Pair(that, this)
 
 /**
  * 单源最短路径算法
@@ -62,7 +19,7 @@ fun <T, V>
 ): Map<T, Pair<Double, List<T>>> {
     // 取出顶点
     val vertex = keys0.toMutableSet().apply { addAll(keys1) }.toSet()
-
+    // 初始化算法使用的容器
     val queue = LinkedList<T>()
     val mark = hashSetOf<T>()
     val d = vertex
@@ -70,9 +27,10 @@ fun <T, V>
             (if (source == it) .0 else Double.MAX_VALUE) to listOf(source)
         }
         .toMutableMap()
-
+    // 从起点开始扩展
     var head = source
     while (true) {
+        // 对所有从某个点出发的路径
         values0(head)
             .asSequence()
             .mapNotNull { (key, value) ->
@@ -85,13 +43,10 @@ fun <T, V>
                 val new = ds.first + c
                 if (new < dt.first) {
                     d[target] = new to (ds.second + target)
-                    if (target !in mark) {
-                        mark.add(target)
-                        queue.offer(target)
-                    }
+                    if (mark.add(target)) queue.offer(target)
                 }
             }
-        // 取出头
+        // 取出头，队空结束
         head = queue.poll() ?: break
         mark.remove(head)
     }
