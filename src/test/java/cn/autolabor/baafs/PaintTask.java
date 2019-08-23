@@ -30,7 +30,6 @@ public class PaintTask extends AbstractTask {
     }
 
     public static void main(String[] args) {
-        System.out.println(111111111);
         FaselaseTask lidarTask = new FaselaseTask("faselase");
         System.out.println(lidarTask.name());
         ServerManager.me().register(lidarTask);
@@ -97,5 +96,4 @@ public class PaintTask extends AbstractTask {
         broadcaster.broadcast((byte) 6, stream.toByteArray());
         System.out.println("PrintObstacles!");
     }
-
 }

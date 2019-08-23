@@ -333,7 +333,5 @@ public class ObstacleDetectionTask extends AbstractTask {
             msg2DPoint.setY(this.y + x * Math.sin(this.theta) + y * Math.cos(this.theta));
             return msg2DPoint;
         }
-
     }
-
 }

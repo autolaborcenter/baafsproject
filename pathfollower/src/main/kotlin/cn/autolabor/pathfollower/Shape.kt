@@ -2,7 +2,6 @@ package cn.autolabor.pathfollower
 
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
-import org.mechdancer.algebra.function.vector.plus
 import org.mechdancer.algebra.function.vector.times
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
@@ -13,6 +12,8 @@ import kotlin.math.sin
 
 /**
  * 任意以 [vertex] 为顶点的**凸多边形**
+ *
+ * 若涉及移动问题，应将图形的重心设为 `{0, 0}`
  */
 open class Shape(val vertex: List<Vector2D>) {
     init {
@@ -40,24 +41,21 @@ open class Shape(val vertex: List<Vector2D>) {
 }
 
 /**
- * 圆心为 [center]， 半径为 [radius] 的正圆，并从其上等间隔采样 [vertex] 个点作为顶点
+ * 半径为 [radius] 的正圆，并从其上等间隔采样 [vertex] 个点作为顶点
  */
-class Circle(val center: Vector2D,
-             val radius: Double,
-             vertexCount: Int = 32
-) : Shape(run {
+class Circle(val radius: Double, vertexCount: Int = 32)
+    : Shape(run {
     val step = 2 * PI / vertexCount
     List(vertexCount) { i ->
         val theta = i * step
-        vector2DOf(cos(theta), sin(theta)) * radius + center
+        vector2DOf(cos(theta), sin(theta)) * radius
     }
 }) {
     init {
         if (radius < 0) throw IllegalArgumentException("radius must not less than .0")
     }
 
-    override operator fun contains(point: Vector2D) =
-        (point - center).norm() < radius
+    override operator fun contains(point: Vector2D) = point.norm() < radius
 
     override fun calculateSize() = PI * radius * radius
 }

@@ -2,9 +2,13 @@ package org.mechdancer
 
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.protocol.writeEnd
-import org.mechdancer.remote.resources.UdpCmd
+import org.mechdancer.remote.resources.Command
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
+
+private object PaintCommand : Command {
+    override val id = 6.toByte()
+}
 
 /**
  * 画任意内容
@@ -19,7 +23,7 @@ fun RemoteHub.paint(
             stream.block()
         }
         .toByteArray()
-        .let { broadcast(UdpCmd.TOPIC_MESSAGE, it) }
+        .let { broadcast(PaintCommand, it) }
 }
 
 enum class FrameType(val value: Int) {
