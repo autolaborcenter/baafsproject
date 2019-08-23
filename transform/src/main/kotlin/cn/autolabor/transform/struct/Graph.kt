@@ -1,5 +1,6 @@
 package cn.autolabor.transform.struct
 
+import org.mechdancer.common.collection.map2d.IMap2D
 import java.util.*
 
 /** 安全获取链表元素 */
@@ -54,10 +55,10 @@ fun <TNode : Any, TPath : Path<TNode>>
  * 单源最短路径算法
  */
 infix fun <TNode>
-    Map<Pair<TNode, TNode>, Number>.shortedFrom(
+    IMap2D<TNode, TNode, Number>.shortedFrom(
     source: TNode
 ): Map<TNode, Pair<Double, List<TNode>>> {
-    val vertex = keys.flatMap { (s, t) -> listOf(s, t) }.toSet()
+    val vertex = keys0.toMutableSet().apply { addAll(keys1) }.toSet()
 
     val queue = LinkedList<TNode>()
     val mark = hashSetOf<TNode>()
@@ -69,14 +70,18 @@ infix fun <TNode>
 
     var head = source
     while (true) {
-        asSequence()
-            .filter { (s, _) -> s.first == head }
-            .forEach { (e, c) ->
-                val (s, t) = e
-                val ds = d[s]!!
+        values0(head)
+            .asSequence()
+            .mapNotNull { (key, value) ->
+                value
+                    ?.toDouble()
+                    ?.let { key to it }
+            }
+            .forEach { (t, c) ->
+                val ds = d[head]!!
                 val dt = d[t]!!
 
-                val new = ds.first + c.toDouble()
+                val new = ds.first + c
                 if (new < dt.first) {
                     d[t] = new to (ds.second + t)
                     if (t !in mark) {

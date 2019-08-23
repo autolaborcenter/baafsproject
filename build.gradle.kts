@@ -13,6 +13,7 @@ buildScan {
 
 version = "1.0-SNAPSHOT"
 
+// 包括主项目的构建脚本
 allprojects {
     apply(plugin = "kotlin")
     group = "cn.autolabor"
@@ -27,17 +28,21 @@ allprojects {
         sourceCompatibility = "1.8"
         targetCompatibility = "1.8"
     }
-    task<Jar>("sourcesJar") {
-        classifier = "sources"
+    // 源码导出任务
+    val sourceTaskName = "sourcesJar"
+    task<Jar>(sourceTaskName) {
+        archiveClassifier.set("sources")
         group = "build"
 
         from(sourceSets["main"].allSource)
     }
-    tasks["jar"].dependsOn("sourcesJar")
+    tasks["jar"].dependsOn(sourceTaskName)
 }
 
+// 排除主项目的构建脚本
 subprojects {
     dependencies {
+        // 子项目自动依赖 kotlin 标准库
         implementation(kotlin("stdlib-jdk8"))
 
         testImplementation("junit", "junit", "+")
@@ -45,7 +50,9 @@ subprojects {
     }
 }
 
+// 主项目依赖项
 dependencies {
+    // 导出必要的依赖
     api(kotlin("stdlib-jdk8"))
     api(fileTree("libs"))
     api(project(":drivers"))

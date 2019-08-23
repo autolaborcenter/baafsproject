@@ -36,6 +36,7 @@ public class FaselaseTask extends AbstractTask {
             // 发送
             MsgLidar msg = new MsgLidar();
             msg.getHeader().setStamp(end);
+            msg.getHeader().setCoordinate("lidar");
             msg.setDistances(distances);
             msg.setAngles(angles);
             topicSender.pushSubData(msg);
