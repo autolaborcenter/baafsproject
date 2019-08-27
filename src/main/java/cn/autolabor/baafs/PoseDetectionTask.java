@@ -1,17 +1,19 @@
 package cn.autolabor.baafs;
 
-import cn.autolabor.core.annotation.FilterTask;
+import cn.autolabor.core.annotation.InjectMessage;
 import cn.autolabor.core.annotation.TaskFunction;
 import cn.autolabor.core.annotation.TaskParameter;
 import cn.autolabor.core.annotation.TaskProperties;
-import cn.autolabor.core.server.ServerManager;
 import cn.autolabor.core.server.executor.AbstractTask;
+import cn.autolabor.core.server.message.MessageHandle;
 import cn.autolabor.message.navigation.Msg2DPoint;
 import cn.autolabor.message.navigation.Msg2DPose;
 import cn.autolabor.message.navigation.MsgPolygon;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static cn.autolabor.baafs.GeometricUtil.detectCollision;
 
 @TaskProperties
 public class PoseDetectionTask extends AbstractTask {
@@ -20,30 +22,21 @@ public class PoseDetectionTask extends AbstractTask {
     List<List<Double>> outline;
     @TaskParameter(name = "baseLinkFrame", value = "baseLink")
     private String baseLinkFrame;
-    private ObstacleDetectionTask obstacleDetectionTask;
+
+    @InjectMessage(topic = "obstacles")
+    private MessageHandle<List<MsgPolygon>> obstaclesHandle;
 
     public PoseDetectionTask(String... name) {
         super(name);
     }
 
-    public static void main(String[] args) {
-        ServerManager.me().register(new PoseDetectionTask());
-    }
-
-    @FilterTask
-    @TaskFunction
-    public void searchObstacleDetectionTask(AbstractTask task) {
-        if (task instanceof ObstacleDetectionTask) {
-            obstacleDetectionTask = (ObstacleDetectionTask) task;
-        }
-    }
-
     @TaskFunction
     public List<Msg2DPose> filterPoses(List<Msg2DPose> poses) {
+        List<MsgPolygon> obstacles = obstaclesHandle.getFirstData();
         List<Msg2DPose> out = new ArrayList<>();
-        if (obstacleDetectionTask != null) {
+        if (obstacles != null) {
             poses.forEach(p -> {
-                if (!obstacleDetectionTask.detectCollision(transform(p))) {
+                if (!detectCollision(obstacles, transform(p))) {
                     out.add(p);
                 }
             });

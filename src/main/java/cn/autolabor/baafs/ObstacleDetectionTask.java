@@ -18,8 +18,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static java.lang.Math.max;
-import static java.lang.Math.min;
+import static cn.autolabor.baafs.GeometricUtil.convexHull;
 
 @SuppressWarnings("WeakerAccess")
 @TaskProperties(name = "ObstacleDetectionTask")
@@ -29,6 +28,8 @@ public class ObstacleDetectionTask extends AbstractTask {
     MessageHandle<List<Msg2DPoint>> obstaclePointsHandle;
     @InjectMessage(topic = "obstacles")
     MessageHandle<List<MsgPolygon>> obstaclesHandle;
+
+
     @TaskParameter(name = "clusterMinPoints", value = "2")
     private int clusterMinPoints;
     @TaskParameter(name = "clusterMaxPoints", value = "30")
@@ -42,6 +43,7 @@ public class ObstacleDetectionTask extends AbstractTask {
     private List<String> lidarTopics;
     @TaskParameter(name = "timeout", value = "50")
     private double timeout;
+
     private Map<String, LidarInfo> lidarInfos = new HashMap<>();
     private Map<String, MsgLidar> lidarData = new HashMap<>();
     private Map<String, Long> lastTimeMap = new HashMap<>();
@@ -116,71 +118,6 @@ public class ObstacleDetectionTask extends AbstractTask {
             obstacles.add(new MsgPolygon(baseLinkFrame, singleObstacle));
         }
         obstaclesHandle.pushSubData(obstacles);
-//        for (int i = 1; i < obstacles.size(); i++) {
-//            MsgPolygon polygon = obstacles.get(i);
-//            for (int j = 0; j < polygon.getPoints().size(); j++) {
-//                System.out.println(String.format("%5.4f, %5.4f", polygon.getPoints().get(j).getX(), polygon.getPoints().get(j).getY()));
-//            }
-//            System.out.println("========");
-//        }
-    }
-
-    @TaskFunction(name = "detectCollision")
-    public boolean detectCollision(MsgPolygon checkData) {
-        List<Msg2DPoint> checkList = checkData.getPoints();
-        for (int i = 0; i < obstacles.size(); i++) {
-            List<Msg2DPoint> obstacle = obstacles.get(i).getPoints();
-            if (i == 0) {
-                // 单独离散点
-                if (obstacle.stream().anyMatch(p -> checkPointInside(p, checkList))) {
-                    return true;
-                }
-            } else {
-                // 非离散点情况
-                // 判断包含关系
-                boolean insideFlag = checkList.stream().noneMatch(p -> checkPointInside(p, obstacle)) && obstacle.stream().noneMatch(p -> checkPointInside(p, checkList));
-                if (insideFlag) {
-                    return true;
-                }
-                // 判断线相交关系
-                if (obstacle.size() > 2 && checkList.size() > 2) {
-                    int p, s;
-                    for (p = 0; p < obstacle.size() - 1; p++) {
-                        for (s = 0; s < checkList.size() - 1; s++) {
-                            if (checkLineCross(obstacle.get(p), obstacle.get(p + 1), checkList.get(s), checkList.get(s + 1))) {
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    private boolean checkLineCross(Msg2DPoint a, Msg2DPoint b, Msg2DPoint c, Msg2DPoint d) {
-        if (max(c.getX(), d.getX()) < min(a.getX(), d.getX()) || max(c.getY(), d.getY()) < min(a.getY(), b.getY()) || max(a.getX(), b.getX()) < min(c.getX(), d.getX()) || max(a.getY(), b.getY()) < min(c.getY(), d.getY())) {
-            return false;
-        } else {
-            return (cross(a, c, d) * cross(b, c, d) <= 0) && (cross(c, a, b) * cross(d, a, b) <= 0);
-        }
-    }
-
-    private boolean checkPointInside(Msg2DPoint point, List<Msg2DPoint> path) {
-        boolean result = false;
-        if (path.size() > 2) {
-            for (int i = 0; i < path.size() - 1; i++) {
-                if ((path.get(i).getY() > point.getY()) != (path.get(i + 1).getY() > point.getY()) && (point.getX() < (path.get(i + 1).getX() - path.get(i).getX()) * (point.getY() - path.get(i).getY()) / (path.get(i + 1).getY() - path.get(i).getY()) + path.get(i).getX())) {
-                    result = !result;
-                }
-            }
-            return result;
-        } else if (path.size() == 1) {
-            Msg2DPoint pathPoint = path.get(0);
-            return (pathPoint.getX() == point.getX()) && (pathPoint.getY() == point.getY());
-        } else {
-            return false;
-        }
     }
 
     private List<List<Msg2DPoint>> cluster(List<Msg2DPoint> points) {
@@ -226,87 +163,6 @@ public class ObstacleDetectionTask extends AbstractTask {
         }
         return clusters;
 
-    }
-
-    private List<Msg2DPoint> convexHull(List<Msg2DPoint> points) {
-        LinkedList<Msg2DPoint> polygon = new LinkedList<>();
-        points.sort(Comparator.comparingDouble(Msg2DPoint::getX).thenComparingDouble(Msg2DPoint::getY));
-
-        int i = 0;
-        // 找左侧边值点
-        int minmin = 0;
-        int minmax = 0;
-        double xmin = points.get(0).getX();
-        for (i = 1; i < points.size(); i++) {
-            if (points.get(i).getX() != xmin) {
-                break;
-            }
-        }
-        minmax = i - 1;
-        // 一条线上
-        if (minmax == points.size() - 1) {
-            polygon.add(points.get(minmin));
-            if (points.get(minmax).getY() != points.get(minmin).getY()) {
-                polygon.add(points.get(minmax));
-            }
-            polygon.add(points.get(minmin));
-        }
-        // 找右侧边值点
-        int maxmin = points.size() - 1;
-        int maxmax = maxmin;
-        double xmax = points.get(points.size() - 1).getX();
-        for (i = points.size() - 2; i >= 0; i--) {
-            if (points.get(i).getX() != xmax) {
-                break;
-            }
-        }
-        maxmin = i + 1;
-        // 找下边界凸轮廓
-        polygon.add(points.get(minmin));
-        for (i = minmax + 1; i <= maxmin; i++) {
-            // 下边界以上数据剔除
-            if (cross(points.get(minmin), points.get(maxmin), points.get(i)) >= 0 && i < maxmin) {
-                continue;
-            }
-
-            while (polygon.size() > 1) {
-                if (cross(polygon.get(polygon.size() - 2), polygon.getLast(), points.get(i)) > 0) {
-                    break;
-                }
-                polygon.removeLast();
-            }
-            polygon.add(points.get(i));
-        }
-        // 连接maxmax
-        if (maxmax != maxmin) {
-            polygon.add(points.get(maxmax));
-        }
-        // 找上边界凸轮廓
-        int bot = polygon.size();
-        for (i = maxmin - 1; i >= minmax; i--) {
-            if (cross(points.get(maxmax), points.get(minmax), points.get(i)) >= 0 && i > minmax) {
-                continue;
-            }
-
-            while (polygon.size() > bot) {
-                if (cross(polygon.get(polygon.size() - 2), polygon.getLast(), points.get(i)) > 0) {
-                    break;
-                }
-                polygon.removeLast();
-            }
-
-            polygon.add(points.get(i));
-        }
-        // 连接minmin
-        if (minmax != minmin) {
-            polygon.add(points.get(minmin));
-        }
-
-        return polygon;
-    }
-
-    private double cross(Msg2DPoint o, Msg2DPoint a, Msg2DPoint b) {
-        return (a.getX() - o.getX()) * (b.getY() - o.getY()) - (a.getY() - o.getY()) * (b.getX() - o.getX());
     }
 
     private List<Integer> regionQuery(List<Msg2DPoint> points, int index) {
