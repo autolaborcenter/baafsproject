@@ -1,8 +1,8 @@
 package cn.autolabor.pathfollower
 
-import cn.autolabor.pathfollower.PathFollower.ControlValue
 import cn.autolabor.transform.Transformation
 import org.mechdancer.algebra.core.Vector
+import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -27,7 +27,7 @@ class VirtualLightSensor(
     operator fun invoke(
         baseLinkFromMap: Transformation,
         path: Iterable<Vector2D>
-    ): ControlValue {
+    ): Pair<Int, Double> {
         // 地图到传感器坐标的变换
         val sensorFromMap =
             fromBaseLink * baseLinkFromMap
@@ -53,26 +53,28 @@ class VirtualLightSensor(
                 .map(Vector::to2D)
                 .toList()
         // 处理路径丢失情况
-        if (local.isEmpty())
-            TODO("处理路径丢失情况")
+        if (local.size < 3) return -1 to .0
         // 传感器栅格化
         val shape = lightRange.vertex
+        // 起点终点方向
+        val vb = local[1] - local[0]
+        val ve = local.asReversed().let { it[0] - it[1] }
         // 离局部路径终点最近的点序号
         val index0 = shape
             .asSequence()
             .mapIndexed { i, p ->
-                i to (p - local.last()).norm()
+                i to ((p - local.last()) dot ve)
             }
-            .minBy { (_, distance) -> distance }!!
+            .maxBy { (_, distance) -> distance }!!
             .first
         // 确定填色区域
         val area =
             shape
                 .asSequence()
                 .mapIndexed { i, p ->
-                    i to (p - local.first()).norm()
+                    i to ((local.first() - p) dot vb)
                 }
-                .minBy { (_, distance) -> distance }!!
+                .maxBy { (_, distance) -> distance }!!
                 .first
                 .let {
                     if (it < index0)
@@ -85,9 +87,6 @@ class VirtualLightSensor(
                 }
                 .let(::Shape)
         // 计算误差
-        return ControlValue(
-            path.indexOfFirst { (this.local.first() - it).norm() < 0.01 },
-            2 * (0.5 - area.size / lightRange.size)
-        )
+        return path.indexOfFirst { (this.local.first() - it).norm() < 0.01 } to 2 * (0.5 - area.size / lightRange.size)
     }
 }

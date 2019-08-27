@@ -25,8 +25,7 @@ class Transformation(private val matrix: Matrix) {
 
     /** 对 [vector] 应用变换 */
     operator fun invoke(vector: Vector): Vector {
-        if (matrix.dim - vector.dim != 1)
-            throw IllegalArgumentException("a ${dim}D Transformation cannot transform ${vector.dim}D vector")
+        require(matrix.dim - vector.dim == 1) { "a ${dim}D Transformation cannot transform ${vector.dim}D vector" }
         return (matrix * (vector.toList() + 1.0).toListVector()).select(0 until dim)
     }
 
