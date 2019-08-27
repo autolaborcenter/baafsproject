@@ -5,7 +5,11 @@ import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.Vector2D
+import org.mechdancer.algebra.implement.vector.to2D
+import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.geometry.angle.adjust
 import org.mechdancer.geometry.angle.toAngle
+import org.mechdancer.geometry.angle.toRad
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.min
@@ -41,24 +45,41 @@ class PIDPathFollower(
             ?: return .0 to null
 
         pass += passCount
-        if (sensor.local.size < 3)
+        if (sensor.local.size < 2)
             return null to null
 
-        val tip = pathMarked
-            .subList(pass, pass + sensor.local.size)
-            .mapIndexed { i, (_, it) -> ItemIndexed(it, i) }
-            .filter { it.value < cos(PI / 3) }
-            .minBy { it.value }
-            ?.index
-            ?.also {
-                if (it < 2) {
-                    pass += it + 1
-                    return null to
-                        (sensor.local[it + 1] - sensor.local[it])
-                            .toAngle()
-                            .asRadian()
+        val tip: Int? =
+            pathMarked
+                .subList(pass, pass + sensor.local.size)
+                .mapIndexed { i, (_, it) -> ItemIndexed(it, i) }
+                .filter { it.value < cos(PI / 3) }
+                .minBy { it.value }
+                ?.index
+                ?.let { i ->
+                    if (i >= 2) i
+                    else {
+                        val target =
+                            (sensor.local[i + 1] - sensor.local[i])
+                                .toAngle()
+                                .asRadian()
+                        val current =
+                            (-fromMap)(vector2DOf(1, 0))
+                                .to2D()
+                                .toAngle()
+                                .asRadian()
+                        val delta =
+                            (target - current)
+                                .toRad()
+                                .adjust()
+                                .value
+
+                        if (delta > PI / 6) {
+                            pass += i + 1
+                            return null to delta
+                        }
+                        null
+                    }
                 }
-            }
 
         val actual = tip?.let { sensor(fromMap, sensor.local.subList(0, it + 1)) }
                          ?.second
@@ -68,7 +89,7 @@ class PIDPathFollower(
         i = memory * i + (1 - memory) * actual
         val dd = actual - d
         d = value
-        return 0.02 to ka * (actual + kd * dd + ki * i)
+        return 0.1 to ka * (actual + kd * dd + ki * i)
     }
 
     data class ItemIndexed<T>(val value: T, val index: Int)

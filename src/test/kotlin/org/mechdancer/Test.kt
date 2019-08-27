@@ -11,21 +11,17 @@ import cn.autolabor.transform.Transformation
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.Vector2D
-import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.console.parser.display
 import org.mechdancer.console.parser.feedback
 import org.mechdancer.dependency.must
-import org.mechdancer.geometry.angle.adjust
-import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.remote.presets.remoteHub
 import org.mechdancer.remote.resources.MulticastSockets
 import java.io.File
 import java.net.InetSocketAddress
 import kotlin.concurrent.thread
-import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.sign
 
@@ -146,20 +142,11 @@ fun main() {
                                     PM1.setCommandEnabled(false)
                                     println("error")
                                 }
-                                else ->
-                                    (-fromMap)(vector2DOf(1, 0))
-                                        .to2D()
-                                        .toAngle()
-                                        .asRadian()
-                                        .let { w - it }
-                                        .toRad()
-                                        .adjust()
-                                        .value
-                                        .takeIf { abs(it) > PI / 6 }
-                                        ?.also { delta ->
-                                            println("turn: $delta")
-                                            PM1.driveSpatial(.0, delta.sign * .5, .0, abs(delta))
-                                        }
+                                else -> {
+                                    PM1.drive(.0, .0)
+                                    Thread.sleep(1000)
+                                    PM1.driveSpatial(.0, w.sign * .5, .0, abs(w))
+                                }
                             }
                             else -> when (w) {
                                 null -> {
@@ -167,16 +154,14 @@ fun main() {
                                     PM1.setCommandEnabled(false)
                                     println("finish")
                                 }
-                                else -> {
-                                    painter.paint("ω", w)
+                                else ->
                                     PM1.drive(v, w)
-                                }
                             }
                         }
                     }
                 follower
                     .sensor
-                    .sensorRangeTemp
+                    .rangeShape
                     .map { it.x to it.y }
                     .let { it + it.first() }
                     .let { painter.paintFrame2("sensor", it) }
@@ -185,6 +170,11 @@ fun main() {
                     .local
                     .map { it.x to it.y }
                     .let { painter.paintFrame2("local", it) }
+                follower
+                    .sensor
+                    .local
+                    .lastOrNull()
+                    ?.let { painter.paintFrame2("last", listOf(it.x to it.y)) }
                 Thread.sleep(100)
             } else {
                 followLock.wait()

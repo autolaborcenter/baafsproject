@@ -14,7 +14,7 @@ class VirtualLightSensor(
     private val lightRange: Shape
 ) {
     // DELETE ME
-    val fromBaseLinkTemp get() = fromBaseLink
+    var rangeShape = listOf<Vector2D>()
 
     // DELETE ME
     var sensorRangeTemp = lightRange.vertex
@@ -53,7 +53,7 @@ class VirtualLightSensor(
                 .map(Vector::to2D)
                 .toList()
         // 处理路径丢失情况
-        if (local.size < 3) return -1 to .0
+        if (local.size < 2) return -1 to .0
         // 传感器栅格化
         val shape = lightRange.vertex
         // 起点终点方向
@@ -86,6 +86,7 @@ class VirtualLightSensor(
                     local + List(it) { i -> shape[(index0 + i) % shape.size] }
                 }
                 .let(::Shape)
+        rangeShape = area.vertex.map(sensorToMap::invoke).map(Vector::to2D)
         // 计算误差
         return path.indexOfFirst { (this.local.first() - it).norm() < 0.01 } to 2 * (0.5 - area.size / lightRange.size)
     }
