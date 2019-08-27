@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.3.41"
+    kotlin("jvm") version "1.3.50"
     `build-scan`
 }
 
@@ -55,6 +55,7 @@ dependencies {
     // 导出必要的依赖
     api(kotlin("stdlib-jdk8"))
     api(fileTree("libs"))
+    api(project(":transform"))
     api(project(":drivers"))
     api(project(":locator"))
     api(project(":pathfollower"))

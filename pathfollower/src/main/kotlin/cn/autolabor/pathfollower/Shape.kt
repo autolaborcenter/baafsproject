@@ -17,7 +17,7 @@ import kotlin.math.sin
  */
 open class Shape(val vertex: List<Vector2D>) {
     init {
-        if (vertex.size < 3) throw IllegalArgumentException("vertex count must be more than 3")
+        require(vertex.size >= 3) { "vertex count must be more than 3" }
     }
 
     val size by lazy { calculateSize() }
@@ -52,7 +52,7 @@ class Circle(val radius: Double, vertexCount: Int = 32)
     }
 }) {
     init {
-        if (radius < 0) throw IllegalArgumentException("radius must not less than .0")
+        require(radius >= 0) { "radius must not less than .0" }
     }
 
     override operator fun contains(point: Vector2D) = point.norm() < radius

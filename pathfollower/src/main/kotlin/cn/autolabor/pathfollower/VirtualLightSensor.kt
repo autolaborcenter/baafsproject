@@ -1,5 +1,6 @@
 package cn.autolabor.pathfollower
 
+import cn.autolabor.pathfollower.PathFollower.ControlValue
 import cn.autolabor.transform.Transformation
 import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.function.vector.minus
@@ -12,24 +13,44 @@ class VirtualLightSensor(
     private val fromBaseLink: Transformation,
     private val lightRange: Shape
 ) {
+    // DELETE ME
+    val fromBaseLinkTemp get() = fromBaseLink
+
+    // DELETE ME
+    var sensorRangeTemp = lightRange.vertex
+
+    /** 局部路径（地图坐标系） */
+    var local = listOf<Vector2D>()
+        private set
+
     /** 虚拟光值计算 */
     operator fun invoke(
         baseLinkFromMap: Transformation,
-        path: List<Vector2D>
-    ): Double {
+        path: Iterable<Vector2D>
+    ): ControlValue {
         // 地图到传感器坐标的变换
         val sensorFromMap =
             fromBaseLink * baseLinkFromMap
-        // 转化路径到传感器坐标系
-        val pathInSensor =
+        // 转化路径到传感器坐标系并约束局部路径
+        val local =
             path.asSequence()
                 .map(sensorFromMap::invoke)
                 .map(Vector::to2D)
-                .toList()
-        // 约束局部路径
-        val local =
-            path.dropWhile { it !in lightRange }
+                .dropWhile { it !in lightRange }
                 .takeWhile { it in lightRange }
+                .toList()
+        val sensorToMap = -sensorFromMap
+        this.local = local
+            .asSequence()
+            .map(sensorToMap::invoke)
+            .map(Vector::to2D)
+            .toList()
+        sensorRangeTemp =
+            lightRange
+                .vertex
+                .asSequence()
+                .map(sensorToMap::invoke)
+                .map(Vector::to2D)
                 .toList()
         // 处理路径丢失情况
         if (local.isEmpty())
@@ -64,6 +85,9 @@ class VirtualLightSensor(
                 }
                 .let(::Shape)
         // 计算误差
-        return 2 * (0.5 - area.size / lightRange.size)
+        return ControlValue(
+            path.indexOfFirst { (this.local.first() - it).norm() < 0.01 },
+            2 * (0.5 - area.size / lightRange.size)
+        )
     }
 }

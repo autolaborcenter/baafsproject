@@ -25,12 +25,14 @@ class ParticleFilter(private val size: Int)
     private val matcher = MatcherBase<Stamped<Odometry>, Stamped<Vector2D>>()
 
     // 粒子：位姿 - 寿命
+    // REDUCE ME
     var particles = emptyList<Pair<Odometry, Int>>()
 
     // 过程参数渗透
     data class StepState(val measureWeight: Double,
                          val particleWeight: Double)
 
+    // DELETE ME
     var weightTemp = StepState(.0, .0)
 
     override fun measureMaster(item: Stamped<Odometry>) =

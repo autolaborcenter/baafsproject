@@ -7,6 +7,7 @@ import org.mechdancer.algebra.function.matrix.dim
 import org.mechdancer.algebra.function.matrix.inverse
 import org.mechdancer.algebra.function.matrix.times
 import org.mechdancer.algebra.function.vector.select
+import org.mechdancer.algebra.implement.matrix.builder.arrayMatrixOfUnit
 import org.mechdancer.algebra.implement.matrix.builder.matrix
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.toListVector
@@ -41,6 +42,12 @@ class Transformation(private val matrix: Matrix) {
 
     companion object {
         /**
+         * 生成 [dim] 维单位变换
+         */
+        fun unit(dim: Int) =
+            Transformation(arrayMatrixOfUnit(dim + 1))
+
+        /**
          * 将位姿转化为位姿上坐标系的变换
          */
         fun fromPose(
@@ -49,8 +56,8 @@ class Transformation(private val matrix: Matrix) {
         ) = d.toVector()
             .let {
                 matrix {
-                    row(+it.x, +it.y, +p.x)
-                    row(-it.y, +it.x, +p.y)
+                    row(+it.x, -it.y, +p.x)
+                    row(+it.y, +it.x, +p.y)
                     row(0, 0, 1)
                 }
             }
