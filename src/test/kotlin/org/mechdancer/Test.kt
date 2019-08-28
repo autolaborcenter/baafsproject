@@ -144,6 +144,7 @@ fun main() {
                                 }
                                 else -> {
                                     PM1.drive(.0, .0)
+                                    println("turn: $w")
                                     Thread.sleep(1000)
                                     PM1.driveSpatial(.0, w.sign * .5, .0, abs(w))
                                 }

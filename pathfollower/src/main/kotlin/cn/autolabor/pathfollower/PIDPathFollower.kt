@@ -11,6 +11,7 @@ import org.mechdancer.geometry.angle.adjust
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toRad
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
 
@@ -56,6 +57,7 @@ class PIDPathFollower(
                 .minBy { it.value }
                 ?.index
                 ?.let { i ->
+                    println("tip = $i")
                     if (i >= 2) i
                     else {
                         val target =
@@ -72,8 +74,8 @@ class PIDPathFollower(
                                 .toRad()
                                 .adjust()
                                 .value
-
-                        if (delta > PI / 6) {
+                        println("Δ = $delta")
+                        if (abs(delta) > PI / 6) {
                             pass += i + 1
                             return null to delta
                         }
@@ -89,7 +91,7 @@ class PIDPathFollower(
         i = memory * i + (1 - memory) * actual
         val dd = actual - d
         d = value
-        return 0.1 to ka * (actual + kd * dd + ki * i)
+        return 0.05 to ka * (actual + kd * dd + ki * i)
     }
 
     data class ItemIndexed<T>(val value: T, val index: Int)

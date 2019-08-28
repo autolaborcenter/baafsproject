@@ -5,6 +5,7 @@ import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
+import org.mechdancer.algebra.function.vector.normalize
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 
@@ -22,6 +23,24 @@ class VirtualLightSensor(
     /** 局部路径（地图坐标系） */
     var local = listOf<Vector2D>()
         private set
+
+    private companion object {
+        fun List<Vector2D>.indexNear(p: Vector, d: Vector2D): Int {
+            val references = mapIndexed { i, item -> i to p - item }
+            return references
+                       .asSequence()
+                       .mapNotNull { (i, v) ->
+                           v.norm()
+                               .takeIf { it < 0.1 }
+                               ?.let { i to it }
+                       }
+                       .minBy { (_, distance) -> distance }
+                       ?.first
+                   ?: references
+                       .maxBy { (_, v) -> (v.normalize() dot d) }!!
+                       .first
+        }
+    }
 
     /** 虚拟光值计算 */
     operator fun invoke(
@@ -58,34 +77,19 @@ class VirtualLightSensor(
         val shape = lightRange.vertex
         // 起点终点方向
         val vb = local[1] - local[0]
-        val ve = local.asReversed().let { it[0] - it[1] }
+        val ve = local.asReversed().let { it[1] - it[0] }
         // 离局部路径终点最近的点序号
-        val index0 = shape
-            .asSequence()
-            .mapIndexed { i, p ->
-                i to ((p - local.last()) dot ve)
+        val index0 = shape.indexNear(local.last(), ve)
+        val index1 = shape.indexNear(local.first(), vb)
+            .let {
+                if (it < index0)
+                    it + shape.size
+                else
+                    it
             }
-            .maxBy { (_, distance) -> distance }!!
-            .first
+        println("$index0, $index1")
         // 确定填色区域
-        val area =
-            shape
-                .asSequence()
-                .mapIndexed { i, p ->
-                    i to ((local.first() - p) dot vb)
-                }
-                .maxBy { (_, distance) -> distance }!!
-                .first
-                .let {
-                    if (it < index0)
-                        it - index0 + 1 + shape.size
-                    else
-                        it - index0 + 1
-                }
-                .let {
-                    local + List(it) { i -> shape[(index0 + i) % shape.size] }
-                }
-                .let(::Shape)
+        val area = Shape(local + List(index1 - index0) { i -> shape[(index0 + i) % shape.size] })
         rangeShape = area.vertex.map(sensorToMap::invoke).map(Vector::to2D)
         // 计算误差
         return path.indexOfFirst { (this.local.first() - it).norm() < 0.01 } to 2 * (0.5 - area.size / lightRange.size)
