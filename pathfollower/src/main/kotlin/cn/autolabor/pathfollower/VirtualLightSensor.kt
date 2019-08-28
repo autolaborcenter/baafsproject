@@ -56,8 +56,18 @@ class VirtualLightSensor(
                 .map(sensorFromMap::invoke)
                 .map(Vector::to2D)
                 .dropWhile { it !in lightRange }
-                .takeWhile { it in lightRange }
                 .toList()
+                .let { mapped ->
+                    val end = (0 until mapped.size - 3)
+                                  .firstOrNull { i ->
+                                      mapped
+                                          .subList(i, i + 3)
+                                          .all { it !in lightRange }
+                                  }
+                              ?: mapped.size
+                    mapped.take(end)
+                }
+
         val sensorToMap = -sensorFromMap
         this.local = local
             .asSequence()
@@ -81,13 +91,7 @@ class VirtualLightSensor(
         // 离局部路径终点最近的点序号
         val index0 = shape.indexNear(local.last(), ve)
         val index1 = shape.indexNear(local.first(), vb)
-            .let {
-                if (it < index0)
-                    it + shape.size
-                else
-                    it
-            }
-        println("$index0, $index1")
+            .let { if (it < index0) it + shape.size else it }
         // 确定填色区域
         val area = Shape(local + List(index1 - index0) { i -> shape[(index0 + i) % shape.size] })
         rangeShape = area.vertex.map(sensorToMap::invoke).map(Vector::to2D)

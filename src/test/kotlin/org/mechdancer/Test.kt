@@ -52,7 +52,7 @@ fun main() {
     val follower =
         VirtualLightSensor(
             -Transformation.fromPose(vector2DOf(0.15, 0.0), 0.toRad()),
-            Circle(radius = 0.2, vertexCount = 32)
+            Circle(radius = 0.2, vertexCount = 64)
         ).let { PIDPathFollower(it) }
 
     val parser = buildParser {

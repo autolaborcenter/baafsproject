@@ -26,9 +26,9 @@ class PIDPathFollower(
 
     private var pass = 0
 
-    var path
-        get() = pathMarked.map { it.first }
+    var path = listOf<Vector2D>()
         set(value) {
+            field = value
             pathMarked.clear()
             value.mapTo(pathMarked) { it to 1.0 }
             for (order in 3..5) pathMarked.checkTip(order)
@@ -37,7 +37,7 @@ class PIDPathFollower(
             d = .0
         }
 
-    var pathMarked = mutableListOf<Pair<Vector2D, Double>>()
+    val pathMarked = mutableListOf<Pair<Vector2D, Double>>()
 
     operator fun invoke(fromMap: Transformation): Pair<Double?, Double?> {
         val (passCount, value) =
@@ -48,6 +48,12 @@ class PIDPathFollower(
         pass += passCount
         if (sensor.local.size < 2)
             return null to null
+
+        listOf(sensor.local.last(), path.last())
+            .asSequence()
+            .map { fromMap(it).norm() }
+            .all { it < 0.1 }
+            .let { if (it) return .0 to null }
 
         val tip: Int? =
             pathMarked
@@ -64,8 +70,9 @@ class PIDPathFollower(
                             (sensor.local[i + 1] - sensor.local[i])
                                 .toAngle()
                                 .asRadian()
+                        val toMap = -fromMap
                         val current =
-                            (-fromMap)(vector2DOf(1, 0))
+                            (toMap(vector2DOf(1, 0)) - toMap(vector2DOf(0, 0)))
                                 .to2D()
                                 .toAngle()
                                 .asRadian()
@@ -74,7 +81,6 @@ class PIDPathFollower(
                                 .toRad()
                                 .adjust()
                                 .value
-                        println("Δ = $delta")
                         if (abs(delta) > PI / 6) {
                             pass += i + 1
                             return null to delta
@@ -91,10 +97,10 @@ class PIDPathFollower(
         i = memory * i + (1 - memory) * actual
         val dd = actual - d
         d = value
-        return 0.05 to ka * (actual + kd * dd + ki * i)
+        return 0.1 to ka * (actual + kd * dd + ki * i)
     }
 
-    data class ItemIndexed<T>(val value: T, val index: Int)
+    private data class ItemIndexed<T>(val value: T, val index: Int)
 
     private companion object {
         // 检测尖点
