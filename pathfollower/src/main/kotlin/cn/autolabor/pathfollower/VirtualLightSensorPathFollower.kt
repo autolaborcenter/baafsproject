@@ -15,31 +15,35 @@ import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
 
-class PIDPathFollower(
+/**
+ * 使用 [sensor] 从路径生成误差信号的循径控制器
+ */
+class VirtualLightSensorPathFollower(
     val sensor: VirtualLightSensor,
-    val ka: Double = 1.0,
-    val ki: Double = 0.0,
-    val kd: Double = 0.0
+    private val controller: Controller = Controller.unit,
+    private val tipOrderRange: IntRange = 3..3,
+    private val tipJudge: Double = PI / 3,
+    private val destinationJudge: Double = 0.1
 ) {
-    private var i = .0
-    private var d = .0
-
     private var pass = 0
+    private val pathMarked = mutableListOf<Pair<Vector2D, Double>>()
 
+    /** 读写工作路径 */
     var path = listOf<Vector2D>()
         set(value) {
+            // 存储
             field = value
+            // 尖点检测
             pathMarked.clear()
             value.mapTo(pathMarked) { it to 1.0 }
-            for (order in 3..5) pathMarked.checkTip(order)
+            for (order in tipOrderRange) pathMarked.checkTip(order)
+            // 重置状态
             pass = 0
-            i = .0
-            d = .0
+            controller.clear()
         }
 
-    val pathMarked = mutableListOf<Pair<Vector2D, Double>>()
-
     operator fun invoke(fromMap: Transformation): Pair<Double?, Double?> {
+        // 第一次调用传感器
         val (passCount, value) =
             sensor(fromMap, path.subList(pass, path.size))
                 .takeUnless { (passCount, _) -> passCount < 0 }
@@ -48,22 +52,21 @@ class PIDPathFollower(
         pass += passCount
         if (sensor.local.size < 2)
             return null to null
-
+        // 判断路径终点
         listOf(sensor.local.last(), path.last())
             .asSequence()
             .map { fromMap(it).norm() }
-            .all { it < 0.1 }
+            .all { it < destinationJudge }
             .let { if (it) return .0 to null }
-
+        // 处理尖点
         val tip: Int? =
             pathMarked
                 .subList(pass, pass + sensor.local.size)
                 .mapIndexed { i, (_, it) -> ItemIndexed(it, i) }
-                .filter { it.value < cos(PI / 3) }
+                .filter { it.value < cos(tipJudge) }
                 .minBy { it.value }
                 ?.index
                 ?.let { i ->
-                    println("tip = $i")
                     if (i >= 2) i
                     else {
                         val target =
@@ -80,9 +83,9 @@ class PIDPathFollower(
                             (target - current)
                                 .toRad()
                                 .adjust()
-                                .value
-                        if (abs(delta) > PI / 6) {
-                            pass += i + 1
+                                .asRadian()
+                        if (abs(delta) > tipJudge / 2) {
+                            pass += i
                             return null to delta
                         }
                         null
@@ -93,11 +96,7 @@ class PIDPathFollower(
                          ?.second
                      ?: value
 
-        val memory = 1 - ki
-        i = memory * i + (1 - memory) * actual
-        val dd = actual - d
-        d = value
-        return 0.1 to ka * (actual + kd * dd + ki * i)
+        return 0.1 to controller(input = actual)
     }
 
     private data class ItemIndexed<T>(val value: T, val index: Int)
@@ -105,17 +104,15 @@ class PIDPathFollower(
     private companion object {
         // 检测尖点
         fun MutableList<Pair<Vector2D, Double>>.checkTip(order: Int) {
-            if (size < 2 * order + 1)
-                return
-
-            for (i in order until size - order) {
-                val (p, value) = get(i)
-                val (pf, _) = get(i - order)
-                val (pb, _) = get(i + order)
-                val v0 = p - pf
-                val v1 = pb - p
-                set(i, get(i).copy(second = min((v0 dot v1) / (v0.norm() * v1.norm()), value)))
-            }
+            if (size > 2 * order)
+                for (i in order until size - order) {
+                    val (p, value) = get(i)
+                    val (pf, _) = get(i - order)
+                    val (pb, _) = get(i + order)
+                    val v0 = p - pf
+                    val v1 = pb - p
+                    set(i, get(i).copy(second = min((v0 dot v1) / (v0.norm() * v1.norm()), value)))
+                }
         }
     }
 }

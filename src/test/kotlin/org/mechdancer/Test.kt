@@ -1,8 +1,8 @@
 package org.mechdancer
 
 import cn.autolabor.pathfollower.Circle
-import cn.autolabor.pathfollower.PIDPathFollower
 import cn.autolabor.pathfollower.VirtualLightSensor
+import cn.autolabor.pathfollower.VirtualLightSensorPathFollower
 import cn.autolabor.pathmaneger.loadTo
 import cn.autolabor.pathmaneger.save
 import cn.autolabor.pm1.Resource
@@ -53,7 +53,7 @@ fun main() {
         VirtualLightSensor(
             -Transformation.fromPose(vector2DOf(0.15, 0.0), 0.toRad()),
             Circle(radius = 0.2, vertexCount = 64)
-        ).let { PIDPathFollower(it) }
+        ).let { VirtualLightSensorPathFollower(it) }
 
     val parser = buildParser {
         this["record"] = { record = true; "recording" }
@@ -145,7 +145,8 @@ fun main() {
                                 else -> {
                                     PM1.drive(.0, .0)
                                     println("turn: $w")
-                                    Thread.sleep(1000)
+                                    Thread.sleep(200)
+                                    PM1.driveSpatial(.05, .0, .03, .0)
                                     PM1.driveSpatial(.0, w.sign * .5, .0, abs(w))
                                 }
                             }
@@ -166,16 +167,6 @@ fun main() {
                     .map { it.x to it.y }
                     .let { it + it.first() }
                     .let { painter.paintFrame2("sensor", it) }
-                follower
-                    .sensor
-                    .local
-                    .map { it.x to it.y }
-                    .let { painter.paintFrame2("local", it) }
-                follower
-                    .sensor
-                    .local
-                    .lastOrNull()
-                    ?.let { painter.paintFrame2("last", listOf(it.x to it.y)) }
                 Thread.sleep(100)
             } else {
                 followLock.wait()
