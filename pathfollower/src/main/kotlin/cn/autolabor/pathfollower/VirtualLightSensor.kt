@@ -15,32 +15,11 @@ class VirtualLightSensor(
     private val lightRange: Shape
 ) {
     // DELETE ME
-    var rangeShape = listOf<Vector2D>()
-
-    // DELETE ME
-    var sensorRangeTemp = lightRange.vertex
+    var areaShape = listOf<Vector2D>()
 
     /** 局部路径（地图坐标系） */
     var local = listOf<Vector2D>()
         private set
-
-    private companion object {
-        fun List<Vector2D>.indexNear(p: Vector, d: Vector2D): Int {
-            val references = mapIndexed { i, item -> i to p - item }
-            return references
-                       .asSequence()
-                       .mapNotNull { (i, v) ->
-                           v.norm()
-                               .takeIf { it < 0.1 }
-                               ?.let { i to it }
-                       }
-                       .minBy { (_, distance) -> distance }
-                       ?.first
-                   ?: references
-                       .maxBy { (_, v) -> (v.normalize() dot d) }!!
-                       .first
-        }
-    }
 
     /** 虚拟光值计算 */
     operator fun invoke(
@@ -74,13 +53,6 @@ class VirtualLightSensor(
             .map(sensorToMap::invoke)
             .map(Vector::to2D)
             .toList()
-        sensorRangeTemp =
-            lightRange
-                .vertex
-                .asSequence()
-                .map(sensorToMap::invoke)
-                .map(Vector::to2D)
-                .toList()
         // 处理路径丢失情况
         if (local.size < 2) return -1 to .0
         // 传感器栅格化
@@ -94,8 +66,27 @@ class VirtualLightSensor(
             .let { if (it < index0) it + shape.size else it }
         // 确定填色区域
         val area = Shape(local + List(index1 - index0) { i -> shape[(index0 + i) % shape.size] })
-        rangeShape = area.vertex.map(sensorToMap::invoke).map(Vector::to2D)
+        areaShape = area.vertex.map(sensorToMap::invoke).map(Vector::to2D)
         // 计算误差
         return path.indexOfFirst { (this.local.first() - it).norm() < 0.01 } to 2 * (0.5 - area.size / lightRange.size)
+    }
+
+    private companion object {
+        // 查找与边缘交点
+        fun List<Vector2D>.indexNear(p: Vector, d: Vector2D): Int {
+            val references = mapIndexed { i, item -> i to p - item }
+            return references
+                       .asSequence()
+                       .mapNotNull { (i, v) ->
+                           v.norm()
+                               .takeIf { it < 0.1 }
+                               ?.let { i to it }
+                       }
+                       .minBy { (_, distance) -> distance }
+                       ?.first
+                   ?: references
+                       .maxBy { (_, v) -> (v.normalize() dot d) }!!
+                       .first
+        }
     }
 }

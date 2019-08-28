@@ -47,59 +47,44 @@ class VirtualLightSensorPathFollower(
         val (passCount, value) =
             sensor(fromMap, path.subList(pass, path.size))
                 .takeUnless { (passCount, _) -> passCount < 0 }
-            ?: return .0 to null
-
-        pass += passCount
-        if (sensor.local.size < 2)
-            return null to null
+            ?: return null to null
         // 判断路径终点
         listOf(sensor.local.last(), path.last())
             .asSequence()
             .map { fromMap(it).norm() }
             .all { it < destinationJudge }
             .let { if (it) return .0 to null }
-        // 处理尖点
-        val tip: Int? =
-            pathMarked
-                .subList(pass, pass + sensor.local.size)
-                .mapIndexed { i, (_, it) -> ItemIndexed(it, i) }
-                .filter { it.value < cos(tipJudge) }
-                .minBy { it.value }
-                ?.index
-                ?.let { i ->
-                    if (i >= 2) i
-                    else {
-                        val target =
-                            (sensor.local[i + 1] - sensor.local[i])
-                                .toAngle()
-                                .asRadian()
-                        val toMap = -fromMap
-                        val current =
-                            (toMap(vector2DOf(1, 0)) - toMap(vector2DOf(0, 0)))
-                                .to2D()
-                                .toAngle()
-                                .asRadian()
-                        val delta =
-                            (target - current)
-                                .toRad()
-                                .adjust()
-                                .asRadian()
-                        if (abs(delta) > tipJudge / 2) {
-                            pass += i
-                            return null to delta
-                        }
-                        null
+        // 丢弃通过的路径
+        pass += passCount
+        return pathMarked
+            // 利用缓存识别尖点
+            .subList(pass, pass + sensor.local.size)
+            .mapIndexed { i, (_, it) -> it to i }
+            .filter { (it, _) -> it < cos(tipJudge) }
+            .minBy { (it, _) -> it }
+            ?.second
+            // 处理尖点
+            ?.let { i ->
+                if (i >= 2) i
+                else {
+                    val target = (sensor.local[i + 1] - sensor.local[i])
+                        .toAngle().asRadian()
+                    val current = -fromMap
+                        .let { toMap -> (toMap(vector2DOf(1, 0)) - toMap(vector2DOf(0, 0))) }
+                        .to2D()
+                        .toAngle().asRadian()
+                    val delta = (target - current).toRad().adjust().asRadian()
+                    if (abs(delta) > tipJudge / 2) {
+                        pass += i
+                        return null to delta
                     }
+                    null
                 }
-
-        val actual = tip?.let { sensor(fromMap, sensor.local.subList(0, it + 1)) }
-                         ?.second
-                     ?: value
-
-        return 0.1 to controller(input = actual)
+            }
+            ?.let { sensor(fromMap, sensor.local.subList(0, it + 1)) }
+            ?.second
+            .let { 0.1 to controller(input = it ?: value) }
     }
-
-    private data class ItemIndexed<T>(val value: T, val index: Int)
 
     private companion object {
         // 检测尖点

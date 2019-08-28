@@ -163,7 +163,7 @@ fun main() {
                     }
                 follower
                     .sensor
-                    .rangeShape
+                    .areaShape
                     .map { it.x to it.y }
                     .let { it + it.first() }
                     .let { painter.paintFrame2("sensor", it) }
