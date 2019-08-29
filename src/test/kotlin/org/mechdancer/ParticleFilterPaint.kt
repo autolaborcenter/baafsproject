@@ -9,7 +9,6 @@ import org.mechdancer.dependency.must
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.remote.presets.remoteHub
 import org.mechdancer.remote.resources.MulticastSockets
-import kotlin.concurrent.thread
 
 fun main() {
     val remote = remoteHub("baafs test")
@@ -36,14 +35,14 @@ fun main() {
 
         filter[inner]?.let { (p, d) -> remote.paint("filter", p.x, p.y, d.value) }
     }
-
+    // launch pm1
     PM1.locked = false
     PM1.setCommandEnabled(false)
-
+    launchBlocking { pm1() }
+    // launch marvelmind
+    launchBlocking { marvelmind() }
+    // launch network
     remote.openAllNetworks()
     println("remote launched on ${remote.components.must<MulticastSockets>().address}")
-
-    thread { while (true) marvelmind() }
-    thread { while (true) pm1() }
     while (true) remote()
 }

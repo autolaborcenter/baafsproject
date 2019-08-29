@@ -4,10 +4,11 @@ import cn.autolabor.pathfollower.Circle
 import cn.autolabor.pathfollower.VirtualLightSensor
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower
 import cn.autolabor.pathmaneger.loadTo
-import cn.autolabor.pathmaneger.save
+import cn.autolabor.pathmaneger.saveTo
 import cn.autolabor.pm1.Resource
 import cn.autolabor.pm1.sdk.PM1
 import cn.autolabor.transform.Transformation
+import org.mechdancer.Mode.*
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -25,29 +26,34 @@ import kotlin.concurrent.thread
 import kotlin.math.abs
 import kotlin.math.sign
 
-fun main() {
-    var record = false
-    var running = true
-    val followLock = Object()
-    var follow = false
-    var enabled = false
-    var fromMap = Transformation.unit(2)
+enum class Mode {
+    Record,
+    Follow,
+    Idle
+}
 
+fun main() {
+    var mode = Idle
+    var enabled = false
+    val followLock = Object()
+
+    var running = true
+
+    var fromMap = Transformation.unit(2)
     val path = mutableListOf<Vector2D>()
 
     val file = File("path.txt")
-    val painter = remoteHub(
+    val remote = remoteHub(
         name = "path follower test",
-        address = InetSocketAddress("238.88.8.100", 30000)
-    )
+        address = InetSocketAddress("238.88.8.100", 30000))
     val pm1 = Resource { odometry ->
         val p = vector2DOf(odometry.x, odometry.y)
         fromMap = -Transformation.fromPose(p, odometry.theta.toRad())
-        if (record && path.lastOrNull()?.let { (it - p).norm() > 0.05 } != false) {
+        if (mode == Record && path.lastOrNull()?.let { (it - p).norm() > 0.05 } != false) {
             path += p
-            painter.paintFrame2("path", path.map { it.x to it.y })
+            remote.paintFrame2("path", path.map { it.x to it.y })
         }
-        painter.paint("odometry", odometry.x, odometry.y, odometry.theta)
+        remote.paint("odometry", odometry.x, odometry.y, odometry.theta)
     }
     val follower =
         VirtualLightSensor(
@@ -56,12 +62,30 @@ fun main() {
         ).let { VirtualLightSensorPathFollower(it) }
 
     val parser = buildParser {
-        this["record"] = { record = true; "recording" }
-        this["pause"] = { record = false; "paused" }
+        this["record"] = {
+            when (mode) {
+                Record -> "Recording"
+                Follow -> "Is following now"
+                Idle   -> {
+                    mode = Record
+                    "Recording"
+                }
+            }
+        }
+        this["pause"] = {
+            when (mode) {
+                Record -> {
+                    mode = Idle
+                    "Paused"
+                }
+                Follow -> "Is following now"
+                Idle   -> "..."
+            }
+        }
         this["clear"] = {
-            record = false
+            mode = Idle
             path.clear()
-            painter.paintFrame2("path", emptyList())
+            remote.paintFrame2("path", emptyList())
             "path cleared"
         }
         this["show"] = {
@@ -71,41 +95,34 @@ fun main() {
             }
         }
 
-        this["save"] = { file save path; "${path.size} nodes saved" }
+        this["save"] = { file saveTo path; "${path.size} nodes saved" }
         this["load"] = {
-            record = false
+            mode = Idle
             file loadTo path
-            painter.paintFrame2("path", path.map { it.x to it.y })
+            remote.paintFrame2("path", path.map { it.x to it.y })
             "${path.size} nodes loaded"
         }
         this["delete"] = { file.writeText(""); "path save deleted" }
 
         this["go"] = {
-            when {
-                record         -> "Are you sure? I'm recording now!"
-                path.isEmpty() -> "No path, please load a path."
-                else           -> {
-                    follow = true
+            when (mode) {
+                Record -> "Is Recording now."
+                Follow -> "Ok."
+                Idle   -> {
+                    mode = Follow
                     follower.path = path
                     synchronized(followLock) { followLock.notify() }
                     "Ok."
                 }
             }
         }
-        this["stop"] = { follow = false; "Ok." }
         this["\'"] = {
             enabled = !enabled
             PM1.setCommandEnabled(enabled)
             if (enabled) "!" else "?"
         }
 
-        this["state"] = {
-            when {
-                record -> "recording"
-                follow -> "following"
-                else   -> "idle"
-            }
-        }
+        this["state"] = { mode }
         this["shutdown"] = { running = false; "Bye~" }
     }
 
@@ -113,12 +130,6 @@ fun main() {
     PM1.locked = false
     PM1.setCommandEnabled(false)
     launchBlocking { pm1() }
-
-    // launch network
-    painter.openAllNetworks()
-    launchBlocking(10000) { painter.yell() }
-    launchBlocking { painter() }
-    println("remote launched on ${painter.components.must<MulticastSockets>().address}")
 
     // launch parser
     thread {
@@ -130,47 +141,55 @@ fun main() {
     }
 
     // launch sensor
-    synchronized(followLock) {
-        while (true) {
-            if (follow) {
-                follower(fromMap)
-                    .let { (v, w) ->
-                        when (v) {
-                            null -> when (w) {
-                                null -> {
-                                    follow = false
-                                    PM1.setCommandEnabled(false)
-                                    println("error")
+    thread {
+        synchronized(followLock) {
+            while (true) {
+                if (mode == Follow) {
+                    follower(fromMap)
+                        .let { (v, w) ->
+                            when (v) {
+                                null -> when (w) {
+                                    null -> {
+                                        mode = Idle
+                                        println("error")
+                                    }
+                                    else -> {
+                                        PM1.drive(.0, .0)
+                                        println("turn: $w")
+                                        Thread.sleep(200)
+                                        PM1.driveSpatial(.05, .0, .03, .0)
+                                        PM1.driveSpatial(.0, w.sign * .5, .0, abs(w))
+                                    }
                                 }
-                                else -> {
-                                    PM1.drive(.0, .0)
-                                    println("turn: $w")
-                                    Thread.sleep(200)
-                                    PM1.driveSpatial(.05, .0, .03, .0)
-                                    PM1.driveSpatial(.0, w.sign * .5, .0, abs(w))
+                                else -> when (w) {
+                                    null -> {
+                                        mode = Idle
+                                        println("finish")
+                                    }
+                                    else -> PM1.drive(v, w)
                                 }
-                            }
-                            else -> when (w) {
-                                null -> {
-                                    follow = false
-                                    PM1.setCommandEnabled(false)
-                                    println("finish")
-                                }
-                                else ->
-                                    PM1.drive(v, w)
                             }
                         }
+                    follower
+                        .sensor
+                        .areaShape
+                        .map { it.x to it.y }
+                        .let { it + it.first() }
+                        .let { remote.paintFrame2("sensor", it) }
+                    if (mode != Idle) {
+                        enabled = false
+                        PM1.setCommandEnabled(false)
                     }
-                follower
-                    .sensor
-                    .areaShape
-                    .map { it.x to it.y }
-                    .let { it + it.first() }
-                    .let { painter.paintFrame2("sensor", it) }
-                Thread.sleep(100)
-            } else {
-                followLock.wait()
+                    Thread.sleep(100)
+                } else {
+                    followLock.wait()
+                }
             }
         }
     }
+
+    // launch network
+    remote.openAllNetworks()
+    println("remote launched on ${remote.components.must<MulticastSockets>().address}")
+    while (true) remote()
 }

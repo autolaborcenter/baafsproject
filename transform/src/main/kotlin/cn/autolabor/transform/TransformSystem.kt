@@ -20,6 +20,7 @@ class TransformSystem<Key : Any> {
     companion object {
         const val Constant = -1L
 
+        // 更新
         private fun HashMap<Long, Transformation>.update(
             time: Long,
             new: Transformation
@@ -51,7 +52,7 @@ class TransformSystem<Key : Any> {
         transformation: Transformation
     ) {
         val (s, t) = pair
-        if (s == t) throw IllegalArgumentException("source == target")
+        require(s != t) { "source == target" }
 
         val newTime = time ?: System.currentTimeMillis()
         lock.write {
@@ -76,7 +77,7 @@ class TransformSystem<Key : Any> {
         time: Long? = null
     ): SearchResult<Key>? {
         val (s, t) = pair
-        if (s == t) throw IllegalArgumentException("source == target")
+        require(s != t) { "source == target" }
 
         val now = time ?: System.currentTimeMillis()
         return lock.read {
