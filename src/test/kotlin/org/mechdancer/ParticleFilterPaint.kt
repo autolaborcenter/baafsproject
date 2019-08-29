@@ -11,7 +11,7 @@ import org.mechdancer.remote.presets.remoteHub
 import org.mechdancer.remote.resources.MulticastSockets
 
 fun main() {
-    val remote = remoteHub("baafs test")
+    val remote = remoteHub("particle filter test")
     val filter = ParticleFilter(128)
 
     val marvelmind = com.marvelmind.Resource { time, x, y ->

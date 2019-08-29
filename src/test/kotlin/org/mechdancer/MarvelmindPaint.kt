@@ -6,7 +6,7 @@ import org.mechdancer.remote.presets.remoteHub
 import org.mechdancer.remote.resources.MulticastSockets
 
 fun main() {
-    val remote = remoteHub("baafs test")
+    val remote = remoteHub("marvelmind test")
     val marvelmind = Resource { _, x, y ->
         println("$x $y")
         remote.paint("marvelmind", x, y)

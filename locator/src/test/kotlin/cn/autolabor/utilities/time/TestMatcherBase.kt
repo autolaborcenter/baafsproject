@@ -6,10 +6,10 @@ import kotlin.test.Test
 class TestMatcherBase {
     // 测试参数
     private companion object {
-        const val interval1 = 29L
-        const val interval2 = 17L
+        const val interval1 = 79L
+        const val interval2 = 67L
 
-        val range = (interval2 - 5)..(interval2 + 5)
+        val range = (interval2 - 10)..(interval2 + 10)
     }
 
     @Test
@@ -31,23 +31,25 @@ class TestMatcherBase {
 
         val t0 = System.currentTimeMillis()
         var x = 0
+        var i = 0
         while (true) {
             val t1 = System.currentTimeMillis()
             synchronized(matcher) {
                 matcher.match1()?.let { (item, before, after) ->
+                    ++i
                     assert((after.time - before.time) in range) {
-                        "匹配项时间间隔不正常：${after.time - before.time} ms"
+                        "匹配项时间间隔不正常：$i: ${after.time - before.time} ms"
                     }
                     assert((after.data - before.data) == 1) {
-                        "匹配项不正常：${after.data - before.data} ms"
+                        "匹配项不正常：$i: ${after.data - before.data} ms"
                     }
                     assert(item.data - x == 1) {
-                        "匹配项丢失：$x -> ${item.data}"
+                        "匹配项丢失：$i: $x -> ${item.data}"
                     }
                     x = item.data
                 }
             }
-            if (t1 - t0 > 5000) break
+            if (t1 - t0 > 10000) break
         }
     }
 }

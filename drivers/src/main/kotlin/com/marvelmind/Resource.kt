@@ -10,7 +10,6 @@ import cn.autolabor.serialport.parser.SerialPortFinder.Companion.findSerialPort
 class Resource(
     private val callback: (Long, Double, Double) -> Unit
 ) : Resource {
-
     private val engine = engine()
     private val port =
         findSerialPort(engine) {
@@ -21,7 +20,7 @@ class Resource(
         } ?: throw RuntimeException("cannot find marvelmind mobile beacon")
 
     private val buffer = ByteArray(32)
-    override val resourceName: String
+    override val info: String
         get() = port.descriptivePortName
 
     override operator fun invoke() {

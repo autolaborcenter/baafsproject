@@ -20,7 +20,7 @@ class Resource(
             activate = "#SF 10\r\n".toByteArray(Charsets.US_ASCII)
             condition { (rho, _) -> rho > 0 }
         } ?: throw RuntimeException("cannot find faselase lidar")
-    override val resourceName: String
+    override val info: String
         get() = port.descriptivePortName
 
     private val buffer = ByteArray(256)

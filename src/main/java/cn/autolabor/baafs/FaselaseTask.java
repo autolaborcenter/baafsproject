@@ -22,7 +22,7 @@ public class FaselaseTask extends AbstractTask {
     private final Resource resource;
 
     public String name(){
-        return resource.getResourceName();
+        return resource.getInfo();
     }
 
     // 打开雷达资源，翻译数据帧并发送

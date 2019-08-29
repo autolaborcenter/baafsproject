@@ -9,7 +9,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 fun main() {
-    val remote = remoteHub("baafs test")
+    val remote = remoteHub("faselase test")
     val faselase = Resource { _, _, list ->
         println(list.size)
         remote.paintFrame2("faselase",
