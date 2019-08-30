@@ -2,7 +2,7 @@
 .*/*
 !.idea/dictionaries/
 
-# cmake
+# make
 out/
 build/
 target/

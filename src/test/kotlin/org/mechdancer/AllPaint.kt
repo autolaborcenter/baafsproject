@@ -31,24 +31,20 @@ import kotlin.math.sign
 fun main() {
     val remote = remoteHub(name = "baafs test", address = InetSocketAddress("238.88.8.100", 30000))
 
+    // 滤波器
     val filter = ParticleFilter(128)
-
+    var fromMap = Transformation.unit(2)
+    // 业务状态
     var mode = Idle
     var enabled = false
     val followLock = Object()
-
+    val path = mutableListOf<Vector2D>()
+    // 控制台解析器运行
     var running = true
 
-    var fromMap = Transformation.unit(2)
-    val path = mutableListOf<Vector2D>()
-
-    val file = File("path.txt")
-
     val marvelmind = com.marvelmind.Resource { time, x, y ->
-        println("$x $y")
-        remote.paint("marvelmind", y, x)
-
-        filter.measureHelper(Stamped(time, vector2DOf(y, x)))
+        remote.paint("marvelmind", x, y)
+        filter.measureHelper(Stamped(time, vector2DOf(x, y)))
     }
     val pm1 = cn.autolabor.pm1.Resource { odometry ->
         val inner = Stamped(odometry.stamp,
@@ -115,6 +111,7 @@ fun main() {
             }
         }
 
+        val file = File("path.txt")
         this["save"] = { file saveTo path; "${path.size} nodes saved" }
         this["load"] = {
             mode = Idle
