@@ -61,13 +61,12 @@ fun main() {
 
         filter[inner]
             ?.also { (p, d) -> remote.paint("filter", p.x, p.y, d.value) }
-            ?.also { (p, _) ->
-                fromMap = -Transformation.fromPose(p, odometry.theta.toRad())
+            ?.also { (p, d) ->
+                fromMap = -Transformation.fromPose(p, d)
                 if (mode == Record && path.lastOrNull()?.let { (it - p).norm() > 0.05 } != false) {
                     path += p
                     remote.paintFrame2("path", path.map { it.x to it.y })
                 }
-                remote.paint("odometry", odometry.x, odometry.y, odometry.theta)
             }
     }
 
