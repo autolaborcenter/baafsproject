@@ -195,7 +195,7 @@ fun main() {
                         .map { it.x to it.y }
                         .let { it + it.first() }
                         .let { remote.paintFrame2("sensor", it) }
-                    if (mode != Idle) {
+                    if (mode != Follow) {
                         enabled = false
                         PM1.setCommandEnabled(false)
                     }
