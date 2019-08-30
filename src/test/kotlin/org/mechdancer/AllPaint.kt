@@ -4,6 +4,8 @@ import cn.autolabor.locator.ParticleFilter
 import cn.autolabor.pathfollower.Circle
 import cn.autolabor.pathfollower.VirtualLightSensor
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower
+import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand
+import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.*
 import cn.autolabor.pathmaneger.loadTo
 import cn.autolabor.pathmaneger.saveTo
 import cn.autolabor.pm1.sdk.PM1
@@ -11,6 +13,7 @@ import cn.autolabor.transform.Transformation
 import cn.autolabor.utilities.Odometry
 import cn.autolabor.utilities.time.Stamped
 import org.mechdancer.Mode.*
+import org.mechdancer.Mode.Follow
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -33,7 +36,7 @@ fun main() {
 
     // 滤波器
     val filter = ParticleFilter(128)
-    var fromMap = Transformation.unit(2)
+    var mapToBaseLink = Transformation.unit(2)
     // 业务状态
     var mode = Idle
     var enabled = false
@@ -41,41 +44,42 @@ fun main() {
     val path = mutableListOf<Vector2D>()
     // 控制台解析器运行
     var running = true
-
+    // 需要阻塞执行的资源
     val marvelmind = com.marvelmind.Resource { time, x, y ->
         remote.paint("marvelmind", x, y)
         filter.measureHelper(Stamped(time, vector2DOf(x, y)))
     }
-    val pm1 = cn.autolabor.pm1.Resource { odometry ->
-        val inner = Stamped(odometry.stamp,
-                            Odometry(vector2DOf(odometry.x, odometry.y),
-                                     odometry.theta.toRad()))
-        remote.paint("odometry", odometry.x, odometry.y, odometry.theta)
+    val pm1 = cn.autolabor.pm1.Resource { (stamp, _, _, x, y, theta) ->
+        val inner = Stamped(stamp, Odometry(vector2DOf(x, y), theta.toRad()))
 
+        remote.paint("odometry", x, y, theta)
         filter.measureMaster(inner)
+
+        // 调试
         remote.paintFrame3("particles", filter.particles.map { (odom, _) -> Triple(odom.p.x, odom.p.y, odom.d.value) })
         remote.paintFrame2("life", filter.particles.mapIndexed { i, (_, n) -> i.toDouble() to n.toDouble() })
+
         val (measureWeight, particleWeight) = filter.weightTemp
         remote.paint("定位权重", measureWeight)
         remote.paint("粒子权重", particleWeight)
 
         filter[inner]
-            ?.also { (p, d) -> remote.paint("filter", p.x, p.y, d.value) }
             ?.also { (p, d) ->
-                fromMap = -Transformation.fromPose(p, d)
+                remote.paint("filter", p.x, p.y, d.value)
+                mapToBaseLink = -Transformation.fromPose(p, d)
                 if (mode == Record && path.lastOrNull()?.let { (it - p).norm() > 0.05 } != false) {
                     path += p
                     remote.paintFrame2("path", path.map { it.x to it.y })
                 }
             }
     }
-
-    val follower =
-        VirtualLightSensor(
-            -Transformation.fromPose(vector2DOf(0.15, 0.0), 0.toRad()),
-            Circle(radius = 0.2, vertexCount = 64)
-        ).let { VirtualLightSensorPathFollower(it) }
-
+    val follower = run {
+        VirtualLightSensorPathFollower(
+            VirtualLightSensor(
+                fromBaseLink = -Transformation.fromPose(vector2DOf(0.15, 0.0), 0.toRad()),
+                lightRange = Circle(radius = 0.2, vertexCount = 64)
+            ))
+    }
     val parser = buildParser {
         this["record"] = {
             when (mode) {
@@ -148,7 +152,6 @@ fun main() {
     launchBlocking { pm1() }
     // launch marvelmind
     launchBlocking { marvelmind() }
-
     // launch parser
     thread {
         while (running) readLine()
@@ -157,34 +160,33 @@ fun main() {
             ?.forEach(::display)
         pm1.close()
     }
-
     // launch sensor
     thread {
         synchronized(followLock) {
             while (true) {
                 if (mode == Follow) {
-                    follower(fromMap)
-                        .let { (v, w) ->
-                            when (v) {
-                                null -> when (w) {
-                                    null -> {
-                                        mode = Idle
-                                        println("error")
-                                    }
-                                    else -> {
-                                        PM1.drive(.0, .0)
-                                        println("turn: $w")
-                                        Thread.sleep(200)
-                                        PM1.driveSpatial(.05, .0, .03, .0)
-                                        PM1.driveSpatial(.0, w.sign * .5, .0, abs(w))
-                                    }
+                    follower(mapToBaseLink)
+                        .let {
+                            when (it) {
+                                is FollowCommand.Follow -> {
+                                    val (v, w) = it
+                                    PM1.drive(v, w)
                                 }
-                                else -> when (w) {
-                                    null -> {
-                                        mode = Idle
-                                        println("finish")
-                                    }
-                                    else -> PM1.drive(v, w)
+                                is Turn                 -> {
+                                    val (angle) = it
+                                    println("turn: $angle")
+                                    PM1.drive(.0, .0)
+                                    Thread.sleep(200)
+                                    PM1.driveSpatial(.050, .0, .025, .0)
+                                    PM1.driveSpatial(.0, angle.sign * .5, .0, abs(angle))
+                                }
+                                Error                   -> {
+                                    println("error")
+                                    mode = Idle
+                                }
+                                Finish                  -> {
+                                    println("finish")
+                                    mode = Idle
                                 }
                             }
                         }
@@ -205,7 +207,6 @@ fun main() {
             }
         }
     }
-
     // launch network
     remote.openAllNetworks()
     println("remote launched on ${remote.components.must<MulticastSockets>().address}")

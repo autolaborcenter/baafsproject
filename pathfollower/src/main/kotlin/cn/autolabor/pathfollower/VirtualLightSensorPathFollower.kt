@@ -1,5 +1,7 @@
 package cn.autolabor.pathfollower
 
+import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.Follow
+import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.Turn
 import cn.autolabor.transform.Transformation
 import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.minus
@@ -42,18 +44,25 @@ class VirtualLightSensorPathFollower(
             controller.clear()
         }
 
-    operator fun invoke(fromMap: Transformation): Pair<Double?, Double?> {
+    sealed class FollowCommand {
+        data class Follow(val v: Double, val w: Double) : FollowCommand()
+        data class Turn(val angle: Double) : FollowCommand()
+        object Error : FollowCommand()
+        object Finish : FollowCommand()
+    }
+
+    operator fun invoke(fromMap: Transformation): FollowCommand {
         // 第一次调用传感器
         val (passCount, value) =
             sensor(fromMap, path.subList(pass, path.size))
                 .takeUnless { (passCount, _) -> passCount < 0 }
-            ?: return null to null
+            ?: return FollowCommand.Error
         // 判断路径终点
         listOf(sensor.local.last(), path.last())
             .asSequence()
             .map { fromMap(it).norm() }
             .all { it < destinationJudge }
-            .let { if (it) return .0 to null }
+            .let { if (it) return FollowCommand.Finish }
         // 丢弃通过的路径
         pass += passCount
         return pathMarked
@@ -76,14 +85,14 @@ class VirtualLightSensorPathFollower(
                     val delta = (target - current).toRad().adjust().asRadian()
                     if (abs(delta) > tipJudge / 2) {
                         pass += i
-                        return null to delta
+                        return Turn(delta)
                     }
                     null
                 }
             }
             ?.let { sensor(fromMap, sensor.local.subList(0, it + 1)) }
             ?.second
-            .let { 0.1 to controller(input = it ?: value) }
+            .let { Follow(0.1, controller(input = it ?: value)) }
     }
 
     private companion object {

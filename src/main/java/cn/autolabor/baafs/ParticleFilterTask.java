@@ -37,6 +37,7 @@ public class ParticleFilterTask extends AbstractTask {
 
     @TaskFunction
     public void ReceiveMarvelmind(Msg2DOdometry p) {
+        System.out.println("marvelmind");
         filter.measureHelper(
             new Stamped<>(
                 p.getHeader().getStamp(),
@@ -50,6 +51,7 @@ public class ParticleFilterTask extends AbstractTask {
 
     @TaskFunction
     public void ReceiveOdometry(Msg2DOdometry p) {
+        System.out.println("odom");
         Stamped<Odometry> in =
             new Stamped<>(p.getHeader().getStamp(),
                 new Odometry(
@@ -67,6 +69,7 @@ public class ParticleFilterTask extends AbstractTask {
 
         Msg2DOdometry temp = new Msg2DOdometry();
         temp.getHeader().setStamp(p.getHeader().getStamp());
+        temp.getHeader().setCoordinate("map");
         temp.getPose().setX(out.getP().getX());
         temp.getPose().setY(out.getP().getY());
         temp.getPose().setY(out.getD().getValue());
