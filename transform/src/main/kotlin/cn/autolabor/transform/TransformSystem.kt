@@ -115,6 +115,29 @@ class TransformSystem<Key : Any> {
         }
     }
 
+    /** 清理 [time] 时刻前的变换 */
+    fun cleanup(pair: Pair<Key, Key>, time: Long? = null) {
+        val now = time ?: System.currentTimeMillis()
+        lock.write {
+            val (source, target) = pair
+            val a = graphic[source, target] ?: return
+            val b = graphic[target, source] ?: return
+            if (now < 0) {
+                a.clear()
+                b.clear()
+            } else {
+                with(a) {
+                    keys.filter { it in 1..now }
+                        .forEach { remove(it) }
+                }
+                with(b) {
+                    keys.filter { it in 1..now }
+                        .forEach { remove(it) }
+                }
+            }
+        }
+    }
+
     override fun toString(): String {
         val now = System.currentTimeMillis()
         return lock.read {

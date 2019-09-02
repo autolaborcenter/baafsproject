@@ -3,12 +3,15 @@ package org.mechdancer
 import cn.autolabor.pathfollower.Circle
 import cn.autolabor.pathfollower.VirtualLightSensor
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower
+import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand
+import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.*
 import cn.autolabor.pathmaneger.loadTo
 import cn.autolabor.pathmaneger.saveTo
 import cn.autolabor.pm1.Resource
 import cn.autolabor.pm1.sdk.PM1
 import cn.autolabor.transform.Transformation
 import org.mechdancer.Mode.*
+import org.mechdancer.Mode.Follow
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -145,31 +148,28 @@ fun main() {
         synchronized(followLock) {
             while (true) {
                 if (mode == Follow) {
-                    follower(fromMap)
-                        .let { (v, w) ->
-                            when (v) {
-                                null -> when (w) {
-                                    null -> {
-                                        mode = Idle
-                                        println("error")
-                                    }
-                                    else -> {
-                                        PM1.drive(.0, .0)
-                                        println("turn: $w")
-                                        Thread.sleep(200)
-                                        PM1.driveSpatial(.05, .0, .03, .0)
-                                        PM1.driveSpatial(.0, w.sign * .5, .0, abs(w))
-                                    }
-                                }
-                                else -> when (w) {
-                                    null -> {
-                                        mode = Idle
-                                        println("finish")
-                                    }
-                                    else -> PM1.drive(v, w)
-                                }
-                            }
+                    when (val command = follower(fromMap)) {
+                        is FollowCommand.Follow -> {
+                            val (v, w) = command
+                            PM1.drive(v, w)
                         }
+                        is Turn                 -> {
+                            val (angle) = command
+                            println("turn: $angle")
+                            PM1.drive(.0, .0)
+                            Thread.sleep(200)
+                            PM1.driveSpatial(.050, .0, .025, .0)
+                            PM1.driveSpatial(.0, angle.sign * .5, .0, abs(angle))
+                        }
+                        Error                   -> {
+                            println("error")
+                            mode = Idle
+                        }
+                        Finish                  -> {
+                            println("finish")
+                            mode = Idle
+                        }
+                    }
                     follower
                         .sensor
                         .areaShape

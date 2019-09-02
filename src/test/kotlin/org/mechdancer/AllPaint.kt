@@ -9,9 +9,12 @@ import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.*
 import cn.autolabor.pathmaneger.loadTo
 import cn.autolabor.pathmaneger.saveTo
 import cn.autolabor.pm1.sdk.PM1
+import cn.autolabor.transform.TransformSystem
 import cn.autolabor.transform.Transformation
 import cn.autolabor.utilities.Odometry
 import cn.autolabor.utilities.time.Stamped
+import org.mechdancer.Coordination.BaseLink
+import org.mechdancer.Coordination.Map
 import org.mechdancer.Mode.*
 import org.mechdancer.Mode.Follow
 import org.mechdancer.algebra.function.vector.minus
@@ -31,12 +34,18 @@ import kotlin.concurrent.thread
 import kotlin.math.abs
 import kotlin.math.sign
 
+enum class Coordination {
+    Map,
+    BaseLink
+}
+
 fun main() {
     val remote = remoteHub(name = "baafs test", address = InetSocketAddress("238.88.8.100", 30000))
 
     // 滤波器
+    val system = TransformSystem<Coordination>()
+        .apply { this[BaseLink to Map] = Transformation.unit(2) }
     val filter = ParticleFilter(128)
-    var mapToBaseLink = Transformation.unit(2)
     // 业务状态
     var mode = Idle
     var enabled = false
@@ -66,7 +75,8 @@ fun main() {
         filter[inner]
             ?.also { (p, d) ->
                 remote.paint("filter", p.x, p.y, d.value)
-                mapToBaseLink = -Transformation.fromPose(p, d)
+                system.cleanup(BaseLink to Map)
+                system[BaseLink to Map] = Transformation.fromPose(p, d)
                 if (mode == Record && path.lastOrNull()?.let { (it - p).norm() > 0.05 } != false) {
                     path += p
                     remote.paintFrame2("path", path.map { it.x to it.y })
@@ -165,31 +175,28 @@ fun main() {
         synchronized(followLock) {
             while (true) {
                 if (mode == Follow) {
-                    follower(mapToBaseLink)
-                        .let {
-                            when (it) {
-                                is FollowCommand.Follow -> {
-                                    val (v, w) = it
-                                    PM1.drive(v, w)
-                                }
-                                is Turn                 -> {
-                                    val (angle) = it
-                                    println("turn: $angle")
-                                    PM1.drive(.0, .0)
-                                    Thread.sleep(200)
-                                    PM1.driveSpatial(.050, .0, .025, .0)
-                                    PM1.driveSpatial(.0, angle.sign * .5, .0, abs(angle))
-                                }
-                                Error                   -> {
-                                    println("error")
-                                    mode = Idle
-                                }
-                                Finish                  -> {
-                                    println("finish")
-                                    mode = Idle
-                                }
-                            }
+                    when (val command = follower(system[Map to BaseLink]!!.transformation)) {
+                        is FollowCommand.Follow -> {
+                            val (v, w) = command
+                            PM1.drive(v, w)
                         }
+                        is Turn                 -> {
+                            val (angle) = command
+                            println("turn: $angle")
+                            PM1.drive(.0, .0)
+                            Thread.sleep(200)
+                            PM1.driveSpatial(.050, .0, .025, .0)
+                            PM1.driveSpatial(.0, angle.sign * .5, .0, abs(angle))
+                        }
+                        Error                   -> {
+                            println("error")
+                            mode = Idle
+                        }
+                        Finish                  -> {
+                            println("finish")
+                            mode = Idle
+                        }
+                    }
                     follower
                         .sensor
                         .areaShape
