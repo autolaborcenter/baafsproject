@@ -27,8 +27,8 @@ class TestMatcherBase {
         var a = 0
         var b = 0
 
-        thread { addTask(interval1) { add1(Stamped(System.currentTimeMillis(), ++a)) } }
-        thread { addTask(interval2) { add2(Stamped(System.currentTimeMillis(), ++b)) } }
+        thread { addTask(interval1) { add1(Stamped.stamp(++a)) } }
+        thread { addTask(interval2) { add1(Stamped.stamp(++b)) } }
 
         val t0 = System.currentTimeMillis()
         var x = 0

@@ -35,7 +35,7 @@ class Resource(
                 engine(buffer) { (rho, theta) ->
                     if (rho <= 0) return@engine
 
-                    list.add(Stamped(System.currentTimeMillis(), Polar(rho, theta)))
+                    list.add(Stamped.stamp(Polar(rho, theta)))
                     while (true) {
                         if (theta > list.firstOrNull()?.data?.angle ?: Double.MAX_VALUE)
                             list.removeAt(0)

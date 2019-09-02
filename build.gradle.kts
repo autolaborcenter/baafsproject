@@ -64,8 +64,8 @@ dependencies {
     testImplementation("junit", "junit", "+")
     testImplementation(kotlin("test-junit"))
 
-    implementation("org.slf4j", "slf4j-api", "+")
-    implementation("net.java.dev.jna", "jna", "+")
-    implementation(kotlin("reflect"))
-    implementation(fileTree("libs-test"))
+    testImplementation("org.slf4j", "slf4j-api", "+")
+    testImplementation("net.java.dev.jna", "jna", "+")
+    testImplementation(kotlin("reflect"))
+    testImplementation(fileTree("libs-test"))
 }
