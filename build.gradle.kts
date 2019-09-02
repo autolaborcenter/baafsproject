@@ -55,6 +55,7 @@ dependencies {
     // 导出必要的依赖
     api(kotlin("stdlib-jdk8"))
     api(fileTree("libs"))
+    api(project(":common"))
     api(project(":transform"))
     api(project(":drivers"))
     api(project(":locator"))
@@ -63,8 +64,8 @@ dependencies {
     testImplementation("junit", "junit", "+")
     testImplementation(kotlin("test-junit"))
 
-    testImplementation("org.slf4j", "slf4j-api", "+")
-    testImplementation("net.java.dev.jna", "jna", "+")
-    testImplementation(kotlin("reflect"))
-    testImplementation(fileTree("libs-test"))
+    implementation("org.slf4j", "slf4j-api", "+")
+    implementation("net.java.dev.jna", "jna", "+")
+    implementation(kotlin("reflect"))
+    implementation(fileTree("libs-test"))
 }

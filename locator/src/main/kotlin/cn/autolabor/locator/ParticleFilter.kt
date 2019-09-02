@@ -1,8 +1,8 @@
 package cn.autolabor.locator
 
+import cn.autolabor.Stamped
 import cn.autolabor.utilities.Odometry
 import cn.autolabor.utilities.time.MatcherBase
-import cn.autolabor.utilities.time.Stamped
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOfZero

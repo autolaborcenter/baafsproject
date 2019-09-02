@@ -23,28 +23,28 @@ class ParseEngine<TWord, TResult>(
 
     /**
      * 执行解析
-     * @param list 新数据包
+     * @param buffer 新数据包
      * @param callback 应用层解析器
      */
     operator fun invoke(
-        list: Iterable<TWord>,
+        buffer: Iterable<TWord>,
         callback: (TResult) -> Unit
     ) {
         // 连接到解析缓冲区
-        buffer.addAll(list)
+        this.buffer.addAll(buffer)
         // 初始化迭代器
-        val size = buffer.size
+        val size = this.buffer.size
         var begin = 0
         var passed = 0
         // 解析到全部已检查
         while (begin < size && passed < size) {
-            val (nextHead, nextBegin, result) = parser(buffer.subList(begin, size))
+            val (nextHead, nextBegin, result) = parser(this.buffer.subList(begin, size))
             callback(result)
             passed = begin + nextBegin
             begin += nextHead
         }
         // 拷贝未解析部分
-        buffer = arrayListOf<TWord>().apply { addAll(buffer.subList(begin, size)) }
+        this.buffer = arrayListOf<TWord>().apply { addAll(this@ParseEngine.buffer.subList(begin, size)) }
     }
 
     // 缓冲

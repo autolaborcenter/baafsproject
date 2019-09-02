@@ -1,9 +1,9 @@
 package org.mechdancer
 
+import cn.autolabor.Stamped
 import cn.autolabor.locator.ParticleFilter
 import cn.autolabor.pm1.sdk.PM1
 import cn.autolabor.utilities.Odometry
-import cn.autolabor.utilities.time.Stamped
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.dependency.must
 import org.mechdancer.geometry.angle.toRad

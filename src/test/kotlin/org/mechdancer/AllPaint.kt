@@ -1,5 +1,6 @@
 package org.mechdancer
 
+import cn.autolabor.Stamped
 import cn.autolabor.locator.ParticleFilter
 import cn.autolabor.pathfollower.Circle
 import cn.autolabor.pathfollower.VirtualLightSensor
@@ -12,7 +13,6 @@ import cn.autolabor.pm1.sdk.PM1
 import cn.autolabor.transform.TransformSystem
 import cn.autolabor.transform.Transformation
 import cn.autolabor.utilities.Odometry
-import cn.autolabor.utilities.time.Stamped
 import org.mechdancer.Coordination.BaseLink
 import org.mechdancer.Coordination.Map
 import org.mechdancer.Mode.*

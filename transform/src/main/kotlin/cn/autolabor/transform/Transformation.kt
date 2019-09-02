@@ -7,6 +7,7 @@ import org.mechdancer.algebra.function.matrix.dim
 import org.mechdancer.algebra.function.matrix.inverse
 import org.mechdancer.algebra.function.matrix.times
 import org.mechdancer.algebra.function.vector.select
+import org.mechdancer.algebra.implement.matrix.Cofactor
 import org.mechdancer.algebra.implement.matrix.builder.arrayMatrixOfUnit
 import org.mechdancer.algebra.implement.matrix.builder.matrix
 import org.mechdancer.algebra.implement.matrix.builder.toListMatrix
@@ -29,6 +30,12 @@ class Transformation(matrix: Matrix) {
     operator fun invoke(vector: Vector): Vector {
         require(matrix.dim - vector.dim == 1) { "a ${dim}D Transformation cannot transform ${vector.dim}D vector" }
         return (matrix * (vector.toList() + 1.0).toListVector()).select(0 until dim)
+    }
+
+    /** 对 [vector] 应用变换中的线性成分 */
+    fun invokeLinear(vector: Vector): Vector {
+        require(matrix.dim - vector.dim == 1) { "a ${dim}D Transformation cannot transform ${vector.dim}D vector" }
+        return Cofactor(matrix, dim, dim) * vector
     }
 
     /** 串联另一个变换 [others] */

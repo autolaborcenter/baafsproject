@@ -76,12 +76,14 @@ class VirtualLightSensorPathFollower(
             ?.let { i ->
                 if (i >= 2) i
                 else {
-                    val target = (sensor.local[i + 1] - sensor.local[i])
-                        .toAngle().asRadian()
-                    val current = -fromMap
-                        .let { toMap -> (toMap(vector2DOf(1, 0)) - toMap(vector2DOf(0, 0))) }
-                        .to2D()
-                        .toAngle().asRadian()
+                    val target =
+                        (sensor.local[i + 1] - sensor.local[i])
+                            .toAngle().asRadian()
+                    val current =
+                        -fromMap
+                            .invokeLinear(vector2DOf(1, 0))
+                            .to2D()
+                            .toAngle().asRadian()
                     val delta = (target - current).toRad().adjust().asRadian()
                     if (abs(delta) > tipJudge / 2) {
                         pass += i

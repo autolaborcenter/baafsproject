@@ -21,25 +21,20 @@ public class FaselaseTask extends AbstractTask {
     private final MessageHandle<MsgLidar> topicSender;
     private final Resource resource;
 
-    public String name(){
-        return resource.getInfo();
-    }
-
     // 打开雷达资源，翻译数据帧并发送
     public FaselaseTask(String topic) {
         //noinspection unchecked
         topicSender = ServerManager.me().getOrCreateMessageHandle(topic, new TypeNode(MsgLidar.class));
-        resource = new Resource((begin, end, list) -> {
+        resource = new Resource(list -> {
             // 拆分
             List<Double> distances = new ArrayList<>(list.size());
             List<Double> angles = new ArrayList<>(list.size());
             list.forEach(pair -> {
-                distances.add(pair.getFirst());
-                angles.add(pair.getSecond());
+                distances.add(pair.getData().getDistance());
+                angles.add(pair.getData().getAngle());
             });
             // 发送
             MsgLidar msg = new MsgLidar();
-            msg.getHeader().setStamp(end);
             msg.getHeader().setCoordinate("lidar");
             msg.setDistances(distances);
             msg.setAngles(angles);
@@ -48,6 +43,10 @@ public class FaselaseTask extends AbstractTask {
             return Unit.INSTANCE;
         });
         asyncRun("run");
+    }
+
+    public String name() {
+        return resource.getInfo();
     }
 
     @TaskFunction

@@ -1,5 +1,6 @@
 package cn.autolabor.utilities.time
 
+import cn.autolabor.Stamped
 import kotlin.concurrent.thread
 import kotlin.test.Test
 

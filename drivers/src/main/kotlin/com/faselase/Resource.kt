@@ -1,6 +1,7 @@
 package com.faselase
 
 import cn.autolabor.Resource
+import cn.autolabor.Stamped
 import cn.autolabor.serialport.parser.SerialPortFinder
 
 /**
@@ -8,7 +9,7 @@ import cn.autolabor.serialport.parser.SerialPortFinder
  * 用户可自选调度器，反复调用 [invoke] 方法以运行
  */
 class Resource(
-    private val callback: (Long, Long, List<Pair<Double, Double>>) -> Unit
+    private val callback: (List<Stamped<Polar>>) -> Unit
 ) : Resource {
 
     private val engine = engine(filter = true)
@@ -24,32 +25,23 @@ class Resource(
         get() = port.descriptivePortName
 
     private val buffer = ByteArray(256)
-    private var begin = System.currentTimeMillis()
-    private var end = begin
-    private var last = -1.0
-    private val list = mutableListOf<Pair<Double, Double>>()
+    private val list = mutableListOf<Stamped<Polar>>()
 
     override operator fun invoke() {
         port.readBytes(buffer, buffer.size.toLong())
             .takeIf { it > 0 }
             ?.let { buffer.asList().subList(0, it) }
-            ?.let {
-                engine(it) { (rho, theta) ->
+            ?.let { buffer ->
+                engine(buffer) { (rho, theta) ->
                     if (rho <= 0) return@engine
 
-                    val now = System.currentTimeMillis()
-                    if (theta > last) {
-                        end = now
-                        list.add(rho to theta)
-                    } else {
-                        callback(begin, end, list)
-                        begin = now
-                        end = now
-                        list.clear()
-                        list.add(rho to theta)
+                    list.add(Stamped(System.currentTimeMillis(), Polar(rho, theta)))
+                    while (true) {
+                        if (theta > list.firstOrNull()?.data?.angle ?: Double.MAX_VALUE)
+                            list.removeAt(0)
+                        else break
                     }
-
-                    last = theta
+                    callback(list)
                 }
             }
     }
