@@ -1,6 +1,5 @@
 package cn.autolabor.pathfollower
 
-import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.function.vector.times
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -16,28 +15,32 @@ import kotlin.math.sin
  * 若涉及移动问题，应将图形的重心设为 `{0, 0}`
  */
 open class Shape(val vertex: List<Vector2D>) {
-    init {
-        require(vertex.size >= 3) { "vertex count must be more than 3" }
-    }
-
     val size by lazy { calculateSize() }
 
-    open operator fun contains(point: Vector2D) =
-        (0 until vertex.lastIndex)
-            .sumByDouble { i ->
-                val a = vertex[i] - point
-                val b = vertex[i + 1] - point
-                abs(a.x * b.y - a.y * b.x)
-            }
-            .let { abs(size - it / 2) < 1E-6 }
+    open operator fun contains(point: Vector2D): Boolean =
+        if (vertex.size < 3) false
+        else {
+            var last = vertex[0]
+            vertex.drop(1)
+                .sumByDouble {
+                    val other = last
+                    last = it
+                    abs(other.x * it.y - other.y * it.x)
+                }
+                .let { abs(it / 2 - size) < 1E-6 }
+        }
 
-    protected open fun calculateSize() =
-        (0 until vertex.lastIndex)
-            .sumByDouble { i ->
-                val a = vertex[i]
-                val b = vertex[i + 1]
-                a.x * b.y - a.y * b.x
-            } / 2
+    protected open fun calculateSize(): Double =
+        if (vertex.size < 3) .0
+        else {
+            var last = vertex[0]
+            vertex.drop(1)
+                .sumByDouble {
+                    val other = last
+                    last = it
+                    other.x * it.y - other.y * it.x
+                } / 2
+        }
 }
 
 /**

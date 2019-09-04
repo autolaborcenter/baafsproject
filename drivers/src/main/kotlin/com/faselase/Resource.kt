@@ -1,8 +1,11 @@
 package com.faselase
 
+import cn.autolabor.Polar
 import cn.autolabor.Resource
 import cn.autolabor.Stamped
 import cn.autolabor.serialport.parser.SerialPortFinder
+import java.util.*
+import kotlin.math.PI
 
 /**
  * 砝石雷达资源控制器
@@ -14,6 +17,7 @@ class Resource(
 
     private val engine = engine(filter = true)
     private val port =
+        //  启动时发送开始旋转指令
         SerialPortFinder.findSerialPort(engine) {
             baudRate = 460800
             timeoutMs = 5000
@@ -21,11 +25,12 @@ class Resource(
             activate = "#SF 10\r\n".toByteArray(Charsets.US_ASCII)
             condition { (rho, _) -> rho > 0 }
         } ?: throw RuntimeException("cannot find faselase lidar")
-    override val info: String
-        get() = port.descriptivePortName
-
     private val buffer = ByteArray(256)
-    private val list = mutableListOf<Stamped<Polar>>()
+    private val list = LinkedList<Stamped<Polar>>()
+    private var offset = .0
+    private var last = .0
+
+    override val info: String get() = port.descriptivePortName
 
     override operator fun invoke() {
         port.readBytes(buffer, buffer.size.toLong())
@@ -35,12 +40,14 @@ class Resource(
                 engine(buffer) { (rho, theta) ->
                     if (rho <= 0) return@engine
 
-                    list.add(Stamped.stamp(Polar(rho, theta)))
-                    while (true) {
-                        if (theta > list.firstOrNull()?.data?.angle ?: Double.MAX_VALUE)
-                            list.removeAt(0)
-                        else break
-                    }
+                    if (theta < last) offset += 2 * PI
+                    last = theta
+
+                    list.offer(Stamped.stamp(Polar(rho, theta + offset)))
+
+                    val head = theta + offset - 2 * PI
+                    while (list.first().data.angle < head) list.poll()
+
                     callback(list)
                 }
             }

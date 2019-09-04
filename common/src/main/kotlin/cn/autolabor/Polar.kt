@@ -1,4 +1,4 @@
-package com.faselase
+package cn.autolabor
 
 import kotlin.math.cos
 import kotlin.math.sin
