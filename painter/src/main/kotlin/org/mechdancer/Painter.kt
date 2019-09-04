@@ -1,5 +1,6 @@
 package org.mechdancer
 
+import org.mechdancer.FrameType.*
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.protocol.writeEnd
 import org.mechdancer.remote.resources.Command
@@ -101,7 +102,7 @@ fun RemoteHub.paintFrame1(
 ) = paint(topic) {
     DataOutputStream(this).apply {
         writeByte(0)
-        writeByte(FrameType.OneDouble.value)
+        writeByte(OneDouble.value)
         list.forEach(this::writeDouble)
     }
 }
@@ -115,7 +116,7 @@ fun RemoteHub.paintFrame2(
 ) = paint(topic) {
     DataOutputStream(this).apply {
         writeByte(0)
-        writeByte(FrameType.TwoDouble.value)
+        writeByte(TwoDouble.value)
         for ((x, y) in list) {
             writeDouble(x)
             writeDouble(y)
@@ -132,7 +133,7 @@ fun RemoteHub.paintFrame3(
 ) = paint(topic) {
     DataOutputStream(this).apply {
         writeByte(0)
-        writeByte(FrameType.ThreeDouble.value)
+        writeByte(ThreeDouble.value)
         for ((x, y, theta) in list) {
             writeDouble(x)
             writeDouble(y)

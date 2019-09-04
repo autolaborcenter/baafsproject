@@ -64,8 +64,7 @@ dependencies {
     testImplementation("junit", "junit", "+")
     testImplementation(kotlin("test-junit"))
 
-    testImplementation("org.slf4j", "slf4j-api", "+")
     testImplementation("net.java.dev.jna", "jna", "+")
-    testImplementation(kotlin("reflect"))
+    testImplementation(project(":painter"))
     testImplementation(fileTree("libs-test"))
 }
