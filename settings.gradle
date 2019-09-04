@@ -5,4 +5,5 @@ include 'locator'
 include 'pathfollower'
 include 'obstacledetector'
 include 'common'
+include 'painter'
 

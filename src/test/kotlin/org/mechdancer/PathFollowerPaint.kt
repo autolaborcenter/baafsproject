@@ -9,7 +9,10 @@ import cn.autolabor.pathmaneger.loadTo
 import cn.autolabor.pathmaneger.saveTo
 import cn.autolabor.pm1.Resource
 import cn.autolabor.pm1.sdk.PM1
+import cn.autolabor.transform.TransformSystem
 import cn.autolabor.transform.Transformation
+import org.mechdancer.Coordination.BaseLink
+import org.mechdancer.Coordination.Map
 import org.mechdancer.Mode.*
 import org.mechdancer.Mode.Follow
 import org.mechdancer.algebra.function.vector.minus
@@ -42,7 +45,9 @@ fun main() {
 
     var running = true
 
-    var fromMap = Transformation.unit(2)
+    // 滤波器
+    val system = TransformSystem<Coordination>()
+        .apply { this[BaseLink to Map] = Transformation.unit(2) }
     val path = mutableListOf<Vector2D>()
 
     val file = File("path.txt")
@@ -51,7 +56,8 @@ fun main() {
         address = InetSocketAddress("238.88.8.100", 30000))
     val pm1 = Resource { odometry ->
         val p = vector2DOf(odometry.x, odometry.y)
-        fromMap = -Transformation.fromPose(p, odometry.theta.toRad())
+        system.cleanup(BaseLink to Map)
+        system[BaseLink to Map] = Transformation.fromPose(p, odometry.theta.toRad())
         if (mode == Record && path.lastOrNull()?.let { (it - p).norm() > 0.05 } != false) {
             path += p
             remote.paintFrame2("path", path.map { it.x to it.y })
@@ -148,7 +154,7 @@ fun main() {
         synchronized(followLock) {
             while (true) {
                 if (mode == Follow) {
-                    when (val command = follower(fromMap)) {
+                    when (val command = follower(system[Map to BaseLink]!!.transformation)) {
                         is FollowCommand.Follow -> {
                             val (v, w) = command
                             PM1.drive(v, w)
