@@ -28,7 +28,6 @@ fun main() {
         system.cleanup(BaseLink to Map)
         system[BaseLink to Map] = Transformation.fromPose(p, d)
         follower.recordNode(p)
-
     }
     // launch tasks
     with(locator) {

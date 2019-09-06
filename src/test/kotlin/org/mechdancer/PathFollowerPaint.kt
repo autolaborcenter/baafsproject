@@ -28,11 +28,9 @@ fun main() {
     Resource { odometry ->
         val p = vector2DOf(odometry.x, odometry.y)
         val d = odometry.theta.toRad()
-        with(follower) {
-            system.cleanup(BaseLink to Map)
-            system[BaseLink to Map] = Transformation.fromPose(p, d)
-            recordNode(p)
-        }
+        system.cleanup(BaseLink to Map)
+        system[BaseLink to Map] = Transformation.fromPose(p, d)
+        follower.recordNode(p)
         remote.paint("odometry", p.x, p.y, d.asRadian())
     }.use { pm1 ->
         // launch pm1
