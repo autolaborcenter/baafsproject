@@ -22,6 +22,7 @@ import org.mechdancer.modules.Coordination.Map
 import org.mechdancer.modules.PathFollowerModule.Mode.Idle
 import org.mechdancer.modules.PathFollowerModule.Mode.Record
 import org.mechdancer.paintFrame2
+import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.RemoteHub
 import java.io.Closeable
 import java.io.File
@@ -99,7 +100,7 @@ class PathFollowerModule(
         this["load"] = {
             mode = Idle
             file loadTo path
-            remote.paintFrame2("path", path.map { it.x to it.y })
+            remote.paintVectors("path", path)
             "${path.size} nodes loaded"
         }
         this["delete"] = { file.writeText(""); "path save deleted" }
@@ -166,12 +167,8 @@ class PathFollowerModule(
                 mode = Idle
             }
         }
-        follower
-            .sensor
-            .areaShape
-            .map { it.x to it.y }
-            .let { it + it.first() }
-            .let { remote.paintFrame2("sensor", it) }
+        follower.sensor.areaShape
+            .let { remote.paintVectors("sensor", it + it.first()) }
         if (mode != Idle) {
             enabled = false
             PM1.setCommandEnabled(false)
