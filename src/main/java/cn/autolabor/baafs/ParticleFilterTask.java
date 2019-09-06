@@ -21,7 +21,7 @@ import org.mechdancer.geometry.angle.Angle;
 @TaskProperties
 public class ParticleFilterTask extends AbstractTask {
     private final MessageHandle<Msg2DOdometry> topicSender;
-    private final ParticleFilter filter;
+    public final ParticleFilter filter;
 
     public ParticleFilterTask(int particlesCount, String marvelmind, String odometry, String topic) {
         //noinspection unchecked
@@ -37,7 +37,6 @@ public class ParticleFilterTask extends AbstractTask {
 
     @TaskFunction
     public void ReceiveMarvelmind(Msg2DOdometry p) {
-        System.out.println(p.getPose().getYaw());
         filter.measureHelper(
             new Stamped<>(
                 p.getHeader().getStamp(),

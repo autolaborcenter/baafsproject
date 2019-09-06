@@ -27,7 +27,7 @@ fun main() {
                                filter.particles.map { (odom, _) -> Triple(odom.p.x, odom.p.y, odom.d.value) })
             remote.paintFrame2("life", filter.particles.mapIndexed { i, (_, n) -> i.toDouble() to n.toDouble() })
 
-            val (measureWeight, particleWeight) = filter.weightTemp
+            val (measureWeight, particleWeight) = filter.stepState
             remote.paint("定位权重", measureWeight)
             remote.paint("粒子权重", particleWeight)
 

@@ -30,10 +30,13 @@ class ParticleFilter(private val size: Int)
 
     // 过程参数渗透
     data class StepState(val measureWeight: Double,
-                         val particleWeight: Double)
+                         val particleWeight: Double,
+                         val measure: Vector2D,
+                         val state: Odometry)
 
     // DELETE ME
-    var weightTemp = StepState(.0, .0)
+    var stepState = StepState(.0, .0, vector2DOfZero(), Odometry())
+    var lastResult: Odometry? = null
 
     override fun measureMaster(item: Stamped<Odometry>) =
         matcher.add1(item).also { update() }
@@ -88,7 +91,7 @@ class ParticleFilter(private val size: Int)
                               initialize(measure, state)
                               return@forEach
                           }
-                weightTemp = StepState(measureWeight, sum)
+                stepState = StepState(measureWeight, sum, measure, state)
                 // 计算期望和方差
                 var eP = vector2DOfZero()
                 var eD = .0
@@ -126,6 +129,7 @@ class ParticleFilter(private val size: Int)
         stateSave
             ?.second
             ?.let { expectation plusDelta (item.data minusState it) }
+            .also { lastResult = it }
 
     private companion object {
         // 里程计线性可加性（用于加权平均）
