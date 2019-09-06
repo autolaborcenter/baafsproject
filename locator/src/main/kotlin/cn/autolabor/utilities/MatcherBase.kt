@@ -1,4 +1,4 @@
-package cn.autolabor.utilities.time
+package cn.autolabor.utilities
 
 import java.util.*
 import java.util.concurrent.PriorityBlockingQueue
@@ -47,12 +47,14 @@ class MatcherBase<T1, T2> : Matcher<T1, T2>
                 val b = queue2.poll() ?: return null
                 val c = queue2.peek() ?: run { queue2.offer(b); return null }
                 when {
-                    a < b -> {
+                    a < b  -> {
                         queue2.offer(b)
                         queue1.poll()
                     }
-                    a > c -> Unit
-                    else  -> return Triple(queue1.poll(), b, c)
+                    a > c  -> Unit
+                    a == b -> return Triple(queue1.poll(), b, b)
+                    a == c -> return Triple(queue1.poll(), c, c)
+                    else   -> return Triple(queue1.poll(), b, c)
                 }
             }
         }

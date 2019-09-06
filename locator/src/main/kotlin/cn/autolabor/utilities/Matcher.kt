@@ -1,4 +1,4 @@
-package cn.autolabor.utilities.time
+package cn.autolabor.utilities
 
 /**
  * 将 [T1] 对象与 [T2] 对象按顺序匹配的匹配器

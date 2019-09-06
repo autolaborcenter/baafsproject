@@ -1,8 +1,8 @@
 package cn.autolabor.locator
 
 import cn.autolabor.Stamped
+import cn.autolabor.utilities.MatcherBase
 import cn.autolabor.utilities.Odometry
-import cn.autolabor.utilities.time.MatcherBase
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
@@ -14,9 +14,7 @@ import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.sqrt
 
-/**
- * 粒子滤波器
- */
+/** 使用固定 [size] 个粒子的粒子滤波器 */
 class ParticleFilter(private val size: Int)
     : Mixer<
     Stamped<Odometry>,

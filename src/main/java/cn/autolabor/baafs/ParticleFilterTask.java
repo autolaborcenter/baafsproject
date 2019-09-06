@@ -11,9 +11,14 @@ import cn.autolabor.locator.ParticleFilter;
 import cn.autolabor.message.navigation.Msg2DOdometry;
 import cn.autolabor.message.navigation.Msg2DPose;
 import cn.autolabor.util.reflect.TypeNode;
+import cn.autolabor.utilities.Matcher;
+import cn.autolabor.utilities.MatcherBase;
 import cn.autolabor.utilities.Odometry;
+import kotlin.Triple;
 import org.mechdancer.algebra.implement.vector.Vector2D;
 import org.mechdancer.geometry.angle.Angle;
+
+import static java.lang.Math.abs;
 
 /**
  * 粒子滤波任务
@@ -21,6 +26,8 @@ import org.mechdancer.geometry.angle.Angle;
 @TaskProperties
 public class ParticleFilterTask extends AbstractTask {
     private final MessageHandle<Msg2DOdometry> topicSender;
+    private final Matcher<Stamped<Msg2DOdometry>, Stamped<Msg2DOdometry>>
+        matcher = new MatcherBase<>();
     public final ParticleFilter filter;
 
     public ParticleFilterTask(int particlesCount, String marvelmind, String odometry, String topic) {
@@ -32,7 +39,15 @@ public class ParticleFilterTask extends AbstractTask {
         ServerManager.me()
             .getOrCreateMessageHandle(odometry, new TypeNode(Msg2DOdometry.class))
             .addCallback(this, "ReceiveOdometry", new MessageSourceType[]{});
+        ServerManager.me()
+            .getOrCreateMessageHandle("abs_r", new TypeNode(Msg2DOdometry.class))
+            .addCallback(this, "ReceiveOdometry", new MessageSourceType[]{});
         filter = new ParticleFilter(particlesCount);
+    }
+
+    @TaskFunction
+    public void ReceiveReal(Msg2DOdometry p) {
+        matcher.add1(new Stamped<>(p.getHeader().getStamp(), p));
     }
 
     @TaskFunction
@@ -73,5 +88,26 @@ public class ParticleFilterTask extends AbstractTask {
             out.getD().getValue()
         ));
         topicSender.pushSubData(temp);
+
+        matcher.add2(new Stamped<>(temp.getHeader().getStamp(), temp));
+        Triple<Stamped<Msg2DOdometry>, Stamped<Msg2DOdometry>, Stamped<Msg2DOdometry>>
+            triple = matcher.match2();
+        if (triple != null) {
+            Msg2DOdometry
+                pair = triple.component1().getData(),
+                a = triple.component2().getData(),
+                b = triple.component3().getData();
+            long time = pair.getHeader().getStamp();
+            Msg2DOdometry
+                min = abs(time - a.getHeader().getStamp()) < abs(time - b.getHeader().getStamp())
+                ? a : b;
+            long t1 = min.getHeader().getStamp();
+            double dx = pair.getPose().getX() - min.getPose().getX();
+            double dy = pair.getPose().getY() - min.getPose().getY();
+            System.out.println(String.format("%d - %d = %d, error = %f",
+                time, t1,
+                abs(time - t1),
+                Math.hypot(dx, dy)));
+        }
     }
 }
