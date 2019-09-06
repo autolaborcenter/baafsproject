@@ -4,11 +4,11 @@ import cn.autolabor.pm1.sdk.PM1
 import cn.autolabor.transform.TransformSystem
 import cn.autolabor.transform.Transformation
 import org.mechdancer.dependency.must
+import org.mechdancer.modules.Coordination
+import org.mechdancer.modules.Coordination.BaseLink
+import org.mechdancer.modules.Coordination.Map
 import org.mechdancer.modules.LocatorModule
 import org.mechdancer.modules.PathFollowerModule
-import org.mechdancer.modules.PathFollowerModule.Coordination
-import org.mechdancer.modules.PathFollowerModule.Coordination.BaseLink
-import org.mechdancer.modules.PathFollowerModule.Coordination.Map
 import org.mechdancer.remote.presets.remoteHub
 import org.mechdancer.remote.resources.MulticastSockets
 import kotlin.concurrent.thread

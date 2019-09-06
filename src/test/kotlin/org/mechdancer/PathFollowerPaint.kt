@@ -7,8 +7,10 @@ import cn.autolabor.transform.Transformation
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.dependency.must
 import org.mechdancer.geometry.angle.toRad
+import org.mechdancer.modules.Coordination
+import org.mechdancer.modules.Coordination.BaseLink
+import org.mechdancer.modules.Coordination.Map
 import org.mechdancer.modules.PathFollowerModule
-import org.mechdancer.modules.PathFollowerModule.Coordination
 import org.mechdancer.remote.presets.remoteHub
 import org.mechdancer.remote.resources.MulticastSockets
 
@@ -27,8 +29,8 @@ fun main() {
         val p = vector2DOf(odometry.x, odometry.y)
         val d = odometry.theta.toRad()
         with(follower) {
-            system.cleanup(Coordination.BaseLink to Coordination.Map)
-            system[Coordination.BaseLink to Coordination.Map] = Transformation.fromPose(p, d)
+            system.cleanup(BaseLink to Map)
+            system[BaseLink to Map] = Transformation.fromPose(p, d)
             recordNode(p)
         }
         remote.paint("odometry", p.x, p.y, d.asRadian())

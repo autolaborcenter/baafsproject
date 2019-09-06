@@ -17,8 +17,8 @@ import org.mechdancer.console.parser.buildParser
 import org.mechdancer.console.parser.display
 import org.mechdancer.console.parser.feedback
 import org.mechdancer.geometry.angle.toRad
-import org.mechdancer.modules.PathFollowerModule.Coordination.BaseLink
-import org.mechdancer.modules.PathFollowerModule.Coordination.Map
+import org.mechdancer.modules.Coordination.BaseLink
+import org.mechdancer.modules.Coordination.Map
 import org.mechdancer.modules.PathFollowerModule.Mode.Idle
 import org.mechdancer.modules.PathFollowerModule.Mode.Record
 import org.mechdancer.paintFrame2
@@ -39,14 +39,8 @@ class PathFollowerModule(
     private val remote: RemoteHub,
     private val system: TransformSystem<Coordination>
 ) : Closeable {
-    // 坐标系
-    enum class Coordination {
-        Map,
-        BaseLink
-    }
-
-    // 任务类型
-    enum class Mode {
+    // 任务类型/工作状态
+    private enum class Mode {
         Record,
         Follow,
         Idle
