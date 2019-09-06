@@ -12,11 +12,13 @@ class Resource(private val callback: (Odometry) -> Unit) : Resource {
     override val info = PM1.initialize()
 
     override fun invoke() {
-        callback(PM1.odometry.copy(stamp = System.currentTimeMillis()))
+        synchronized(this) { PM1.odometry }
+            .copy(stamp = System.currentTimeMillis())
+            .also(callback)
         Thread.sleep(100)
     }
 
     override fun close() {
-        PM1.safeShutdown()
+        synchronized(this) { PM1.safeShutdown() }
     }
 }

@@ -33,8 +33,9 @@ class Resource(
     override val info: String get() = port.descriptivePortName
 
     override operator fun invoke() {
-        port.readBytes(buffer, buffer.size.toLong())
-            .takeIf { it > 0 }
+        synchronized(port) {
+            port.takeIf { it.isOpen }?.readBytes(buffer, buffer.size.toLong())
+        }?.takeIf { it > 0 }
             ?.let { buffer.asList().subList(0, it) }
             ?.let { buffer ->
                 engine(buffer) { (rho, theta) ->
@@ -54,6 +55,6 @@ class Resource(
     }
 
     override fun close() {
-        port.closePort()
+        synchronized(port) { port.closePort() }
     }
 }

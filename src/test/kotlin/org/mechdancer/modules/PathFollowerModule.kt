@@ -1,4 +1,4 @@
-package org.mechdancer
+package org.mechdancer.modules
 
 import cn.autolabor.pathfollower.Circle
 import cn.autolabor.pathfollower.VirtualLightSensor
@@ -9,8 +9,6 @@ import cn.autolabor.pathmaneger.saveTo
 import cn.autolabor.pm1.sdk.PM1
 import cn.autolabor.transform.TransformSystem
 import cn.autolabor.transform.Transformation
-import org.mechdancer.PathFollowerModule.Mode.Idle
-import org.mechdancer.PathFollowerModule.Mode.Record
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -18,12 +16,15 @@ import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.console.parser.display
 import org.mechdancer.console.parser.feedback
-import org.mechdancer.dependency.must
 import org.mechdancer.geometry.angle.toRad
-import org.mechdancer.remote.presets.remoteHub
-import org.mechdancer.remote.resources.MulticastSockets
+import org.mechdancer.modules.PathFollowerModule.Coordination.BaseLink
+import org.mechdancer.modules.PathFollowerModule.Coordination.Map
+import org.mechdancer.modules.PathFollowerModule.Mode.Idle
+import org.mechdancer.modules.PathFollowerModule.Mode.Record
+import org.mechdancer.paintFrame2
+import org.mechdancer.remote.presets.RemoteHub
+import java.io.Closeable
 import java.io.File
-import java.net.InetSocketAddress
 import kotlin.concurrent.thread
 import kotlin.math.abs
 import kotlin.math.sign
@@ -34,7 +35,10 @@ import kotlin.math.sign
  * 包含任务控制、路径管理、控制台解析、循径任务；
  * PM1 驱动启动后才能正常运行；
  */
-class PathFollowerModule {
+class PathFollowerModule(
+    private val remote: RemoteHub,
+    private val system: TransformSystem<Coordination>
+) : Closeable {
     // 坐标系
     enum class Coordination {
         Map,
@@ -48,18 +52,9 @@ class PathFollowerModule {
         Idle
     }
 
-    // 网络节点
-    val remote =
-        remoteHub(
-            name = "path follower test",
-            address = InetSocketAddress("238.88.8.100", 30000)
-        ).also {
-            it.openAllNetworks()
-            println("remote launched on ${it.components.must<MulticastSockets>().address}")
-        }
-    // 坐标系管理器
-    val system = TransformSystem<Coordination>()
-        .apply { this[Coordination.BaseLink to Coordination.Map] = Transformation.unit(2) }
+    init {
+        system[BaseLink to Map] = Transformation.unit(2)
+    }
 
     private val file = File("path.txt")
     private val path = mutableListOf<Vector2D>()
@@ -146,7 +141,7 @@ class PathFollowerModule {
     }
 
     /** 阻塞解析 */
-    fun blockParse() {
+    fun parseRepeatedly() {
         while (running)
             readLine()
                 ?.let(parser::invoke)
@@ -155,7 +150,7 @@ class PathFollowerModule {
     }
 
     private fun follow() {
-        when (val command = follower(system[Coordination.Map to Coordination.BaseLink]!!.transformation)) {
+        when (val command = follower(system[Map to BaseLink]!!.transformation)) {
             is Follow -> {
                 val (v, w) = command
                 PM1.drive(v, w)
@@ -188,5 +183,9 @@ class PathFollowerModule {
             PM1.setCommandEnabled(false)
         }
         Thread.sleep(100)
+    }
+
+    override fun close() {
+        running = false
     }
 }

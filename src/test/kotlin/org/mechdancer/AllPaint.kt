@@ -1,53 +1,44 @@
 package org.mechdancer
 
-import cn.autolabor.Stamped
-import cn.autolabor.locator.ParticleFilter
 import cn.autolabor.pm1.sdk.PM1
+import cn.autolabor.transform.TransformSystem
 import cn.autolabor.transform.Transformation
-import cn.autolabor.utilities.Odometry
-import org.mechdancer.PathFollowerModule.Coordination
-import org.mechdancer.algebra.implement.vector.vector2DOf
-import org.mechdancer.geometry.angle.toRad
+import org.mechdancer.dependency.must
+import org.mechdancer.modules.LocatorModule
+import org.mechdancer.modules.PathFollowerModule
+import org.mechdancer.modules.PathFollowerModule.Coordination
+import org.mechdancer.modules.PathFollowerModule.Coordination.BaseLink
+import org.mechdancer.modules.PathFollowerModule.Coordination.Map
+import org.mechdancer.remote.presets.remoteHub
+import org.mechdancer.remote.resources.MulticastSockets
+import kotlin.concurrent.thread
 
 fun main() {
-    val module = PathFollowerModule()
-    val filter = ParticleFilter(128)
-    val marvelmind = com.marvelmind.Resource { time, x, y ->
-        module.remote.paint("marvelmind", x, y)
-        filter.measureHelper(Stamped(time, vector2DOf(x, y)))
+    // 网络节点
+    val remote = remoteHub("path follower test").also {
+        it.openAllNetworks()
+        println("remote launched on ${it.components.must<MulticastSockets>().address}")
     }
-    val pm1 = cn.autolabor.pm1.Resource { (stamp, _, _, x, y, theta) ->
-        val inner = Stamped(stamp, Odometry(vector2DOf(x, y), theta.toRad()))
+    // 坐标系管理器
+    val system = TransformSystem<Coordination>()
+    // 导航模块
+    val follower = PathFollowerModule(remote, system)
+    // 定位模块
+    val locator = LocatorModule(remote) { (p, d) ->
+        system.cleanup(BaseLink to Map)
+        system[BaseLink to Map] = Transformation.fromPose(p, d)
+        follower.recordNode(p)
 
-        with(module) {
-            remote.paint("odometry", x, y, theta)
-            filter.measureMaster(inner)
-
-            remote.paintFrame3("particles",
-                               filter.particles.map { (odom, _) -> Triple(odom.p.x, odom.p.y, odom.d.value) })
-            remote.paintFrame2("life", filter.particles.mapIndexed { i, (_, n) -> i.toDouble() to n.toDouble() })
-
-            val (measureWeight, particleWeight) = filter.stepState
-            remote.paint("定位权重", measureWeight)
-            remote.paint("粒子权重", particleWeight)
-
-            filter[inner]
-                ?.also { (p, d) ->
-                    system.cleanup(Coordination.BaseLink to Coordination.Map)
-                    system[Coordination.BaseLink to Coordination.Map] = Transformation.fromPose(p, d)
-                    recordNode(p)
-                    remote.paint("filter", p.x, p.y, d.value)
-                }
-        }
     }
-
-    // launch pm1
-    PM1.locked = false
-    PM1.setCommandEnabled(false)
-    launchBlocking { pm1() }
-    // launch marvelmind
-    launchBlocking { marvelmind() }
+    // launch tasks
+    with(locator) {
+        // launch pm1
+        PM1.locked = false
+        PM1.setCommandEnabled(false)
+        thread { pm1BlockTask() }
+        // launch marvelmind
+        thread { marvelmindBlockTask() }
+    }
     // launch parser
-    module.blockParse()
-    pm1.close()
+    follower.parseRepeatedly()
 }

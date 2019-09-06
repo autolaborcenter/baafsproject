@@ -1,6 +1,10 @@
 package org.mechdancer
 
 import org.mechdancer.FrameType.*
+import org.mechdancer.algebra.core.Vector
+import org.mechdancer.algebra.function.vector.x
+import org.mechdancer.algebra.function.vector.y
+import org.mechdancer.algebra.function.vector.z
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.protocol.writeEnd
 import org.mechdancer.remote.resources.Command
@@ -138,6 +142,34 @@ fun RemoteHub.paintFrame3(
             writeDouble(x)
             writeDouble(y)
             writeDouble(theta)
+        }
+    }
+}
+
+/**
+ * 画单帧向量信号
+ */
+fun RemoteHub.paintVectors(
+    topic: String,
+    list: List<Vector>
+) = paint(topic) {
+    when (list.map { it.dim }.toSet().singleOrNull()) {
+        2 -> DataOutputStream(this).apply {
+            writeByte(0)
+            writeByte(TwoDouble.value)
+            for (v in list) {
+                writeDouble(v.x)
+                writeDouble(v.y)
+            }
+        }
+        3 -> DataOutputStream(this).apply {
+            writeByte(0)
+            writeByte(ThreeDouble.value)
+            for (v in list) {
+                writeDouble(v.x)
+                writeDouble(v.y)
+                writeDouble(v.z)
+            }
         }
     }
 }
