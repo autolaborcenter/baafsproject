@@ -17,8 +17,8 @@ import org.mechdancer.console.parser.buildParser
 import org.mechdancer.console.parser.display
 import org.mechdancer.console.parser.feedback
 import org.mechdancer.geometry.angle.toRad
-import org.mechdancer.modules.Coordination.BaseLink
 import org.mechdancer.modules.Coordination.Map
+import org.mechdancer.modules.Coordination.Robot
 import org.mechdancer.modules.PathFollowerModule.Mode.Idle
 import org.mechdancer.modules.PathFollowerModule.Mode.Record
 import org.mechdancer.paintFrame2
@@ -48,7 +48,7 @@ class PathFollowerModule(
     }
 
     init {
-        system[BaseLink to Map] = Transformation.unit(2)
+        system[Robot to Map] = Transformation.unit(2)
     }
 
     private val file = File("path.txt")
@@ -145,7 +145,7 @@ class PathFollowerModule(
     }
 
     private fun follow() {
-        when (val command = follower(system[Map to BaseLink]!!.transformation)) {
+        when (val command = follower(system[Map to Robot]!!.transformation)) {
             is Follow -> {
                 val (v, w) = command
                 PM1.drive(v, w)

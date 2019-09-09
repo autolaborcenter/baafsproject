@@ -1,8 +1,11 @@
 package org.mechdancer.modules
 
 import cn.autolabor.Stamped
+import cn.autolabor.Stamped.Companion.stamp
 import cn.autolabor.locator.ParticleFilter
+import cn.autolabor.pm1.sdk.PM1
 import cn.autolabor.utilities.Odometry
+import com.marvelmind.Resource
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.paint
@@ -13,45 +16,41 @@ import java.io.Closeable
 
 class LocatorModule(
     private val remote: RemoteHub,
-    callback: (Odometry) -> Unit
+    private val callback: (Odometry) -> Unit
 ) : Closeable {
     private var running = false
 
     private val filter = ParticleFilter(128)
-    private val marvelmind = com.marvelmind.Resource { time, x, y ->
-        remote.paint("marvelmind", x, y)
+    private val marvelmind = Resource { time, x, y ->
         filter.measureHelper(Stamped(time, vector2DOf(x, y)))
-    }
-    private val pm1 = cn.autolabor.pm1.Resource { (stamp, _, _, x, y, theta) ->
-        val inner = Stamped(stamp, Odometry(vector2DOf(x, y), theta.toRad()))
+        locate()
 
-        remote.paint("odometry", x, y, theta)
-        filter.measureMaster(inner)
-
-        val (measureWeight, particleWeight) = filter.stepState
-        remote.paint("定位权重", measureWeight)
-        remote.paint("粒子权重", particleWeight)
-
-        filter[inner]
-            ?.also(callback)
-            ?.also { (p, d) -> remote.paint("filter", p.x, p.y, d.value) }
-        remote.paintFrame3("particles",
-                           filter.particles.map { (odom, _) -> Triple(odom.p.x, odom.p.y, odom.d.value) })
-        remote.paintFrame2("life",
-                           filter.particles.mapIndexed { i, (_, n) -> i.toDouble() to n.toDouble() })
+        remote.paint("超声波定位", x, y)
     }
 
     fun marvelmindBlockTask() {
         while (running) marvelmind()
     }
 
-    fun pm1BlockTask() {
-        while (running) pm1()
-    }
-
     override fun close() {
         running = false
         marvelmind.close()
-        pm1.close()
+    }
+
+    private fun locate() {
+        val (_, _, _, x, y, theta) = PM1.odometry
+        val inner = stamp(Odometry(vector2DOf(x, y), theta.toRad()))
+        filter.measureMaster(inner)
+        filter[inner]?.also(callback)?.also { (p, d) -> remote.paint("filter", p.x, p.y, d.value) }
+
+        remote.paint("里程计", x, y, theta)
+        filter.stepState.let { (measureWeight, particleWeight, _, _) ->
+            remote.paint("定位权重", measureWeight)
+            remote.paint("粒子权重", particleWeight)
+        }
+        remote.paintFrame3("粒子群",
+                           filter.particles.map { (odom, _) -> Triple(odom.p.x, odom.p.y, odom.d.value) })
+        remote.paintFrame2("粒子寿命",
+                           filter.particles.mapIndexed { i, (_, n) -> i.toDouble() to n.toDouble() })
     }
 }

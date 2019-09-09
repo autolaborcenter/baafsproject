@@ -5,7 +5,6 @@ import org.mechdancer.dependency.must
 import org.mechdancer.modules.LocatorModule
 import org.mechdancer.remote.presets.remoteHub
 import org.mechdancer.remote.resources.MulticastSockets
-import kotlin.concurrent.thread
 
 fun main() {
     // 网络节点
@@ -22,7 +21,6 @@ fun main() {
         // launch pm1
         PM1.locked = false
         PM1.setCommandEnabled(false)
-        thread { pm1BlockTask() }
         // launch marvelmind
         marvelmindBlockTask()
     }

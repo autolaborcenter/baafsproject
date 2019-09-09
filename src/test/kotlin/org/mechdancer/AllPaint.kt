@@ -5,8 +5,8 @@ import cn.autolabor.transform.TransformSystem
 import cn.autolabor.transform.Transformation
 import org.mechdancer.dependency.must
 import org.mechdancer.modules.Coordination
-import org.mechdancer.modules.Coordination.BaseLink
 import org.mechdancer.modules.Coordination.Map
+import org.mechdancer.modules.Coordination.Robot
 import org.mechdancer.modules.LocatorModule
 import org.mechdancer.modules.PathFollowerModule
 import org.mechdancer.remote.presets.remoteHub
@@ -25,18 +25,18 @@ fun main() {
     val follower = PathFollowerModule(remote, system)
     // 定位模块
     val locator = LocatorModule(remote) { (p, d) ->
-        system.cleanup(BaseLink to Map)
-        system[BaseLink to Map] = Transformation.fromPose(p, d)
+        system.cleanup(Robot to Map)
+        system[Robot to Map] = Transformation.fromPose(p, d)
         follower.recordNode(p)
     }
     // launch tasks
     with(locator) {
         // launch pm1
+        PM1.initialize()
         PM1.locked = false
         PM1.setCommandEnabled(false)
-        thread { pm1BlockTask() }
         // launch marvelmind
-        thread { marvelmindBlockTask() }
+        thread(name = "marvelmind") { marvelmindBlockTask() }
     }
     // launch parser
     follower.parseRepeatedly()
