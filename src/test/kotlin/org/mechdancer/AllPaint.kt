@@ -27,7 +27,7 @@ fun main() {
     val locator = LocatorModule(remote) { (time, data) ->
         system.cleanup(Robot to Map)
         system[Robot to Map, time] = Transformation.fromPose(data.p, data.d)
-        follower.recordNode(data.p)
+        follower.record(data.p)
     }
     // launch tasks
     thread(name = "marvelmind") {

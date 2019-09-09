@@ -30,7 +30,7 @@ fun main() {
         val d = odometry.theta.toRad()
         system.cleanup(Robot to Map)
         system[Robot to Map] = Transformation.fromPose(p, d)
-        follower.recordNode(p)
+        follower.record(p)
         remote.paint("odometry", p.x, p.y, d.asRadian())
     }.use { pm1 ->
         // launch pm1

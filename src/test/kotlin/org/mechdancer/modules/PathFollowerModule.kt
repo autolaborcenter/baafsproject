@@ -4,13 +4,10 @@ import cn.autolabor.pathfollower.Circle
 import cn.autolabor.pathfollower.VirtualLightSensor
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.*
-import cn.autolabor.pathmaneger.loadTo
-import cn.autolabor.pathmaneger.saveTo
+import cn.autolabor.pathmaneger.PathManager
 import cn.autolabor.pm1.sdk.PM1
 import cn.autolabor.transform.TransformSystem
 import cn.autolabor.transform.Transformation
-import org.mechdancer.algebra.function.vector.minus
-import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.console.parser.buildParser
@@ -37,8 +34,9 @@ import kotlin.math.sign
  * PM1 驱动启动后才能正常运行；
  */
 class PathFollowerModule(
-    private val remote: RemoteHub,
+    private val remote: RemoteHub? = null,
     private val system: TransformSystem<Coordination>
+
 ) : Closeable {
     // 任务类型/工作状态
     private enum class Mode {
@@ -52,7 +50,7 @@ class PathFollowerModule(
     }
 
     private val file = File("path.txt")
-    private val path = mutableListOf<Vector2D>()
+    private val path = PathManager(interval = 0.05)
     private val follower =
         VirtualLightSensorPathFollower(
             VirtualLightSensor(
@@ -86,21 +84,19 @@ class PathFollowerModule(
         this["clear"] = {
             mode = Idle
             path.clear()
-            remote.paintFrame2("path", emptyList())
+            remote?.paintFrame2("path", emptyList())
             "path cleared"
         }
         this["show"] = {
-            buildString {
-                appendln("path count = ${path.size}")
-                for (node in path) appendln("${node.x}\t${node.y}")
-            }
+            remote?.paintVectors("path", path.get())
+            path.get().let { "path count = ${it.size}\n${it.joinToString("\n") { p -> "${p.x}\t${p.y}" }}" }
         }
 
-        this["save"] = { file saveTo path; "${path.size} nodes saved" }
+        this["save"] = { path.saveTo(file); "${path.size} nodes saved" }
         this["load"] = {
             mode = Idle
-            file loadTo path
-            remote.paintVectors("path", path)
+            path.loadFrom(file)
+            remote?.paintVectors("path", path.get())
             "${path.size} nodes loaded"
         }
         this["delete"] = { file.writeText(""); "path save deleted" }
@@ -111,8 +107,13 @@ class PathFollowerModule(
                 Mode.Follow -> "Ok."
                 Idle        -> {
                     mode = Mode.Follow
-                    follower.path = path
-                    thread { while (mode == Mode.Follow) follow() }
+                    follower.path = path.get()
+                    thread {
+                        while (mode == Mode.Follow) {
+                            follow()
+                            Thread.sleep(100)
+                        }
+                    }
                     "Ok."
                 }
             }
@@ -128,14 +129,12 @@ class PathFollowerModule(
     }
 
     /** 记录路径点 */
-    fun recordNode(p: Vector2D) {
-        if (mode == Record && path.lastOrNull()?.let { (it - p).norm() > 0.05 } != false) {
-            path += p
-            remote.paintFrame2("path", path.map { it.x to it.y })
-        }
+    fun record(p: Vector2D) {
+        if (mode == Record && path.record(p))
+            remote?.paintVectors("path", path.get())
     }
 
-    /** 阻塞解析 */
+    /** 从控制台阻塞解析 */
     fun parseRepeatedly() {
         while (running)
             readLine()
@@ -143,6 +142,11 @@ class PathFollowerModule(
                 ?.map(::feedback)
                 ?.forEach(::display)
     }
+
+    /** 解析一个脚本 */
+    fun parse(cmd: String) =
+        cmd.let(parser::invoke)
+            .map(::feedback)
 
     private fun follow() {
         when (val command = follower(system[Map to Robot]!!.transformation)) {
@@ -167,13 +171,14 @@ class PathFollowerModule(
                 mode = Idle
             }
         }
-        follower.sensor.areaShape
-            .let { remote.paintVectors("sensor", it + it.first()) }
+        remote?.run {
+            val shape = follower.sensor.areaShape
+            paintVectors("sensor", shape + shape.first())
+        }
         if (mode != Idle) {
             enabled = false
             PM1.setCommandEnabled(false)
         }
-        Thread.sleep(100)
     }
 
     override fun close() {
