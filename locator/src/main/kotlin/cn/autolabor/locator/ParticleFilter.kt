@@ -1,10 +1,12 @@
 package cn.autolabor.locator
 
 import cn.autolabor.Stamped
+import cn.autolabor.transform.Transformation
 import cn.autolabor.utilities.MatcherBase
 import cn.autolabor.utilities.Odometry
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
+import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.geometry.angle.rotate
 import org.mechdancer.geometry.angle.times
@@ -15,12 +17,16 @@ import kotlin.math.min
 import kotlin.math.sqrt
 
 /** 使用固定 [size] 个粒子的粒子滤波器 */
-class ParticleFilter(private val size: Int)
+class ParticleFilter(private val size: Int,
+                     locatorToRobot: Transformation = Transformation.unit(2))
     : Mixer<
     Stamped<Odometry>,
     Stamped<Vector2D>,
     Odometry> {
     private val matcher = MatcherBase<Stamped<Odometry>, Stamped<Vector2D>>()
+
+    private val locatorOnRobot = locatorToRobot(vector2DOfZero())
+    private val robotOnLocator = -locatorToRobot(vector2DOfZero())
 
     // 粒子：位姿 - 寿命
     // REDUCE ME
@@ -80,10 +86,14 @@ class ParticleFilter(private val size: Int)
                 val p1 = (abs(lengthM - lengthS) / 0.1) clamp 0.0..1.0
                 val measureWeight = size / 2 * (1 - (0.5 * p0 + 0.5 * p1))
                 // 更新粒子群
-                val random = java.util.Random()
                 particles = particles.map { (p, i) -> (p plusDelta delta) to min(i + 1, 10) }
+                val locators = particles.map { (odometry, _) ->
+                    val (p, d) = odometry
+                    val transformation = Transformation.fromPose(p, d)
+                    Odometry(transformation(locatorOnRobot).to2D(), d)
+                }
                 // 计算权重
-                val weights = particles.map { (p, _) -> 1 - ((5 * (p.p - measure).norm()) clamp 0.0..1.0) }
+                val weights = locators.map { (p, _) -> 1 - ((5 * (p - measure).norm()) clamp 0.0..1.0) }
                 val sum = weights.sum().takeIf { it > 1 }
                           ?: run {
                               initialize(measure, state)
@@ -94,8 +104,7 @@ class ParticleFilter(private val size: Int)
                 var eP = vector2DOfZero()
                 var eD = .0
                 var eD2 = .0
-                particles.forEachIndexed { i, (odom, _) ->
-                    val (p, d) = odom
+                locators.forEachIndexed { i, (p, d) ->
                     val k = weights[i]
                     eP += p * k
                     eD += k * d.value
@@ -106,13 +115,15 @@ class ParticleFilter(private val size: Int)
                 eD2 /= sum
                 val sigma = sqrt((eD2 - eD * eD) clamp 0.1..0.49)
                 // 重采样
+                val random = java.util.Random()
+                val eRobot = Transformation.fromPose(eP, eD.toRad())(robotOnLocator).to2D()
                 particles = particles.mapIndexed { i, item ->
-                    if (weights[i] < 0.2) {
-                        Odometry(eP, (random.nextGaussian() * sigma + eD).toRad()) to 0
-                    } else item
+                    if (weights[i] < 0.2)
+                        Odometry(eRobot, (random.nextGaussian() * sigma + eD).toRad()) to 0
+                    else item
                 }
                 // 求期望
-                expectation = Odometry(eP, eD.toRad())
+                expectation = Odometry(eRobot, eD.toRad())
             }
     }
 
@@ -120,7 +131,11 @@ class ParticleFilter(private val size: Int)
     private fun initialize(measure: Vector2D, state: Odometry) {
         stateSave = measure to state
         val step = 2 * PI / size
-        particles = List(size) { Odometry(measure, (it * step).toRad()) to 0 }
+        particles = List(size) {
+            val d = (it * step).toRad()
+            val p = Transformation.fromPose(measure, d)(robotOnLocator).to2D()
+            Odometry(p, d) to 0
+        }
     }
 
     override operator fun get(item: Stamped<Odometry>) =

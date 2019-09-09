@@ -1,6 +1,7 @@
 package org.mechdancer
 
 import cn.autolabor.pm1.sdk.PM1
+import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.dependency.must
 import org.mechdancer.modules.LocatorModule
 import org.mechdancer.remote.presets.remoteHub
@@ -13,16 +14,15 @@ fun main() {
         println("remote launched on ${it.components.must<MulticastSockets>().address}")
     }
     // 定位模块
-    val locator = LocatorModule(remote) { (_, data) ->
+    LocatorModule(remote, vector2DOf(-0.32, 0)) { (_, data) ->
         val (p, d) = data
         remote.paint("filter", p.x, p.y, d.value)
-    }
-    // launch tasks
-    with(locator) {
+    }.use {
         // launch pm1
+        PM1.initialize()
         PM1.locked = false
         PM1.setCommandEnabled(false)
         // launch marvelmind
-        marvelmindBlockTask()
+        it.marvelmindBlockTask()
     }
 }

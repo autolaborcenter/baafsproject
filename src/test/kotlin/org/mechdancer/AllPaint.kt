@@ -3,6 +3,7 @@ package org.mechdancer
 import cn.autolabor.pm1.sdk.PM1
 import cn.autolabor.transform.TransformSystem
 import cn.autolabor.transform.Transformation
+import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.dependency.must
 import org.mechdancer.modules.Coordination
 import org.mechdancer.modules.Coordination.Map
@@ -24,7 +25,7 @@ fun main() {
     // 导航模块
     val follower = PathFollowerModule(remote, system)
     // 定位模块
-    val locator = LocatorModule(remote) { (time, data) ->
+    val locator = LocatorModule(remote, vector2DOf(-0.32, 0)) { (time, data) ->
         system.cleanup(Robot to Map)
         system[Robot to Map, time] = Transformation.fromPose(data.p, data.d)
         follower.record(data.p)
