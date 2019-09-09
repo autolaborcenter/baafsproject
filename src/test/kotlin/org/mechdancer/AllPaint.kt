@@ -24,19 +24,19 @@ fun main() {
     // 导航模块
     val follower = PathFollowerModule(remote, system)
     // 定位模块
-    val locator = LocatorModule(remote) { (p, d) ->
+    val locator = LocatorModule(remote) { (time, data) ->
         system.cleanup(Robot to Map)
-        system[Robot to Map] = Transformation.fromPose(p, d)
-        follower.recordNode(p)
+        system[Robot to Map, time] = Transformation.fromPose(data.p, data.d)
+        follower.recordNode(data.p)
     }
     // launch tasks
-    with(locator) {
+    thread(name = "marvelmind") {
         // launch pm1
         PM1.initialize()
         PM1.locked = false
         PM1.setCommandEnabled(false)
         // launch marvelmind
-        thread(name = "marvelmind") { marvelmindBlockTask() }
+        locator.marvelmindBlockTask()
     }
     // launch parser
     follower.parseRepeatedly()
