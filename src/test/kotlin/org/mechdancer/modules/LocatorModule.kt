@@ -35,13 +35,15 @@ class LocatorModule(
         with(remote) {
             paint("超声波定位", x, y)
             paint("里程计", ox, oy, theta)
-            filtered?.let { (p, d) -> paint("filter", p.x, p.y, d.value) }
-            filter.stepState.let { (measureWeight, particleWeight, _, _) ->
-                paint("定位权重", measureWeight)
-                paint("粒子权重", particleWeight)
+            filtered?.let { (p, d) -> paint("粒子滤波", p.x, p.y, d.value) }
+            with(filter) {
+                stepState.let { (measureWeight, particleWeight, _, _) ->
+                    paint("定位权重", measureWeight)
+                    paint("粒子权重", particleWeight)
+                }
+                paintFrame3("粒子群", particles.map { (odom, _) -> Triple(odom.p.x, odom.p.y, odom.d.value) })
+                paintFrame2("粒子寿命", particles.mapIndexed { i, (_, n) -> i.toDouble() to n.toDouble() })
             }
-            paintFrame3("粒子群", filter.particles.map { (odom, _) -> Triple(odom.p.x, odom.p.y, odom.d.value) })
-            paintFrame2("粒子寿命", filter.particles.mapIndexed { i, (_, n) -> i.toDouble() to n.toDouble() })
         }
     }
 
