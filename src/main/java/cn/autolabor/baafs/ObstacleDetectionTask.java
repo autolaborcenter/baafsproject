@@ -44,9 +44,9 @@ public class ObstacleDetectionTask extends AbstractTask {
     @TaskParameter(name = "timeout", value = "50")
     private double timeout;
 
-    private Map<String, LidarInfo> lidarInfos = new HashMap<>();
-    private Map<String, MsgLidar> lidarData = new HashMap<>();
-    private Map<String, Long> lastTimeMap = new HashMap<>();
+    private Map<String, LidarInfo> lidarInfos = new HashMap<>(); // key -> frame
+    private Map<String, MsgLidar> lidarData = new HashMap<>(); // key -> topic
+    private Map<String, Long> lastTimeMap = new HashMap<>(); // key -> topic
 
     private List<MsgPolygon> obstacles = new ArrayList<>();
 
