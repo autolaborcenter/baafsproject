@@ -13,7 +13,8 @@ fun main() {
         println("remote launched on ${it.components.must<MulticastSockets>().address}")
     }
     // 定位模块
-    val locator = LocatorModule(remote) { (p, d) ->
+    val locator = LocatorModule(remote) { (_, data) ->
+        val (p, d) = data
         remote.paint("filter", p.x, p.y, d.value)
     }
     // launch tasks

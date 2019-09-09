@@ -59,6 +59,7 @@ dependencies {
     api(project(":transform"))
     api(project(":drivers"))
     api(project(":locator"))
+    api(project(":obstacledetector"))
     api(project(":pathfollower"))
 
     testImplementation("junit", "junit", "+")

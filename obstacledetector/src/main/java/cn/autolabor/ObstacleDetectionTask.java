@@ -1,4 +1,4 @@
-package cn.autolabor.baafs;
+package cn.autolabor;
 
 import cn.autolabor.core.annotation.InjectMessage;
 import cn.autolabor.core.annotation.TaskFunction;
@@ -18,7 +18,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static cn.autolabor.baafs.GeometricUtil.convexHull;
+import static cn.autolabor.GeometricUtil.convexHull;
 
 @SuppressWarnings("WeakerAccess")
 @TaskProperties(name = "ObstacleDetectionTask")

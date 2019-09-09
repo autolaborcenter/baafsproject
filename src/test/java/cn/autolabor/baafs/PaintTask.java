@@ -1,5 +1,6 @@
 package cn.autolabor.baafs;
 
+import cn.autolabor.ObstacleDetectionTask;
 import cn.autolabor.core.annotation.SubscribeMessage;
 import cn.autolabor.core.annotation.TaskFunction;
 import cn.autolabor.core.annotation.TaskParameter;

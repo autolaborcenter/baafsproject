@@ -1,4 +1,4 @@
-package cn.autolabor.baafs;
+package cn.autolabor;
 
 import cn.autolabor.message.navigation.Msg2DPoint;
 import cn.autolabor.message.navigation.MsgPolygon;
@@ -6,9 +6,6 @@ import cn.autolabor.message.navigation.MsgPolygon;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
-
-import static java.lang.Math.max;
-import static java.lang.Math.min;
 
 public class GeometricUtil {
 
@@ -34,7 +31,7 @@ public class GeometricUtil {
     }
 
     public static boolean checkLineCross(Msg2DPoint a, Msg2DPoint b, Msg2DPoint c, Msg2DPoint d) {
-        if (max(c.getX(), d.getX()) < min(a.getX(), d.getX()) || max(c.getY(), d.getY()) < min(a.getY(), b.getY()) || max(a.getX(), b.getX()) < min(c.getX(), d.getX()) || max(a.getY(), b.getY()) < min(c.getY(), d.getY())) {
+        if (Math.max(c.getX(), d.getX()) < Math.min(a.getX(), d.getX()) || Math.max(c.getY(), d.getY()) < Math.min(a.getY(), b.getY()) || Math.max(a.getX(), b.getX()) < Math.min(c.getX(), d.getX()) || Math.max(a.getY(), b.getY()) < Math.min(c.getY(), d.getY())) {
             return false;
         } else {
             return (cross(a, c, d) * cross(b, c, d) <= 0) && (cross(c, a, b) * cross(d, a, b) <= 0);
