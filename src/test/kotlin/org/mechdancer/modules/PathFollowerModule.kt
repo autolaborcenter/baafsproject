@@ -1,5 +1,7 @@
 package org.mechdancer.modules
 
+import cn.autolabor.Temporary
+import cn.autolabor.Temporary.Operation.DELETE
 import cn.autolabor.pathfollower.Circle
 import cn.autolabor.pathfollower.VirtualLightSensor
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower
@@ -8,11 +10,15 @@ import cn.autolabor.pathmaneger.PathManager
 import cn.autolabor.pm1.sdk.PM1
 import cn.autolabor.transform.TransformSystem
 import cn.autolabor.transform.Transformation
+import cn.autolabor.utilities.Odometry
+import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.implement.vector.Vector2D
+import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.console.parser.display
 import org.mechdancer.console.parser.feedback
+import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.modules.Coordination.Map
 import org.mechdancer.modules.Coordination.Robot
@@ -57,6 +63,9 @@ class PathFollowerModule(
                 -Transformation.fromPose(vector2DOf(0.15, 0.0), 0.toRad()),
                 Circle(radius = 0.2, vertexCount = 64)))
 
+    @Temporary(DELETE)
+    var offset = Odometry()
+
     private var mode = Idle
     private var enabled = false
     private var running = true
@@ -100,6 +109,15 @@ class PathFollowerModule(
             "${path.size} nodes loaded"
         }
         this["delete"] = { file.writeText(""); "path save deleted" }
+
+        @Temporary(DELETE)
+        this["move"] = {
+            val list = path.get().take(2)
+            val p = list[0].to2D()
+            val d = (list[1] - p).toAngle()
+            offset = Odometry(p, d)
+            "saved to offset"
+        }
 
         this["go"] = {
             when (mode) {
@@ -175,7 +193,7 @@ class PathFollowerModule(
             val shape = follower.sensor.areaShape
             paintVectors("sensor", shape + shape.first())
         }
-        if (mode != Idle) {
+        if (mode != Mode.Follow) {
             enabled = false
             PM1.setCommandEnabled(false)
         }

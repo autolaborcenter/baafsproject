@@ -77,7 +77,8 @@ class VirtualLightSensorPathFollower(
                 if (i >= 2) i
                 else {
                     val target =
-                        (sensor.local[i + 1] - sensor.local[i])
+                        sensor.local
+                            .let { (it[min(i + 3, it.lastIndex)] - it[i]) }
                             .toAngle().asRadian()
                     val current =
                         -fromMap

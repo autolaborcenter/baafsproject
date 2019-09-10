@@ -4,6 +4,7 @@ import cn.autolabor.pm1.Resource
 import cn.autolabor.pm1.sdk.PM1
 import cn.autolabor.transform.TransformSystem
 import cn.autolabor.transform.Transformation
+import cn.autolabor.utilities.Odometry
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.dependency.must
 import org.mechdancer.geometry.angle.toRad
@@ -26,9 +27,8 @@ fun main() {
     val follower = PathFollowerModule(remote, system)
     // 启动里程计资源
     Resource { odometry ->
-        val p = vector2DOf(odometry.x, odometry.y)
-        val d = odometry.theta.toRad()
-        system.cleanup(Robot to Map)
+        val (p, d) = follower.offset plusDelta Odometry(vector2DOf(odometry.x, odometry.y), odometry.theta.toRad())
+        system.cleanup(Robot to Map, System.currentTimeMillis() - 5000)
         system[Robot to Map] = Transformation.fromPose(p, d)
         follower.record(p)
         remote.paint("odometry", p.x, p.y, d.asRadian())

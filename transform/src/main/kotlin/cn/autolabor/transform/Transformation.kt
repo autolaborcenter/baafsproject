@@ -28,13 +28,13 @@ class Transformation(matrix: Matrix) {
 
     /** 对 [vector] 应用变换 */
     operator fun invoke(vector: Vector): Vector {
-        require(matrix.dim - vector.dim == 1) { "a ${dim}D Transformation cannot transform ${vector.dim}D vector" }
+        require(dim == vector.dim) { "a ${dim}D Transformation cannot transform ${vector.dim}D vector" }
         return (matrix * (vector.toList() + 1.0).toListVector()).select(0 until dim)
     }
 
     /** 对 [vector] 应用变换中的线性成分 */
     fun invokeLinear(vector: Vector): Vector {
-        require(matrix.dim - vector.dim == 1) { "a ${dim}D Transformation cannot transform ${vector.dim}D vector" }
+        require(dim == vector.dim) { "a ${dim}D Transformation cannot transform ${vector.dim}D vector" }
         return Cofactor(matrix, dim, dim) * vector
     }
 
