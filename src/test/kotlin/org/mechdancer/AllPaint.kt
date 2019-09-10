@@ -25,7 +25,7 @@ fun main() {
     // 导航模块
     val follower = PathFollowerModule(remote, system)
     // 定位模块
-    val locator = LocatorModule(remote, vector2DOf(-0.32, 0)) { (time, data) ->
+    val locator = LocatorModule(remote, vector2DOf(-0.31, 0)) { (time, data) ->
         system.cleanup(Robot to Map)
         system[Robot to Map, time] = Transformation.fromPose(data.p, data.d)
         follower.record(data.p)

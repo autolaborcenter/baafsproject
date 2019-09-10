@@ -14,15 +14,13 @@ fun main() {
         println("remote launched on ${it.components.must<MulticastSockets>().address}")
     }
     // 定位模块
-    LocatorModule(remote, vector2DOf(-0.32, 0)) { (_, data) ->
-        val (p, d) = data
-        remote.paint("filter", p.x, p.y, d.value)
-    }.use {
-        // launch pm1
-        PM1.initialize()
-        PM1.locked = false
-        PM1.setCommandEnabled(false)
-        // launch marvelmind
-        it.marvelmindBlockTask()
-    }
+    LocatorModule(remote, vector2DOf(-0.31, 0))
+        .use {
+            // launch pm1
+            PM1.initialize()
+            PM1.locked = false
+            PM1.setCommandEnabled(false)
+            // launch marvelmind
+            it.marvelmindBlockTask()
+        }
 }

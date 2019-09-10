@@ -20,7 +20,7 @@ import java.io.Closeable
 class LocatorModule(
     private val remote: RemoteHub,
     private val locatorOnRobot: Vector2D = vector2DOfZero(),
-    private val callback: (Stamped<Odometry>) -> Unit
+    private val callback: (Stamped<Odometry>) -> Unit = {}
 ) : Closeable {
     private var running = true
     private val filter = ParticleFilter(128, Transformation.fromPose(locatorOnRobot, .0.toRad()))
