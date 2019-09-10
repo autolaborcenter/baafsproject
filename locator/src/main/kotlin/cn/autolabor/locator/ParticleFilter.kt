@@ -113,16 +113,18 @@ class ParticleFilter(private val size: Int,
                 eP = (eP + measure * measureWeight) / (sum + measureWeight)
                 eD /= sum
                 eD2 /= sum
-                val sigma = sqrt((eD2 - eD * eD) clamp 0.1..0.49)
+                val sigma = sqrt((eD2 - eD * eD) clamp 0.1..0.3)
                 // 重采样
                 val random = java.util.Random()
-                val eRobot = Transformation.fromPose(eP, eD.toRad())(-locator).to2D()
                 particles = particles.mapIndexed { i, item ->
-                    if (weights[i] < 0.2)
-                        Odometry(eRobot, (random.nextGaussian() * sigma + eD).toRad()) to 0
-                    else item
+                    if (weights[i] < 0.2) {
+                        val d = (random.nextGaussian() * sigma + eD).toRad()
+                        val p = Transformation.fromPose(measure, d)(-locator).to2D()
+                        Odometry(p, d) to 0
+                    } else item
                 }
                 // 求期望
+                val eRobot = Transformation.fromPose(eP, eD.toRad())(-locator).to2D()
                 expectation = Odometry(eRobot, eD.toRad())
             }
     }

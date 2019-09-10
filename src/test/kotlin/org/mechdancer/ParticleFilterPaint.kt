@@ -6,6 +6,7 @@ import org.mechdancer.dependency.must
 import org.mechdancer.modules.LocatorModule
 import org.mechdancer.remote.presets.remoteHub
 import org.mechdancer.remote.resources.MulticastSockets
+import kotlin.math.PI
 
 fun main() {
     // 网络节点
@@ -14,7 +15,7 @@ fun main() {
         println("remote launched on ${it.components.must<MulticastSockets>().address}")
     }
     // 定位模块
-    LocatorModule(remote, vector2DOf(-0.31, 0))
+    LocatorModule(remote, vector2DOf(-10 * PI, 0))
         .use {
             // launch pm1
             PM1.initialize()
