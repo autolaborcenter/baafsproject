@@ -3,6 +3,7 @@ package cn.autolabor.locator
 import cn.autolabor.Stamped
 import cn.autolabor.Temporary
 import cn.autolabor.Temporary.Operation.DELETE
+import cn.autolabor.Temporary.Operation.REDUCE
 import cn.autolabor.transform.Transformation
 import cn.autolabor.utilities.MatcherBase
 import cn.autolabor.utilities.Odometry
@@ -25,7 +26,7 @@ class ParticleFilter(private val size: Int,
     private val matcher = MatcherBase<Stamped<Odometry>, Stamped<Vector2D>>()
 
     // 粒子：位姿 - 寿命
-    // REDUCE ME
+    @Temporary(REDUCE)
     var particles = emptyList<Pair<Odometry, Int>>()
 
     // 过程参数渗透

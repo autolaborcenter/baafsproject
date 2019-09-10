@@ -10,7 +10,6 @@ import cn.autolabor.core.server.message.MessageSourceType;
 import cn.autolabor.locator.ParticleFilter;
 import cn.autolabor.message.navigation.Msg2DOdometry;
 import cn.autolabor.message.navigation.Msg2DPose;
-import cn.autolabor.transform.Transformation;
 import cn.autolabor.util.reflect.TypeNode;
 import cn.autolabor.utilities.Matcher;
 import cn.autolabor.utilities.MatcherBase;
@@ -43,7 +42,7 @@ public class ParticleFilterTask extends AbstractTask {
         ServerManager.me()
             .getOrCreateMessageHandle("abs_r", new TypeNode(Msg2DOdometry.class))
             .addCallback(this, "ReceiveOdometry", new MessageSourceType[]{});
-        filter = new ParticleFilter(particlesCount, Transformation.Companion.unit(2));
+        filter = new ParticleFilter(particlesCount, new Vector2D(-0.31, 0.0));
     }
 
     @TaskFunction

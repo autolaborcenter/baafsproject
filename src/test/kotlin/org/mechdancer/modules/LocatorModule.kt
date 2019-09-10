@@ -23,7 +23,7 @@ class LocatorModule(
     private val callback: (Stamped<Odometry>) -> Unit = {}
 ) : Closeable {
     private var running = true
-    private val filter = ParticleFilter(128, Transformation.fromPose(locatorOnRobot, .0.toRad()))
+    private val filter = ParticleFilter(128, locatorOnRobot)
     private val marvelmind = Resource { time, x, y ->
         val (_, _, _, ox, oy, theta) = PM1.odometry
 

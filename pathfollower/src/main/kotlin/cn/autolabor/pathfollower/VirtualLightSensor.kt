@@ -1,5 +1,8 @@
 package cn.autolabor.pathfollower
 
+import cn.autolabor.Temporary
+import cn.autolabor.Temporary.Operation.DELETE
+import cn.autolabor.Temporary.Operation.INLINE
 import cn.autolabor.transform.Transformation
 import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.function.vector.dot
@@ -14,10 +17,11 @@ class VirtualLightSensor(
     private val fromBaseLink: Transformation,
     private val lightRange: Shape
 ) {
-    // DELETE ME
+    @Temporary(DELETE)
     var areaShape = listOf<Vector2D>()
 
     /** 局部路径（地图坐标系） */
+    @Temporary(INLINE)
     var local = listOf<Vector2D>()
         private set
 
@@ -66,6 +70,7 @@ class VirtualLightSensor(
             .let { if (it < index0) it + shape.size else it }
         // 确定填色区域
         val area = Shape(local + List(index1 - index0) { i -> shape[(index0 + i) % shape.size] })
+        @Temporary(DELETE)
         areaShape = area.vertex.map(sensorToMap::invoke).map(Vector::to2D)
         // 计算误差
         return path.indexOfFirst { (this.local.first() - it).norm() < 0.01 } to 2 * (0.5 - area.size / lightRange.size)
