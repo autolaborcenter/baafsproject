@@ -1,6 +1,8 @@
 package cn.autolabor.locator
 
 import cn.autolabor.Stamped
+import cn.autolabor.Temporary
+import cn.autolabor.Temporary.Operation.DELETE
 import cn.autolabor.transform.Transformation
 import cn.autolabor.utilities.MatcherBase
 import cn.autolabor.utilities.Odometry
@@ -16,30 +18,26 @@ import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.sqrt
 
-/** 使用固定 [size] 个粒子的粒子滤波器 */
+/** 使用固定 [size] 个粒子的粒子滤波器，其校准用定位器位于 [locator] 处 */
 class ParticleFilter(private val size: Int,
-                     locatorToRobot: Transformation = Transformation.unit(2))
-    : Mixer<
-    Stamped<Odometry>,
-    Stamped<Vector2D>,
-    Odometry> {
+                     private val locator: Vector2D = vector2DOfZero())
+    : Mixer<Stamped<Odometry>, Stamped<Vector2D>, Odometry> {
     private val matcher = MatcherBase<Stamped<Odometry>, Stamped<Vector2D>>()
-
-    private val locatorOnRobot = locatorToRobot(vector2DOfZero())
-    private val robotOnLocator = -locatorToRobot(vector2DOfZero())
 
     // 粒子：位姿 - 寿命
     // REDUCE ME
     var particles = emptyList<Pair<Odometry, Int>>()
 
     // 过程参数渗透
+    @Temporary(DELETE)
     data class StepState(val measureWeight: Double,
                          val particleWeight: Double,
                          val measure: Vector2D,
                          val state: Odometry)
 
-    // DELETE ME
+    @Temporary(DELETE)
     var stepState = StepState(.0, .0, vector2DOfZero(), Odometry())
+    @Temporary(DELETE)
     var lastResult: Odometry? = null
 
     override fun measureMaster(item: Stamped<Odometry>) =
@@ -90,7 +88,7 @@ class ParticleFilter(private val size: Int,
                 val locators = particles.map { (odometry, _) ->
                     val (p, d) = odometry
                     val transformation = Transformation.fromPose(p, d)
-                    Odometry(transformation(locatorOnRobot).to2D(), d)
+                    Odometry(transformation(locator).to2D(), d)
                 }
                 // 计算权重
                 val weights = locators.map { (p, _) -> 1 - ((5 * (p - measure).norm()) clamp 0.0..1.0) }
@@ -99,6 +97,7 @@ class ParticleFilter(private val size: Int,
                               initialize(measure, state)
                               return@forEach
                           }
+                @Temporary(DELETE)
                 stepState = StepState(measureWeight, sum, measure, state)
                 // 计算期望和方差
                 var eP = vector2DOfZero()
@@ -116,7 +115,7 @@ class ParticleFilter(private val size: Int,
                 val sigma = sqrt((eD2 - eD * eD) clamp 0.1..0.49)
                 // 重采样
                 val random = java.util.Random()
-                val eRobot = Transformation.fromPose(eP, eD.toRad())(robotOnLocator).to2D()
+                val eRobot = Transformation.fromPose(eP, eD.toRad())(-locator).to2D()
                 particles = particles.mapIndexed { i, item ->
                     if (weights[i] < 0.2)
                         Odometry(eRobot, (random.nextGaussian() * sigma + eD).toRad()) to 0
@@ -133,7 +132,7 @@ class ParticleFilter(private val size: Int,
         val step = 2 * PI / size
         particles = List(size) {
             val d = (it * step).toRad()
-            val p = Transformation.fromPose(measure, d)(robotOnLocator).to2D()
+            val p = Transformation.fromPose(measure, d)(-locator).to2D()
             Odometry(p, d) to 0
         }
     }
