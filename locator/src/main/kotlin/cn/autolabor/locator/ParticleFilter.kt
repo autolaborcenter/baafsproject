@@ -78,7 +78,7 @@ class ParticleFilter(private val size: Int,
                 stateSave = measure to state
                 // 初步过滤
                 val lengthM = dM.norm()
-                val lengthS = delta.p.norm()
+                val lengthS = (Transformation.fromPose(delta.p, delta.d)(locator) - locator).norm()
                 if (abs(lengthM - lengthS) > 0.2) return@forEach
                 // 计算定位权重
                 val p0 = (lengthM / 0.2) clamp 0.0..1.0
