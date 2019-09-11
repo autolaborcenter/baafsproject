@@ -1,6 +1,7 @@
 package cn.autolabor.baafs;
 
 import cn.autolabor.core.annotation.TaskFunction;
+import cn.autolabor.core.annotation.TaskParameter;
 import cn.autolabor.core.annotation.TaskProperties;
 import cn.autolabor.core.server.ServerManager;
 import cn.autolabor.core.server.executor.AbstractTask;
@@ -16,12 +17,16 @@ import cn.autolabor.util.reflect.TypeNode;
  */
 @TaskProperties
 public class PM1Task extends AbstractTask {
+    @TaskParameter(name = "odometryTopic", value = "odom")
+    private String odometryTopic;
+
     private final MessageHandle<Msg2DOdometry> topicSender;
 
     // 打开里程计资源，翻译数据帧并发送
-    public PM1Task(String topic) {
-        //noinspection unchecked
-        topicSender = ServerManager.me().getOrCreateMessageHandle(topic, new TypeNode(Msg2DPose.class));
+    @SuppressWarnings("unchecked")
+    public PM1Task(String... name) {
+        super(name);
+        topicSender = ServerManager.me().getOrCreateMessageHandle(odometryTopic, new TypeNode(Msg2DPose.class));
     }
 
     @TaskFunction

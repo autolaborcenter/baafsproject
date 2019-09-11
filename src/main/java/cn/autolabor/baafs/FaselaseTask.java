@@ -1,6 +1,7 @@
 package cn.autolabor.baafs;
 
 import cn.autolabor.core.annotation.TaskFunction;
+import cn.autolabor.core.annotation.TaskParameter;
 import cn.autolabor.core.annotation.TaskProperties;
 import cn.autolabor.core.server.ServerManager;
 import cn.autolabor.core.server.executor.AbstractTask;
@@ -18,12 +19,19 @@ import java.util.List;
  */
 @TaskProperties(unique = false)
 public class FaselaseTask extends AbstractTask {
+
+    @TaskParameter(name = "topic", value = "scan")
+    private String topic;
+
+    @TaskParameter(name = "frameId", value = "lidar")
+    private String frameId;
+
     private final MessageHandle<MsgLidar> topicSender;
     private final Resource resource;
 
-    // 打开雷达资源，翻译数据帧并发送
-    public FaselaseTask(String topic) {
-        //noinspection unchecked
+    @SuppressWarnings("unchecked")
+    public FaselaseTask(String... name) {
+        super(name);
         topicSender = ServerManager.me().getOrCreateMessageHandle(topic, new TypeNode(MsgLidar.class));
         resource = new Resource(list -> {
             // 拆分
@@ -35,7 +43,7 @@ public class FaselaseTask extends AbstractTask {
             });
             // 发送
             MsgLidar msg = new MsgLidar();
-            msg.getHeader().setCoordinate("lidar");
+            msg.getHeader().setCoordinate(frameId);
             msg.setDistances(distances);
             msg.setAngles(angles);
             topicSender.pushSubData(msg);

@@ -2,6 +2,7 @@ package cn.autolabor.baafs;
 
 import cn.autolabor.Stamped;
 import cn.autolabor.core.annotation.TaskFunction;
+import cn.autolabor.core.annotation.TaskParameter;
 import cn.autolabor.core.annotation.TaskProperties;
 import cn.autolabor.core.server.ServerManager;
 import cn.autolabor.core.server.executor.AbstractTask;
@@ -19,7 +20,6 @@ import kotlin.ranges.RangesKt;
 import org.mechdancer.algebra.implement.vector.Vector2D;
 import org.mechdancer.geometry.angle.Angle;
 
-import static java.lang.Math.PI;
 import static java.lang.Math.abs;
 
 /**
@@ -27,27 +27,50 @@ import static java.lang.Math.abs;
  */
 @TaskProperties
 public class ParticleFilterTask extends AbstractTask {
+
+    private final Matcher<Stamped<Msg2DOdometry>, Stamped<Msg2DOdometry>> matcher = new ClampMatcher<>();
+    @TaskParameter(name = "marvelmindTopic", value = "marvelmind")
+    private String marvelmindTopic;
+    @TaskParameter(name = "odometryTopic", value = "odom")
+    private String odometryTopic;
+    @TaskParameter(name = "fusionTopic", value = "fusion")
+    private String fusionTopic;
+    @TaskParameter(name = "particlesCount", value = "128")
+    private int particlesCount;
+    @TaskParameter(name = "locationX", value = "-0.305")
+    private double locationX;
+    @TaskParameter(name = "locationY", value = "0.0")
+    private double locationY;
+    @TaskParameter(name = "locatorWeight", value = "64")
+    private double locatorWeight;
+    @TaskParameter(name = "maxInterval", value = "500")
+    private int maxInterval;
+    @TaskParameter(name = "maxInconsistency", value = "0.2")
+    private int maxInconsistency;
+    @TaskParameter(name = "maxAge", value = "10")
+    private int maxAge;
+    @TaskParameter(name = "sigmaRangeMin", value = "0.314159")
+    private double sigmaRangeMin;
+
     private final MessageHandle<Msg2DOdometry> topicSender;
-    private final Matcher<Stamped<Msg2DOdometry>, Stamped<Msg2DOdometry>>
-        matcher = new ClampMatcher<>();
+    @TaskParameter(name = "sigmaRangeMax", value = "0.785375")
+    private double sigmaRangeMax;
     public final ParticleFilter filter;
 
-    public ParticleFilterTask(int particlesCount, String marvelmind, String odometry, String topic) {
-        //noinspection unchecked
-        topicSender = ServerManager.me().getOrCreateMessageHandle(topic, new TypeNode(Msg2DOdometry.class));
+    @SuppressWarnings("unchecked")
+    public ParticleFilterTask(String... name) {
+        super(name);
+        topicSender = ServerManager.me().getOrCreateMessageHandle(fusionTopic, new TypeNode(Msg2DOdometry.class));
         ServerManager.me()
-            .getOrCreateMessageHandle(marvelmind, new TypeNode(Msg2DOdometry.class))
-            .addCallback(this, "ReceiveMarvelmind", new MessageSourceType[]{});
+                .getOrCreateMessageHandle(marvelmindTopic, new TypeNode(Msg2DOdometry.class))
+                .addCallback(this, "ReceiveMarvelmind", new MessageSourceType[]{});
         ServerManager.me()
-            .getOrCreateMessageHandle(odometry, new TypeNode(Msg2DOdometry.class))
-            .addCallback(this, "ReceiveOdometry", new MessageSourceType[]{});
-        ServerManager.me()
-            .getOrCreateMessageHandle("abs_r", new TypeNode(Msg2DOdometry.class))
-            .addCallback(this, "ReceiveOdometry", new MessageSourceType[]{});
+                .getOrCreateMessageHandle(odometryTopic, new TypeNode(Msg2DOdometry.class))
+                .addCallback(this, "ReceiveOdometry", new MessageSourceType[]{});
         filter = new ParticleFilter(
-            particlesCount,
-            new Vector2D(-0.305, 0.0), particlesCount * 0.5,
-            500L, 0.2, 10, RangesKt.rangeTo(0.1 * PI, 0.25 * PI), null);
+                particlesCount,
+                new Vector2D(locationX, locationY), locatorWeight,
+                maxInterval, maxInconsistency, maxAge, RangesKt.rangeTo(sigmaRangeMin, sigmaRangeMax), null);
     }
 
     @TaskFunction
@@ -58,28 +81,28 @@ public class ParticleFilterTask extends AbstractTask {
     @TaskFunction
     public void ReceiveMarvelmind(Msg2DOdometry p) {
         filter.measureHelper(
-            new Stamped<>(
-                p.getHeader().getStamp(),
-                new Vector2D(
-                    p.getPose().getX(),
-                    p.getPose().getY()
+                new Stamped<>(
+                        p.getHeader().getStamp(),
+                        new Vector2D(
+                                p.getPose().getX(),
+                                p.getPose().getY()
+                        )
                 )
-            )
         );
     }
 
     @TaskFunction
     public void ReceiveOdometry(Msg2DOdometry p) {
         Stamped<Odometry> in =
-            new Stamped<>(p.getHeader().getStamp(),
-                new Odometry(
-                    new Vector2D(
-                        p.getPose().getX(),
-                        p.getPose().getY()
-                    ),
-                    new Angle(p.getPose().getYaw())
-                )
-            );
+                new Stamped<>(p.getHeader().getStamp(),
+                        new Odometry(
+                                new Vector2D(
+                                        p.getPose().getX(),
+                                        p.getPose().getY()
+                                ),
+                                new Angle(p.getPose().getYaw())
+                        )
+                );
 
         filter.measureMaster(in);
         Odometry out = filter.get(in);
@@ -88,31 +111,31 @@ public class ParticleFilterTask extends AbstractTask {
         temp.getHeader().setStamp(p.getHeader().getStamp());
         temp.getHeader().setCoordinate("map");
         temp.setPose(new Msg2DPose(
-            out.getP().getX(),
-            out.getP().getY(),
-            out.getD().getValue()
+                out.getP().getX(),
+                out.getP().getY(),
+                out.getD().getValue()
         ));
         topicSender.pushSubData(temp);
 
         matcher.add2(new Stamped<>(temp.getHeader().getStamp(), temp));
         Triple<Stamped<Msg2DOdometry>, Stamped<Msg2DOdometry>, Stamped<Msg2DOdometry>>
-            triple = matcher.match2();
+                triple = matcher.match2();
         if (triple != null) {
             Msg2DOdometry
-                pair = triple.component1().getData(),
-                a = triple.component2().getData(),
-                b = triple.component3().getData();
+                    pair = triple.component1().getData(),
+                    a = triple.component2().getData(),
+                    b = triple.component3().getData();
             long time = pair.getHeader().getStamp();
             Msg2DOdometry
-                min = abs(time - a.getHeader().getStamp()) < abs(time - b.getHeader().getStamp())
-                ? a : b;
+                    min = abs(time - a.getHeader().getStamp()) < abs(time - b.getHeader().getStamp())
+                    ? a : b;
             long t1 = min.getHeader().getStamp();
             double dx = pair.getPose().getX() - min.getPose().getX();
             double dy = pair.getPose().getY() - min.getPose().getY();
             System.out.println(String.format("%d - %d = %d, error = %f",
-                time, t1,
-                abs(time - t1),
-                Math.hypot(dx, dy)));
+                    time, t1,
+                    abs(time - t1),
+                    Math.hypot(dx, dy)));
         }
     }
 }
