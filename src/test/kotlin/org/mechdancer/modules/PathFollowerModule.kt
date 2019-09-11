@@ -40,8 +40,8 @@ import kotlin.math.sign
  * PM1 驱动启动后才能正常运行；
  */
 class PathFollowerModule(
-    private val remote: RemoteHub? = null,
-    private val system: TransformSystem<Coordination>
+    private val remote: RemoteHub? = Default.remote,
+    private val system: TransformSystem<Coordination> = Default.system
 
 ) : Closeable {
     // 任务类型/工作状态

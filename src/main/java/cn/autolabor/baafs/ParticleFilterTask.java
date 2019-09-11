@@ -15,9 +15,11 @@ import cn.autolabor.utilities.ClampMatcher;
 import cn.autolabor.utilities.Matcher;
 import cn.autolabor.utilities.Odometry;
 import kotlin.Triple;
+import kotlin.ranges.RangesKt;
 import org.mechdancer.algebra.implement.vector.Vector2D;
 import org.mechdancer.geometry.angle.Angle;
 
+import static java.lang.Math.PI;
 import static java.lang.Math.abs;
 
 /**
@@ -42,7 +44,10 @@ public class ParticleFilterTask extends AbstractTask {
         ServerManager.me()
             .getOrCreateMessageHandle("abs_r", new TypeNode(Msg2DOdometry.class))
             .addCallback(this, "ReceiveOdometry", new MessageSourceType[]{});
-        filter = new ParticleFilter(particlesCount, new Vector2D(-0.305, 0.0), particlesCount * 0.5, 500L, 0.2, 10, null);
+        filter = new ParticleFilter(
+            particlesCount,
+            new Vector2D(-0.305, 0.0), particlesCount * 0.5,
+            500L, 0.2, 10, RangesKt.rangeTo(0.1 * PI, 0.25 * PI), null);
     }
 
     @TaskFunction

@@ -1,12 +1,10 @@
 package org.mechdancer.modules
 
 import cn.autolabor.Stamped
-import cn.autolabor.locator.Mixer
 import cn.autolabor.locator.ParticleFilter
 import cn.autolabor.pm1.sdk.PM1
 import cn.autolabor.utilities.Odometry
 import com.marvelmind.Resource
-import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.paint
@@ -16,18 +14,18 @@ import org.mechdancer.remote.presets.RemoteHub
 import java.io.Closeable
 
 class LocatorModule(
-    private val remote: RemoteHub,
-    private val filter: Mixer<Stamped<Odometry>, Stamped<Vector2D>, Odometry>,
+    private val remote: RemoteHub? = Default.remote,
+    private val filter: ParticleFilter = Default.filter,
     private val callback: (Stamped<Odometry>) -> Unit = {}
 ) : Closeable {
     init {
-        (filter as? ParticleFilter)?.apply {
-            stepFeedback = { (measureWeight, particleWeight, _, _, eLocator, _) ->
-                with(remote) {
-                    paint("定位权重", measureWeight)
-                    paint("粒子权重", particleWeight)
-                    paint("粒子滤波（定位标签）", eLocator.p.x, eLocator.p.y, eLocator.d.asRadian())
-                }
+        remote?.run {
+            filter.stepFeedback = { (measureWeight, particleWeight, _, _, eLocator, _) ->
+                paint("定位权重", measureWeight)
+                paint("粒子权重", particleWeight)
+                paint("粒子滤波（定位标签）", eLocator.p.x, eLocator.p.y, eLocator.d.asRadian())
+                paintFrame3("粒子群", filter.particles.map { (odom, _) -> Triple(odom.p.x, odom.p.y, odom.d.value) })
+                paintFrame2("粒子寿命", filter.particles.mapIndexed { i, (_, n) -> i.toDouble() to n.toDouble() })
             }
         }
     }
@@ -45,15 +43,10 @@ class LocatorModule(
             }
             ?.also { callback(Stamped(now, it)) }
 
-        with(remote) {
+        remote?.run {
             paint("超声波定位", x, y)
             paint("里程计", ox, oy, theta)
             filtered?.let { (p, d) -> paint("粒子滤波", p.x, p.y, d.value) }
-            (filter as? ParticleFilter)
-                ?.run {
-                    paintFrame3("粒子群", particles.map { (odom, _) -> Triple(odom.p.x, odom.p.y, odom.d.value) })
-                    paintFrame2("粒子寿命", particles.mapIndexed { i, (_, n) -> i.toDouble() to n.toDouble() })
-                }
         }
     }
 

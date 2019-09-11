@@ -31,6 +31,7 @@ import kotlin.math.sqrt
  *     测量传感器与校准传感器具有不同的误差模型，但可以确定一点：对同一个量的测量，二者不会相差太大
  *     若两次匹配之间两种传感器增量的欧氏长度相差大于这个值，则不使用新的匹配对更新测量
  *   * 运行中对粒子寿命的统计最大取值为 [maxAge]
+ *   * 对死亡的粒子重采样时方向标准差在 [sigmaRange] 中取值
  */
 class ParticleFilter(private val size: Int,
                      private val locator: Vector2D,
@@ -38,6 +39,7 @@ class ParticleFilter(private val size: Int,
                      private val maxInterval: Long,
                      private val maxInconsistency: Double,
                      private val maxAge: Int,
+                     private val sigmaRange: ClosedFloatingPointRange<Double>,
                      @Temporary(DELETE)
                      var stepFeedback: ((StepState) -> Unit)?
 ) : Mixer<Stamped<Odometry>, Stamped<Vector2D>, Odometry> {
@@ -84,74 +86,77 @@ class ParticleFilter(private val size: Int,
             }
             // 计算
             .forEach { (measure, state) ->
-                // 判断第一帧
-                val (lastMeasure, lastState) =
-                    stateSave ?: run {
-                        initialize(measure, state)
-                        return@forEach
+                synchronized(particles) {
+                    // 判断第一帧
+                    val (lastMeasure, lastState) =
+                        stateSave ?: run {
+                            initialize(measure, state)
+                            return@forEach
+                        }
+                    // 从原始测量量计算增量
+                    val deltaState = state minusState lastState
+                    val deltaMeasure = measure - lastMeasure
+                    stateSave = measure to state
+                    // 计算不一致性，若过于不一致则放弃更新
+                    val lengthM = deltaMeasure.norm()
+                    val lengthS = (Transformation.fromPose(deltaState.p, deltaState.d)(locator) - locator).norm()
+                    val inconsistency = abs(lengthM - lengthS).takeIf { it < maxInconsistency } ?: return@forEach
+                    // 计算校准权重：定位器本身的可靠性与此次测量的可靠性相乘
+                    val measureWeight = locatorWeight * mapOf(
+                        // 校准值变化大本身就意味着不可靠
+                        1 to 1 - min(1.0, lengthM / maxInconsistency),
+                        // 校准值与测量值越不一致，意味着校准值越不可靠
+                        1 to 1 - min(1.0, inconsistency / maxInconsistency)
+                    ).run { toList().sumByDouble { (k, value) -> k * value } / keys.sum() }
+                    // 更新粒子群
+                    particles = particles.map { (p, i) -> (p plusDelta deltaState) to min(i + 1, maxAge) }
+                    // 计算每个粒子对应的校准器坐标
+                    val locators = particles.map { (odometry, _) ->
+                        val (p, d) = odometry
+                        Odometry(Transformation.fromPose(p, d)(locator).to2D(), d)
                     }
-                // 计算控制量
-                val deltaState = state minusState lastState
-                val deltaMeasure = measure - lastMeasure
-                stateSave = measure to state
-                // 初步过滤
-                val lengthM = deltaMeasure.norm()
-                val lengthS = (Transformation.fromPose(deltaState.p, deltaState.d)(locator) - locator).norm()
-                val inconsistency = abs(lengthM - lengthS).takeIf { it < maxInconsistency } ?: return@forEach
-                // 计算定位权重
-                val measureWeight = run {
-                    val p0 = min(1.0, lengthM / maxInconsistency)
-                    val p1 = min(1.0, inconsistency / maxInconsistency)
-                    locatorWeight * (1 - (0.5 * p0 + 0.5 * p1))
-                }
-                // 更新粒子群
-                particles = particles.map { (p, i) -> (p plusDelta deltaState) to min(i + 1, maxAge) }
-                // 计算每个粒子对应的校准器坐标
-                val locators = particles.map { (odometry, _) ->
-                    val (p, d) = odometry
-                    val transformation = Transformation.fromPose(p, d)
-                    Odometry(transformation(locator).to2D(), d)
-                }
-                // 计算权重
-                val weights = locators.map { (p, _) -> 1 - min(1.0, (p - measure).norm() / maxInconsistency) }
-                val sum = weights.sum().takeIf { it > 1 }
-                          ?: run {
-                              initialize(measure, state)
-                              return@forEach
-                          }
-                // 计算期望和方差
-                var eP = vector2DOfZero()
-                var eD = .0
-                var eD2 = .0
-                locators.forEachIndexed { i, (p, d) ->
-                    val k = weights[i]
-                    eP += p * k
-                    eD += k * d.value
-                    eD2 += k * d.value * d.value
-                }
-                eP = (eP + measure * measureWeight) / (sum + measureWeight)
-                eD /= sum
-                eD2 /= sum
-                val sigma = sqrt((eD2 - eD * eD) clamp 0.1..0.3)
-                // 重采样
-                val random = java.util.Random()
-                particles = particles.mapIndexed { i, item ->
-                    if (weights[i] < 0.2) {
-                        val d = (random.nextGaussian() * sigma + eD).toRad()
-                        val p = Transformation.fromPose(measure, d)(-locator).to2D()
-                        Odometry(p, d) to 0
-                    } else item
-                }
-                // 求期望
-                val eRobot = Transformation.fromPose(eP, eD.toRad())(-locator).to2D()
-                expectation = Odometry(eRobot, eD.toRad())
-                @Temporary(DELETE)
-                stepFeedback?.let {
-                    val eDir = eD.toRad()
-                    it(StepState(measureWeight, sum,
-                                 measure, state,
-                                 Odometry(eP, eDir),
-                                 Odometry(eRobot, eDir)))
+                    // 计算粒子权重
+                    val weights = locators.map { (p, _) -> 1 - min(1.0, (p - measure).norm() / maxInconsistency) }
+                    // 计算粒子总权重，若过低，直接重新初始化
+                    val weightsSum = weights.sum().takeIf { it > 0.1 * size }
+                                     ?: run {
+                                         initialize(measure, state)
+                                         return@forEach
+                                     }
+                    // 计算期望和方差
+                    var eP = vector2DOfZero()
+                    var eD = .0
+                    var eD2 = .0
+                    locators.forEachIndexed { i, (p, d) ->
+                        val k = weights[i]
+                        eP += p * k
+                        eD += k * d.value
+                        eD2 += k * d.value * d.value
+                    }
+                    eP = (eP + measure * measureWeight) / (weightsSum + measureWeight)
+                    eD /= weightsSum
+                    eD2 /= weightsSum
+                    // 计算方向标准差，对偏差较大的粒子进行随机方向的重采样
+                    val sigma = sqrt(eD2 - eD * eD) clamp sigmaRange
+                    val random = java.util.Random()
+                    particles = particles.mapIndexed { i, item ->
+                        if (weights[i] < 0.2) {
+                            val d = (random.nextGaussian() * sigma + eD).toRad()
+                            val p = Transformation.fromPose(measure, d)(-locator).to2D()
+                            Odometry(p, d) to 0
+                        } else item
+                    }
+                    // 猜测真实位姿
+                    val eRobot = Transformation.fromPose(eP, eD.toRad())(-locator).to2D()
+                    expectation = Odometry(eRobot, eD.toRad())
+                    @Temporary(DELETE)
+                    stepFeedback?.let {
+                        val eDir = eD.toRad()
+                        it(StepState(measureWeight, weightsSum,
+                                     measure, state,
+                                     Odometry(eP, eDir),
+                                     Odometry(eRobot, eDir)))
+                    }
                 }
             }
     }
@@ -171,7 +176,7 @@ class ParticleFilter(private val size: Int,
         stateSave
             ?.second
             ?.let { expectation plusDelta (item.data minusState it) }
-            .also { lastResult = it }
+            .also @Temporary(DELETE) { lastResult = it }
 
     private companion object {
         // 里程计线性可加性（用于加权平均）
