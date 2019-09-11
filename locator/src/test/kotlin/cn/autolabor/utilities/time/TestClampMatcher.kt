@@ -1,12 +1,12 @@
 package cn.autolabor.utilities.time
 
 import cn.autolabor.Stamped
+import cn.autolabor.utilities.ClampMatcher
 import cn.autolabor.utilities.Matcher
-import cn.autolabor.utilities.MatcherBase
 import kotlin.concurrent.thread
 import kotlin.test.Test
 
-class TestMatcherBase {
+class TestClampMatcher {
     // 测试参数
     private companion object {
         const val interval1 = 79L
@@ -17,7 +17,7 @@ class TestMatcherBase {
 
     @Test
     fun test() {
-        val matcher = MatcherBase<Stamped<Int>, Stamped<Int>>()
+        val matcher = ClampMatcher<Stamped<Int>, Stamped<Int>>()
 
         val addTask = { intervalMs: Long, block: Matcher<Stamped<Int>, Stamped<Int>>.() -> Unit ->
             while (true) {

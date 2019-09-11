@@ -9,7 +9,7 @@ import java.util.concurrent.PriorityBlockingQueue
  * @param T1 第一类对象
  * @param T2 第二类对象
  */
-class MatcherBase<T1, T2> : Matcher<T1, T2>
+class ClampMatcher<T1, T2> : Matcher<T1, T2>
     where T1 : Comparable<T2>,
           T2 : Comparable<T1> {
 

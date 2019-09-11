@@ -1,6 +1,5 @@
 package org.mechdancer
 
-import cn.autolabor.pm1.Resource
 import cn.autolabor.pm1.sdk.PM1
 import cn.autolabor.transform.TransformSystem
 import cn.autolabor.transform.Transformation
@@ -25,19 +24,19 @@ fun main() {
     val system = TransformSystem<Coordination>()
     // 导航模块
     val follower = PathFollowerModule(remote, system)
+    PM1.initialize()
+    PM1.locked = false
+    PM1.setCommandEnabled(false)
     // 启动里程计资源
-    Resource { odometry ->
-        val (p, d) = follower.offset plusDelta Odometry(vector2DOf(odometry.x, odometry.y), odometry.theta.toRad())
+    launchBlocking {
+        val (_, _, _, x, y, theta) = PM1.odometry
+        val (p, d) = follower.offset plusDelta Odometry(vector2DOf(x, y), theta.toRad())
         system.cleanup(Robot to Map, System.currentTimeMillis() - 5000)
         system[Robot to Map] = Transformation.fromPose(p, d)
         follower.record(p)
         remote.paint("odometry", p.x, p.y, d.asRadian())
-    }.use { pm1 ->
-        // launch pm1
-        PM1.locked = false
-        PM1.setCommandEnabled(false)
-        launchBlocking { pm1() }
-        // launch parser
-        follower.parseRepeatedly()
+        Thread.sleep(100)
     }
+    // launch parser
+    follower.parseRepeatedly()
 }

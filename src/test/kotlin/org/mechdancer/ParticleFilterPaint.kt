@@ -1,12 +1,12 @@
 package org.mechdancer
 
+import cn.autolabor.locator.ParticleFilterBuilder.Companion.particleFilter
 import cn.autolabor.pm1.sdk.PM1
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.dependency.must
 import org.mechdancer.modules.LocatorModule
 import org.mechdancer.remote.presets.remoteHub
 import org.mechdancer.remote.resources.MulticastSockets
-import kotlin.math.PI
 
 fun main() {
     // 网络节点
@@ -15,7 +15,7 @@ fun main() {
         println("remote launched on ${it.components.must<MulticastSockets>().address}")
     }
     // 定位模块
-    LocatorModule(remote, vector2DOf(-10 * PI, 0))
+    LocatorModule(remote, particleFilter { locatorOnRobot = vector2DOf(-0.305, 0) })
         .use {
             // launch pm1
             PM1.initialize()

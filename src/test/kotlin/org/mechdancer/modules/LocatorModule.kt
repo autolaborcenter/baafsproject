@@ -1,15 +1,13 @@
 package org.mechdancer.modules
 
 import cn.autolabor.Stamped
+import cn.autolabor.locator.Mixer
 import cn.autolabor.locator.ParticleFilter
 import cn.autolabor.pm1.sdk.PM1
-import cn.autolabor.transform.Transformation
 import cn.autolabor.utilities.Odometry
 import com.marvelmind.Resource
 import org.mechdancer.algebra.implement.vector.Vector2D
-import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
-import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.paint
 import org.mechdancer.paintFrame2
@@ -19,11 +17,22 @@ import java.io.Closeable
 
 class LocatorModule(
     private val remote: RemoteHub,
-    private val locatorOnRobot: Vector2D = vector2DOfZero(),
+    private val filter: Mixer<Stamped<Odometry>, Stamped<Vector2D>, Odometry>,
     private val callback: (Stamped<Odometry>) -> Unit = {}
 ) : Closeable {
+    init {
+        (filter as? ParticleFilter)?.apply {
+            stepFeedback = { (measureWeight, particleWeight, _, _, eLocator, _) ->
+                with(remote) {
+                    paint("定位权重", measureWeight)
+                    paint("粒子权重", particleWeight)
+                    paint("粒子滤波（定位标签）", eLocator.p.x, eLocator.p.y, eLocator.d.asRadian())
+                }
+            }
+        }
+    }
+
     private var running = true
-    private val filter = ParticleFilter(128, locatorOnRobot)
     private val marvelmind = Resource { time, x, y ->
         val (_, _, _, ox, oy, theta) = PM1.odometry
 
@@ -39,19 +48,12 @@ class LocatorModule(
         with(remote) {
             paint("超声波定位", x, y)
             paint("里程计", ox, oy, theta)
-            filtered?.let { (p, d) ->
-                paint("粒子滤波", p.x, p.y, d.value)
-                val pm = Transformation.fromPose(p, d)(locatorOnRobot).to2D()
-                paint("粒子滤波（定位标签）", pm.x, pm.y, d.value)
-            }
-            with(filter) {
-                stepState.let { (measureWeight, particleWeight, _, _) ->
-                    paint("定位权重", measureWeight)
-                    paint("粒子权重", particleWeight)
+            filtered?.let { (p, d) -> paint("粒子滤波", p.x, p.y, d.value) }
+            (filter as? ParticleFilter)
+                ?.run {
+                    paintFrame3("粒子群", particles.map { (odom, _) -> Triple(odom.p.x, odom.p.y, odom.d.value) })
+                    paintFrame2("粒子寿命", particles.mapIndexed { i, (_, n) -> i.toDouble() to n.toDouble() })
                 }
-                paintFrame3("粒子群", particles.map { (odom, _) -> Triple(odom.p.x, odom.p.y, odom.d.value) })
-                paintFrame2("粒子寿命", particles.mapIndexed { i, (_, n) -> i.toDouble() to n.toDouble() })
-            }
         }
     }
 

@@ -1,5 +1,6 @@
 package org.mechdancer
 
+import cn.autolabor.locator.ParticleFilterBuilder.Companion.particleFilter
 import cn.autolabor.pm1.sdk.PM1
 import cn.autolabor.transform.TransformSystem
 import cn.autolabor.transform.Transformation
@@ -13,7 +14,6 @@ import org.mechdancer.modules.PathFollowerModule
 import org.mechdancer.remote.presets.remoteHub
 import org.mechdancer.remote.resources.MulticastSockets
 import kotlin.concurrent.thread
-import kotlin.math.PI
 
 fun main() {
     // 网络节点
@@ -26,7 +26,7 @@ fun main() {
     // 导航模块
     val follower = PathFollowerModule(remote, system)
     // 定位模块
-    val locator = LocatorModule(remote, vector2DOf(-10 * PI, 0)) { (time, data) ->
+    val locator = LocatorModule(remote, particleFilter { locatorOnRobot = vector2DOf(-0.305, 0) }) { (time, data) ->
         system.cleanup(Robot to Map)
         system[Robot to Map, time] = Transformation.fromPose(data.p, data.d)
         follower.record(data.p)

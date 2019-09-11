@@ -5,7 +5,7 @@ import cn.autolabor.Temporary
 import cn.autolabor.Temporary.Operation.DELETE
 import cn.autolabor.Temporary.Operation.REDUCE
 import cn.autolabor.transform.Transformation
-import cn.autolabor.utilities.MatcherBase
+import cn.autolabor.utilities.ClampMatcher
 import cn.autolabor.utilities.Odometry
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -19,11 +19,29 @@ import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.sqrt
 
-/** 使用固定 [size] 个粒子的粒子滤波器，其校准用定位器位于 [locator] 处 */
+/**
+ * 粒子滤波器
+ *
+ * * 参数
+ *   * 使用固定 [size] 个粒子的粒子滤波器
+ *   * 机器人坐标系的 [locator] 处存在一个定位校准器，其可产生 [Vector2D] 表示的位置信号
+ *   * 根据定位校准器本身的精度，在计算时，将其视为 [locatorWeight] 个粒子
+ *   * 测量信号与校准信号用时间戳夹逼匹配，最大匹配间隔为 [maxInterval] 毫秒，并在夹逼间线性插值
+ *   * 最大不一致性 [maxInconsistency] 米
+ *     测量传感器与校准传感器具有不同的误差模型，但可以确定一点：对同一个量的测量，二者不会相差太大
+ *     若两次匹配之间两种传感器增量的欧氏长度相差大于这个值，则不使用新的匹配对更新测量
+ *   * 运行中对粒子寿命的统计最大取值为 [maxAge]
+ */
 class ParticleFilter(private val size: Int,
-                     private val locator: Vector2D = vector2DOfZero())
-    : Mixer<Stamped<Odometry>, Stamped<Vector2D>, Odometry> {
-    private val matcher = MatcherBase<Stamped<Odometry>, Stamped<Vector2D>>()
+                     private val locator: Vector2D,
+                     private val locatorWeight: Double,
+                     private val maxInterval: Long,
+                     private val maxInconsistency: Double,
+                     private val maxAge: Int,
+                     @Temporary(DELETE)
+                     var stepFeedback: ((StepState) -> Unit)?
+) : Mixer<Stamped<Odometry>, Stamped<Vector2D>, Odometry> {
+    private val matcher = ClampMatcher<Stamped<Odometry>, Stamped<Vector2D>>()
 
     // 粒子：位姿 - 寿命
     @Temporary(REDUCE)
@@ -34,10 +52,10 @@ class ParticleFilter(private val size: Int,
     data class StepState(val measureWeight: Double,
                          val particleWeight: Double,
                          val measure: Vector2D,
-                         val state: Odometry)
+                         val state: Odometry,
+                         val locatorExpectation: Odometry,
+                         val robotExpectation: Odometry)
 
-    @Temporary(DELETE)
-    var stepState = StepState(.0, .0, vector2DOfZero(), Odometry())
     @Temporary(DELETE)
     var lastResult: Odometry? = null
 
@@ -56,11 +74,11 @@ class ParticleFilter(private val size: Int,
             // 插值 ↓
             .mapNotNull { (measure, before, after) ->
                 (after.time - before.time)
-                    // 一对匹配项间隔不应该超过 500 ms
-                    .takeIf { it in 1..500 }
+                    // 一对匹配项间隔不应该超过间隔范围
+                    .takeIf { it in 1..maxInterval }
                     // 进行线性插值
-                    ?.let {
-                        val k = (measure.time - before.time).toDouble() / it
+                    ?.let { interval ->
+                        val k = (measure.time - before.time).toDouble() / interval
                         measure.data to before.data * k + after.data * (1 - k)
                     }
             }
@@ -73,33 +91,34 @@ class ParticleFilter(private val size: Int,
                         return@forEach
                     }
                 // 计算控制量
-                val delta = state minusState lastState
-                val dM = measure - lastMeasure
+                val deltaState = state minusState lastState
+                val deltaMeasure = measure - lastMeasure
                 stateSave = measure to state
                 // 初步过滤
-                val lengthM = dM.norm()
-                val lengthS = (Transformation.fromPose(delta.p, delta.d)(locator) - locator).norm()
-                if (abs(lengthM - lengthS) > 0.2) return@forEach
+                val lengthM = deltaMeasure.norm()
+                val lengthS = (Transformation.fromPose(deltaState.p, deltaState.d)(locator) - locator).norm()
+                val inconsistency = abs(lengthM - lengthS).takeIf { it < maxInconsistency } ?: return@forEach
                 // 计算定位权重
-                val p0 = (lengthM / 0.2) clamp 0.0..1.0
-                val p1 = (abs(lengthM - lengthS) / 0.1) clamp 0.0..1.0
-                val measureWeight = size / 2 * (1 - (0.5 * p0 + 0.5 * p1))
+                val measureWeight = run {
+                    val p0 = min(1.0, lengthM / maxInconsistency)
+                    val p1 = min(1.0, inconsistency / maxInconsistency)
+                    locatorWeight * (1 - (0.5 * p0 + 0.5 * p1))
+                }
                 // 更新粒子群
-                particles = particles.map { (p, i) -> (p plusDelta delta) to min(i + 1, 10) }
+                particles = particles.map { (p, i) -> (p plusDelta deltaState) to min(i + 1, maxAge) }
+                // 计算每个粒子对应的校准器坐标
                 val locators = particles.map { (odometry, _) ->
                     val (p, d) = odometry
                     val transformation = Transformation.fromPose(p, d)
                     Odometry(transformation(locator).to2D(), d)
                 }
                 // 计算权重
-                val weights = locators.map { (p, _) -> 1 - ((5 * (p - measure).norm()) clamp 0.0..1.0) }
+                val weights = locators.map { (p, _) -> 1 - min(1.0, (p - measure).norm() / maxInconsistency) }
                 val sum = weights.sum().takeIf { it > 1 }
                           ?: run {
                               initialize(measure, state)
                               return@forEach
                           }
-                @Temporary(DELETE)
-                stepState = StepState(measureWeight, sum, measure, state)
                 // 计算期望和方差
                 var eP = vector2DOfZero()
                 var eD = .0
@@ -126,6 +145,14 @@ class ParticleFilter(private val size: Int,
                 // 求期望
                 val eRobot = Transformation.fromPose(eP, eD.toRad())(-locator).to2D()
                 expectation = Odometry(eRobot, eD.toRad())
+                @Temporary(DELETE)
+                stepFeedback?.let {
+                    val eDir = eD.toRad()
+                    it(StepState(measureWeight, sum,
+                                 measure, state,
+                                 Odometry(eP, eDir),
+                                 Odometry(eRobot, eDir)))
+                }
             }
     }
 

@@ -11,8 +11,8 @@ import cn.autolabor.locator.ParticleFilter;
 import cn.autolabor.message.navigation.Msg2DOdometry;
 import cn.autolabor.message.navigation.Msg2DPose;
 import cn.autolabor.util.reflect.TypeNode;
+import cn.autolabor.utilities.ClampMatcher;
 import cn.autolabor.utilities.Matcher;
-import cn.autolabor.utilities.MatcherBase;
 import cn.autolabor.utilities.Odometry;
 import kotlin.Triple;
 import org.mechdancer.algebra.implement.vector.Vector2D;
@@ -27,7 +27,7 @@ import static java.lang.Math.abs;
 public class ParticleFilterTask extends AbstractTask {
     private final MessageHandle<Msg2DOdometry> topicSender;
     private final Matcher<Stamped<Msg2DOdometry>, Stamped<Msg2DOdometry>>
-        matcher = new MatcherBase<>();
+        matcher = new ClampMatcher<>();
     public final ParticleFilter filter;
 
     public ParticleFilterTask(int particlesCount, String marvelmind, String odometry, String topic) {
@@ -42,7 +42,7 @@ public class ParticleFilterTask extends AbstractTask {
         ServerManager.me()
             .getOrCreateMessageHandle("abs_r", new TypeNode(Msg2DOdometry.class))
             .addCallback(this, "ReceiveOdometry", new MessageSourceType[]{});
-        filter = new ParticleFilter(particlesCount, new Vector2D(-0.31, 0.0));
+        filter = new ParticleFilter(particlesCount, new Vector2D(-0.305, 0.0), particlesCount * 0.5, 500L, 0.2, 10, null);
     }
 
     @TaskFunction
