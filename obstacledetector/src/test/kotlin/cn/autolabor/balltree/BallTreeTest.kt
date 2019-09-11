@@ -1,7 +1,8 @@
 package cn.autolabor.balltree
 
+import cn.autolabor.balltree.Tree.*
+import cn.autolabor.balltree.Tree.Companion.build
 import org.mechdancer.algebra.function.vector.DistanceType
-import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.remoteHub
@@ -28,17 +29,23 @@ fun main() {
         }
     }
     var node = tree
-    val buffer = mutableListOf<Vector2D>()
-    while (true) {
-        val root = node.node
-        val (l, r) = node.children
-        buffer += root.center
-        r?.node?.center?.also { buffer += it }
-        buffer += root.center
-        l?.node?.center?.also { buffer += it } ?: break
-        node = l
+    val buffer = mutableListOf(node.value)
+    loop@ while (true) {
+        when (node) {
+            is SingleBranch -> {
+                buffer += node.child.value
+                node = node.child
+            }
+            is DoubleBranch -> {
+                buffer += node.right.value
+                buffer += node.value
+                buffer += node.left.value
+                node = node.left
+            }
+            is Leaf         -> break@loop
+            else            -> break@loop
+        }
         remote.paintVectors("left", buffer)
-        println(buffer.size)
         Thread.sleep(1000)
     }
     println("done")

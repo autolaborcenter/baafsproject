@@ -1,37 +1,57 @@
 package cn.autolabor.balltree
 
-class Tree<T>(val node: Node<T>,
-              val children: Pair<Tree<T>?, Tree<T>?> = null to null)
-
 /**
- * 从点集 [set] 构建球树
+ * 二叉球树
  */
-fun <T> build(set: Set<T>, distance: (T, T) -> Double) =
-    set.firstOrNull()
-        ?.let { root -> build(root, set.drop(1).associateWith { distance(it, root) }, distance) }
+sealed class Tree<T>(val value: T, val distance: (T, T) -> Double) {
+    class Leaf<T>(value: T,
+                  distance: (T, T) -> Double
+    ) : Tree<T>(value, distance)
 
-private fun <T> build(root: T, map: Map<T, Double>, distance: (T, T) -> Double): Tree<T> {
-    val buffer = map.keys.toHashSet()
-    val (left, r) = map.maxBy { (_, d) -> d }
-                    ?: return Tree(Node(root, .0))
-    buffer.remove(left)
-    val dLeft = buffer.associateWith { distance(it, left) }
+    class SingleBranch<T>(value: T,
+                          val radius: Double,
+                          val child: Tree<T>,
+                          distance: (T, T) -> Double
+    ) : Tree<T>(value, distance)
 
-    val right = dLeft.maxBy { (_, d) -> d }?.key
-                ?: return Tree(Node(root, r), Tree(Node(left, .0)) to null)
-    buffer.remove(right)
-    val dRight = buffer.associateWith { distance(it, right) }
+    class DoubleBranch<T>(value: T,
+                          val radius: Double,
+                          val left: Tree<T>,
+                          val right: Tree<T>,
+                          distance: (T, T) -> Double
+    ) : Tree<T>(value, distance)
 
-    val gLeft = hashSetOf<T>()
-    val gRight = hashSetOf<T>()
-    for (p in buffer) {
-        if (dLeft.getValue(p) < dRight.getValue(p))
-            gLeft += p
-        else
-            gRight += p
+    fun neighbors(k: Int) {
+
     }
-    buffer.clear()
-    return Tree(Node(root, r),
-                build(left, dLeft.filterKeys { it in gLeft }, distance) to
-                    build(right, dRight.filterKeys { it in gRight }, distance))
+
+    companion object {
+        /**
+         * 从点集 [set] 构建球树
+         */
+        fun <T> build(set: Set<T>, distance: (T, T) -> Double) =
+            set.firstOrNull()
+                ?.let { root -> build(root, set.drop(1).associateWith { distance(it, root) }, distance) }
+
+        private fun <T> build(root: T, map: Map<T, Double>, distance: (T, T) -> Double): Tree<T> {
+            val buffer = map.keys.toHashSet()
+            val (left, r) = map.maxBy { (_, d) -> d }
+                            ?: return Leaf(root, distance)
+            buffer.remove(left)
+            val dLeft = buffer.associateWith { distance(it, left) }
+
+            val right = dLeft.maxBy { (_, d) -> d }?.key
+                        ?: return SingleBranch(root, r, Leaf(left, distance), distance)
+            buffer.remove(right)
+            val dRight = buffer.associateWith { distance(it, right) }
+                .filter { (key, d) -> dLeft.getValue(key) > d }
+
+            buffer.clear()
+            return DoubleBranch(root, r,
+                                build(left, dLeft.filterKeys { it !in dRight }, distance),
+                                build(right, dRight, distance),
+                                distance)
+        }
+    }
 }
+
