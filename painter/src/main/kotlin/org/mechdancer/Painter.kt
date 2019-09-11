@@ -151,7 +151,7 @@ fun RemoteHub.paintFrame3(
  */
 fun RemoteHub.paintVectors(
     topic: String,
-    list: List<Vector>
+    list: Collection<Vector>
 ) = paint(topic) {
     when (list.map { it.dim }.toSet().singleOrNull()) {
         2 -> DataOutputStream(this).apply {

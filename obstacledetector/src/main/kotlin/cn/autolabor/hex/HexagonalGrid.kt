@@ -1,5 +1,6 @@
-package cn.autolabor
+package cn.autolabor.hex
 
+import cn.autolabor.Polar
 import org.mechdancer.algebra.function.matrix.inverse
 import org.mechdancer.algebra.function.matrix.times
 import org.mechdancer.algebra.function.vector.div

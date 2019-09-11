@@ -33,8 +33,12 @@ class ParticleFilterBuilder {
                 .apply(block)
                 .apply {
                     require(size > 1)
+                    require(locatorWeight!! > 0)
                     require(maxInterval > 0)
+                    require(maxInconsistency > 0)
                     require(maxAge > 0)
+                    require(sigmaRange.start > 0)
+                    require(sigmaRange.endInclusive > sigmaRange.start)
                 }
                 .run {
                     ParticleFilter(size = size,

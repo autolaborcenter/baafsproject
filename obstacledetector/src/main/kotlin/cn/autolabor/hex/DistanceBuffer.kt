@@ -1,5 +1,7 @@
-package cn.autolabor
+package cn.autolabor.hex
 
+import cn.autolabor.Polar
+import cn.autolabor.Stamped
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.common.collection.map2d.CompleteSymmetricPairMap2D
@@ -33,7 +35,11 @@ class DistanceBuffer {
         // 添加新的
         data.asReversed()
             .takeWhile { (time, _) -> tail < time }
-            .forEach { (time, data) -> distanceBuffer.put(Stamped(time, PointBuffered(data))) }
+            .forEach { (time, data) ->
+                distanceBuffer.put(Stamped(time,
+                                           PointBuffered(
+                                               data)))
+            }
     }
 }
 
