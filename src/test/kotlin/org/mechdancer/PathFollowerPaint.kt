@@ -1,8 +1,8 @@
 package org.mechdancer
 
+import cn.autolabor.Odometry
 import cn.autolabor.pm1.sdk.PM1
 import cn.autolabor.transform.Transformation
-import cn.autolabor.utilities.Odometry
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.modules.Coordination.Map

@@ -3,27 +3,48 @@ package cn.autolabor.balltree
 /**
  * 二叉球树
  */
-sealed class Tree<T>(val value: T, val distance: (T, T) -> Double) {
-    class Leaf<T>(value: T,
-                  distance: (T, T) -> Double
-    ) : Tree<T>(value, distance)
+sealed class Tree<T> {
+    abstract val value: T
+    abstract val distance: (T, T) -> Double
 
-    class SingleBranch<T>(value: T,
-                          val radius: Double,
-                          val child: Tree<T>,
-                          distance: (T, T) -> Double
-    ) : Tree<T>(value, distance)
+    /** 叶子节点 */
+    data class Leaf<T>(override val value: T,
+                       override val distance: (T, T) -> Double
+    ) : Tree<T>()
 
-    class DoubleBranch<T>(value: T,
-                          val radius: Double,
-                          val left: Tree<T>,
-                          val right: Tree<T>,
-                          distance: (T, T) -> Double
-    ) : Tree<T>(value, distance)
+    /** 单枝节点 */
+    data class SingleBranch<T>(override val value: T,
+                               val radius: Double,
+                               val child: Tree<T>,
+                               override val distance: (T, T) -> Double
+    ) : Tree<T>()
 
-    fun neighbors(k: Int) {
+    /** 双枝节点 */
+    data class DoubleBranch<T>(override val value: T,
+                               val radius: Double,
+                               val left: Tree<T>,
+                               val right: Tree<T>,
+                               override val distance: (T, T) -> Double
+    ) : Tree<T>()
 
-    }
+    /** 找到 [target] 在树中的最近邻 */
+    fun neighborsOf(target: T): T =
+        when (this) {
+            is Leaf         -> value
+            is SingleBranch -> {
+                val (o, r, left, _) = this
+                val d = distance(target, o)
+                if (d < r) {
+                    val dl = distance(target, left.value)
+                }
+                o
+            }
+            is DoubleBranch -> {
+                val (o, r, left, right, _) = this
+                val d = distance(target, o)
+                o
+            }
+        }
 
     companion object {
         /**
@@ -48,7 +69,7 @@ sealed class Tree<T>(val value: T, val distance: (T, T) -> Double) {
 
             buffer.clear()
             return DoubleBranch(root, r,
-                                build(left, dLeft.filterKeys { it !in dRight }, distance),
+                                build(left, dLeft.filterKeys { it !in dRight && it != right }, distance),
                                 build(right, dRight, distance),
                                 distance)
         }

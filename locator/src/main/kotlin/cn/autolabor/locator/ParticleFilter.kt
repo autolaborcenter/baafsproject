@@ -1,12 +1,12 @@
 package cn.autolabor.locator
 
+import cn.autolabor.Odometry
 import cn.autolabor.Stamped
 import cn.autolabor.Temporary
 import cn.autolabor.Temporary.Operation.DELETE
 import cn.autolabor.Temporary.Operation.REDUCE
 import cn.autolabor.transform.Transformation
 import cn.autolabor.utilities.ClampMatcher
-import cn.autolabor.utilities.Odometry
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D

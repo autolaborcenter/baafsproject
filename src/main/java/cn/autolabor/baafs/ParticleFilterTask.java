@@ -1,5 +1,6 @@
 package cn.autolabor.baafs;
 
+import cn.autolabor.Odometry;
 import cn.autolabor.Stamped;
 import cn.autolabor.core.annotation.TaskFunction;
 import cn.autolabor.core.annotation.TaskParameter;
@@ -14,7 +15,6 @@ import cn.autolabor.message.navigation.Msg2DPose;
 import cn.autolabor.util.reflect.TypeNode;
 import cn.autolabor.utilities.ClampMatcher;
 import cn.autolabor.utilities.Matcher;
-import cn.autolabor.utilities.Odometry;
 import kotlin.Triple;
 import kotlin.ranges.RangesKt;
 import org.mechdancer.algebra.implement.vector.Vector2D;

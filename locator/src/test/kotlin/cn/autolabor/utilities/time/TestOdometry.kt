@@ -1,6 +1,6 @@
 package cn.autolabor.utilities.time
 
-import cn.autolabor.utilities.Odometry
+import cn.autolabor.Odometry
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.geometry.angle.toRad

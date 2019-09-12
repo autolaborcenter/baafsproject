@@ -1,4 +1,4 @@
-package cn.autolabor.utilities
+package cn.autolabor
 
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.plus

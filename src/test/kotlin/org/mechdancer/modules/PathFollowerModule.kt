@@ -1,5 +1,6 @@
 package org.mechdancer.modules
 
+import cn.autolabor.Odometry
 import cn.autolabor.Temporary
 import cn.autolabor.Temporary.Operation.DELETE
 import cn.autolabor.pathfollower.Circle
@@ -10,7 +11,6 @@ import cn.autolabor.pathmaneger.PathManager
 import cn.autolabor.pm1.sdk.PM1
 import cn.autolabor.transform.TransformSystem
 import cn.autolabor.transform.Transformation
-import cn.autolabor.utilities.Odometry
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D

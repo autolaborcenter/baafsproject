@@ -1,9 +1,9 @@
 package org.mechdancer.modules
 
+import cn.autolabor.Odometry
 import cn.autolabor.Stamped
 import cn.autolabor.locator.ParticleFilter
 import cn.autolabor.pm1.sdk.PM1
-import cn.autolabor.utilities.Odometry
 import com.marvelmind.Resource
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.geometry.angle.toRad

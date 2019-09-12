@@ -30,7 +30,10 @@ fun main() {
     }
     var node = tree
     val buffer = mutableListOf(node.value)
+
     loop@ while (true) {
+        remote.paintVectors("left", buffer)
+        readLine()
         when (node) {
             is SingleBranch -> {
                 buffer += node.child.value
@@ -45,8 +48,6 @@ fun main() {
             is Leaf         -> break@loop
             else            -> break@loop
         }
-        remote.paintVectors("left", buffer)
-        Thread.sleep(1000)
     }
     println("done")
 }
