@@ -25,10 +25,8 @@ data class Odometry(
 
     /** 里程回滚到增量 [delta] 之前 */
     infix fun minusDelta(delta: Odometry) =
-        (d rotate -delta.d).let {
-            Odometry(p - delta.p.rotate(-it),
-                     it)
-        }
+        (d rotate -delta.d)
+            .let { Odometry(p - delta.p.rotate(-it), it) }
 
     /** 计算里程从标记 [mark] 到当前状态的增量 */
     infix fun minusState(mark: Odometry) =

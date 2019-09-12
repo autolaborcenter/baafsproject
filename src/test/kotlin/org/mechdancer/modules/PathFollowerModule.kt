@@ -1,11 +1,16 @@
 package org.mechdancer.modules
 
+import cn.autolabor.BehaviorTree.Behavior.Action
+import cn.autolabor.BehaviorTree.Behavior.Waiting
+import cn.autolabor.BehaviorTree.Logic.*
+import cn.autolabor.BehaviorTree.Result.*
 import cn.autolabor.Odometry
 import cn.autolabor.Temporary
 import cn.autolabor.Temporary.Operation.DELETE
 import cn.autolabor.pathfollower.Circle
 import cn.autolabor.pathfollower.VirtualLightSensor
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower
+import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.*
 import cn.autolabor.pathmaneger.PathManager
 import cn.autolabor.pm1.sdk.PM1
@@ -19,6 +24,7 @@ import org.mechdancer.console.parser.buildParser
 import org.mechdancer.console.parser.display
 import org.mechdancer.console.parser.feedback
 import org.mechdancer.geometry.angle.toAngle
+import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.modules.Coordination.Map
 import org.mechdancer.modules.Coordination.Robot
@@ -30,8 +36,6 @@ import org.mechdancer.remote.presets.RemoteHub
 import java.io.Closeable
 import java.io.File
 import kotlin.concurrent.thread
-import kotlin.math.abs
-import kotlin.math.sign
 
 /**
  * 循径模块
@@ -41,8 +45,8 @@ import kotlin.math.sign
  */
 class PathFollowerModule(
     private val remote: RemoteHub? = Default.remote,
-    private val system: TransformSystem<Coordination> = Default.system
-
+    private val system: TransformSystem<Coordination> = Default.system,
+    private val control: (Double, Double) -> Unit
 ) : Closeable {
     // 任务类型/工作状态
     private enum class Mode {
@@ -62,6 +66,47 @@ class PathFollowerModule(
             VirtualLightSensor(
                 -Transformation.fromPose(vector2DOf(0.15, 0.0), 0.toRad()),
                 Circle(radius = 0.2, vertexCount = 64)))
+    private var command: FollowCommand = Follow(.0, .0)
+    private val behaviors = LoopEach(
+        Action {
+            command = follower(system[Map to Robot]!!.transformation)
+            when (command) {
+                is Follow -> Success
+                is Turn   -> Success
+                Error     -> {
+                    println("error")
+                    Failure
+                }
+                Finish    -> {
+                    println("finish")
+                    Failure
+                }
+            }
+        },
+        First(
+            Action {
+                val temp = command
+                if (temp is Follow) {
+                    val (v, w) = temp
+                    control(v, w)
+                    Success
+                } else
+                    Failure
+            },
+            Sequence(
+                Action {
+                    control(.0, .0)
+                    Success
+                },
+                Waiting(200L),
+                Action {
+                    control(.05, .0)
+                    Running
+                },
+                Action {
+                    control(.0, 10.0.toDegree().asRadian())
+                    Running
+                })))
 
     @Temporary(DELETE)
     var offset = Odometry()
@@ -167,27 +212,10 @@ class PathFollowerModule(
             .map(::feedback)
 
     private fun follow() {
-        when (val command = follower(system[Map to Robot]!!.transformation)) {
-            is Follow -> {
-                val (v, w) = command
-                PM1.drive(v, w)
-            }
-            is Turn   -> {
-                val (angle) = command
-                println("turn: $angle")
-                PM1.drive(.0, .0)
-                Thread.sleep(200)
-                PM1.driveSpatial(.050, .0, .025, .0)
-                PM1.driveSpatial(.0, angle.sign * .5, .0, abs(angle))
-            }
-            Error     -> {
-                println("error")
-                mode = Idle
-            }
-            Finish    -> {
-                println("finish")
-                mode = Idle
-            }
+        when (behaviors()) {
+            Success -> TODO()
+            Failure -> mode = Idle
+            Running -> Unit
         }
         remote?.run {
             val shape = follower.sensor.areaShape
