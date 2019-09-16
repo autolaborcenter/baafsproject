@@ -14,6 +14,9 @@ import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import java.io.Closeable
 
+/**
+ * 定位器
+ */
 sealed class Locator : Closeable {
     protected val locateChannel = Channel<Stamped<Vector2D>>(Channel.CONFLATED)
     protected var running = true
@@ -24,14 +27,18 @@ sealed class Locator : Closeable {
         running = false
     }
 
+    /**
+     * 框架定位器
+     */
     class FrameworkRemoteLocator(scope: CoroutineScope) : Locator() {
         init {
-            val locate = ServerManager.me().getOrCreateMessageHandle("abs", TypeNode(Msg2DOdometry::class.java))
+            val topic = ServerManager.me().getConfig("MarvelmindTask", "topic") as? String ?: "abs"
+            val locate = ServerManager.me().getOrCreateMessageHandle(topic, TypeNode(Msg2DOdometry::class.java))
             scope.launch {
                 while (running) {
-                    val temp = locate.firstData as? Msg2DOdometry ?: continue
-                    val data = temp.pose
-                    locateChannel.send(Stamped(temp.header.stamp, vector2DOf(data.x, data.y)))
+                    (locate.firstData as? Msg2DOdometry)?.run {
+                        locateChannel.send(Stamped(header.stamp, vector2DOf(pose.x, pose.y)))
+                    }
                     delay(100L)
                 }
                 Resource { time, x, y ->
@@ -41,6 +48,9 @@ sealed class Locator : Closeable {
         }
     }
 
+    /**
+     * marvelmind 定位器
+     */
     class MarvelmindLocator(scope: CoroutineScope) : Locator() {
         init {
             scope.launch {

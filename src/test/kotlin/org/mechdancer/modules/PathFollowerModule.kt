@@ -11,7 +11,7 @@ import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.*
 import cn.autolabor.pathmaneger.PathManager
 import cn.autolabor.pm1.sdk.PM1
 import cn.autolabor.transform.Transformation
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.delay
@@ -45,11 +45,11 @@ import kotlin.math.sign
  * PM1 驱动启动后才能正常运行；
  */
 class PathFollowerModule(
-    private val remote: RemoteHub? = Default.remote,
+    private val scope: CoroutineScope,
     private val robotOnMap: ReceiveChannel<Stamped<Odometry>>,
-    private val twistChannel: SendChannel<Twist>
+    private val twistChannel: SendChannel<Twist>,
+    private val remote: RemoteHub? = Default.remote
 ) : Closeable {
-
     // 任务类型/工作状态
     private enum class Mode {
         Record,
@@ -157,7 +157,7 @@ class PathFollowerModule(
 
     private fun startRecord() {
         mode = Record
-        GlobalScope.launch {
+        scope.launch {
             while (running && mode == Record) {
                 val (_, current) = robotOnMap.receive()
                 if (path.record(current.p))
@@ -169,7 +169,7 @@ class PathFollowerModule(
     private fun startFollow() {
         mode = Mode.Follow
         follower.path = path.get()
-        GlobalScope.launch {
+        scope.launch {
             while (running && mode == Mode.Follow) {
                 robotOnMap.receive().data
                     .toTransformation()
@@ -223,6 +223,6 @@ class PathFollowerModule(
     }
 
     override fun close() {
-        // running = false
+        running = false
     }
 }
