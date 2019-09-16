@@ -6,6 +6,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import org.mechdancer.modules.PathFollowerModule
+import org.mechdancer.modules.await
 import org.mechdancer.modules.devices.Chassis.FrameworkRemoteChassis
 import org.mechdancer.modules.devices.Locator.FrameworkRemoteLocator
 import org.mechdancer.modules.startLocationFilter
@@ -22,7 +23,7 @@ fun main() {
         robotOnOdometry = chassis.robotPose,
         robotOnMap = robotOnMap)
     // 导航模块
-    PathFollowerModule(scope, chassis.robotPose, chassis.twistCommand)
-        .use { it.parseRepeatedly() }
+    PathFollowerModule(scope, chassis.robotPose, chassis.twistCommand).parseRepeatedly()
+    scope.await()
 }
 

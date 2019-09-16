@@ -9,23 +9,17 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
-import java.io.Closeable
 
 /**
  * 定位器
  */
-sealed class Locator : Closeable {
+sealed class Locator {
     protected val locateChannel = Channel<Stamped<Vector2D>>(Channel.CONFLATED)
-    protected var running = true
-
     val robotLocation: ReceiveChannel<Stamped<Vector2D>> get() = locateChannel
-
-    override fun close() {
-        running = false
-    }
 
     /**
      * 框架定位器
@@ -35,15 +29,13 @@ sealed class Locator : Closeable {
             val topic = ServerManager.me().getConfig("MarvelmindTask", "topic") as? String ?: "abs"
             val locate = ServerManager.me().getOrCreateMessageHandle(topic, TypeNode(Msg2DOdometry::class.java))
             scope.launch {
-                while (running) {
+                while (isActive) {
                     (locate.firstData as? Msg2DOdometry)?.run {
                         locateChannel.send(Stamped(header.stamp, vector2DOf(pose.x, pose.y)))
                     }
                     delay(100L)
                 }
-                Resource { time, x, y ->
-                    scope.launch { locateChannel.send(Stamped(time, vector2DOf(x, y))) }
-                }.use { while (running) it() }
+                println("over")
             }
         }
     }
@@ -56,7 +48,7 @@ sealed class Locator : Closeable {
             scope.launch {
                 Resource { time, x, y ->
                     scope.launch { locateChannel.send(Stamped(time, vector2DOf(x, y))) }
-                }.use { while (running) it() }
+                }.use { while (isActive) it() }
             }
         }
     }

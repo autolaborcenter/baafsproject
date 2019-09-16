@@ -13,25 +13,20 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.geometry.angle.toRad
-import java.io.Closeable
 
 /**
  * 底盘设备封装
  */
-sealed class Chassis : Closeable {
+sealed class Chassis {
     protected val poseChannel = Channel<Stamped<Odometry>>(Channel.CONFLATED)
     protected val twistChannel = Channel<Twist>(Channel.CONFLATED)
-    protected var running = true
 
     val robotPose: ReceiveChannel<Stamped<Odometry>> get() = poseChannel
     val twistCommand: SendChannel<Twist> get() = twistChannel
-
-    override fun close() {
-        running = false
-    }
 
     /**
      * 框架底盘
@@ -46,7 +41,7 @@ sealed class Chassis : Closeable {
             val handle = framework.getOrCreateMessageHandle(cmdvelTopic, TypeNode(Msg2DOdometry::class.java))
             val odometry = framework.getOrCreateMessageHandle(odometryTopic, TypeNode(Msg2DOdometry::class.java))
             scope.launch {
-                while (running) {
+                while (isActive) {
                     val temp = odometry.firstData as? Msg2DOdometry ?: continue
                     val data = temp.pose
                     poseChannel.send(Stamped(temp.header.stamp, Odometry(vector2DOf(data.x, data.y), data.yaw.toRad())))
@@ -54,7 +49,7 @@ sealed class Chassis : Closeable {
                 }
             }
             scope.launch {
-                while (running) {
+                while (isActive) {
                     val (v, w) = twistChannel.receive()
                     handle.pushSubData(Msg2DOdometry(Msg2DPose(), Msg2DTwist(v, .0, w)))
                 }
@@ -70,14 +65,14 @@ sealed class Chassis : Closeable {
             PM1.initialize()
             PM1.locked = false
             scope.launch {
-                while (running) {
+                while (isActive) {
                     val (_, _, _, x, y, theta) = PM1.odometry
                     poseChannel.send(Stamped.stamp(Odometry(vector2DOf(x, y), theta.toRad())))
                     delay(40L)
                 }
             }
             scope.launch {
-                while (running) {
+                while (isActive) {
                     val (v, w) = twistChannel.receive()
                     PM1.drive(v, w)
                 }

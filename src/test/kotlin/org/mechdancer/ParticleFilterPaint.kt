@@ -5,6 +5,7 @@ import cn.autolabor.Stamped
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
+import org.mechdancer.modules.await
 import org.mechdancer.modules.devices.Chassis.FrameworkRemoteChassis
 import org.mechdancer.modules.devices.Locator.FrameworkRemoteLocator
 import org.mechdancer.modules.startLocationFilter
@@ -19,4 +20,5 @@ fun main() {
         robotOnLocator = locator.robotLocation,
         robotOnOdometry = chassis.robotPose,
         robotOnMap = robotOnMap)
+    scope.await()
 }

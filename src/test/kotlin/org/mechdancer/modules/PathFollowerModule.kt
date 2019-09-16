@@ -11,11 +11,9 @@ import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.*
 import cn.autolabor.pathmaneger.PathManager
 import cn.autolabor.pm1.sdk.PM1
 import cn.autolabor.transform.Transformation
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.to2D
@@ -32,7 +30,6 @@ import org.mechdancer.modules.devices.Twist
 import org.mechdancer.paintFrame2
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.RemoteHub
-import java.io.Closeable
 import java.io.File
 import kotlin.math.PI
 import kotlin.math.abs
@@ -49,7 +46,7 @@ class PathFollowerModule(
     private val robotOnMap: ReceiveChannel<Stamped<Odometry>>,
     private val twistChannel: SendChannel<Twist>,
     private val remote: RemoteHub? = Default.remote
-) : Closeable {
+) {
     // 任务类型/工作状态
     private enum class Mode {
         Record,
@@ -70,7 +67,6 @@ class PathFollowerModule(
 
     private var mode = Idle
     private var enabled = false
-    private var running = true
     private val parser = buildParser {
         this["record"] = {
             when (mode) {
@@ -138,16 +134,18 @@ class PathFollowerModule(
         }
 
         this["state"] = { mode }
-        this["shutdown"] = { running = false; "Bye~" }
+        this["shutdown"] = { scope.cancel(); "Bye~" }
     }
 
     /** 从控制台阻塞解析 */
     fun parseRepeatedly() {
-        while (running)
-            readLine()
-                ?.let(parser::invoke)
-                ?.map(::feedback)
-                ?.forEach(::display)
+        scope.launch {
+            while (isActive)
+                readLine()
+                    ?.let(parser::invoke)
+                    ?.map(::feedback)
+                    ?.forEach(::display)
+        }
     }
 
     /** 解析一个脚本 */
@@ -158,7 +156,7 @@ class PathFollowerModule(
     private fun startRecord() {
         mode = Record
         scope.launch {
-            while (running && mode == Record) {
+            while (isActive && mode == Record) {
                 val (_, current) = robotOnMap.receive()
                 if (path.record(current.p))
                     remote?.paintVectors("path", path.get())
@@ -170,7 +168,7 @@ class PathFollowerModule(
         mode = Mode.Follow
         follower.path = path.get()
         scope.launch {
-            while (running && mode == Mode.Follow) {
+            while (isActive && mode == Mode.Follow) {
                 robotOnMap.receive().data
                     .toTransformation()
                     .let { follower(-it) }
@@ -220,9 +218,5 @@ class PathFollowerModule(
                 }
             }
         }
-    }
-
-    override fun close() {
-        running = false
     }
 }
