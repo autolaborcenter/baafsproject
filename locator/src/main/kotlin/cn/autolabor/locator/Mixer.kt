@@ -8,7 +8,7 @@ package cn.autolabor.locator
  */
 interface Mixer<TMaster, THelper, TResult> {
     /** 添加测量信息 */
-    fun measureMaster(item: TMaster)
+    fun measureMaster(item: TMaster): TResult?
 
     /** 添加校准信息 */
     fun measureHelper(item: THelper)

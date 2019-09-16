@@ -24,7 +24,7 @@ import kotlin.math.sqrt
  *
  * * 参数
  *   * 使用固定 [size] 个粒子的粒子滤波器
- *   * 机器人坐标系的 [locator] 处存在一个定位校准器，其可产生 [Vector2D] 表示的位置信号
+ *   * 机器人坐标系的 [locatorOnRobot] 处存在一个定位校准器，其可产生 [Vector2D] 表示的位置信号
  *   * 根据定位校准器本身的精度，在计算时，将其视为 [locatorWeight] 个粒子
  *   * 测量信号与校准信号用时间戳夹逼匹配，最大匹配间隔为 [maxInterval] 毫秒，并在夹逼间线性插值
  *   * 最大不一致性 [maxInconsistency] 米
@@ -34,7 +34,7 @@ import kotlin.math.sqrt
  *   * 对死亡的粒子重采样时方向标准差在 [sigmaRange] 中取值
  */
 class ParticleFilter(private val size: Int,
-                     private val locator: Vector2D,
+                     private val locatorOnRobot: Vector2D,
                      private val locatorWeight: Double,
                      private val maxInterval: Long,
                      private val maxInconsistency: Double,
@@ -42,7 +42,7 @@ class ParticleFilter(private val size: Int,
                      private val sigmaRange: ClosedFloatingPointRange<Double>,
                      @Temporary(DELETE)
                      var stepFeedback: ((StepState) -> Unit)?
-) : Mixer<Stamped<Odometry>, Stamped<Vector2D>, Odometry> {
+) : Mixer<Stamped<Odometry>, Stamped<Vector2D>, Stamped<Odometry>> {
     private val matcher = ClampMatcher<Stamped<Odometry>, Stamped<Vector2D>>()
 
     // 粒子：位姿 - 寿命
@@ -58,14 +58,16 @@ class ParticleFilter(private val size: Int,
                          val locatorExpectation: Odometry,
                          val robotExpectation: Odometry)
 
-    @Temporary(DELETE)
-    var lastResult: Odometry? = null
-
     override fun measureMaster(item: Stamped<Odometry>) =
-        matcher.add1(item).also { update() }
+        matcher.add1(item).let {
+            update()
+            get(item)
+        }
 
     override fun measureHelper(item: Stamped<Vector2D>) =
-        matcher.add2(item).also { update() }
+        matcher.add2(item).also {
+            update()
+        }
 
     private var stateSave: Pair<Vector2D, Odometry>? = null
     private var expectation = Odometry()
@@ -99,7 +101,8 @@ class ParticleFilter(private val size: Int,
                     stateSave = measure to state
                     // 计算不一致性，若过于不一致则放弃更新
                     val lengthM = deltaMeasure.norm()
-                    val lengthS = (Transformation.fromPose(deltaState.p, deltaState.d)(locator) - locator).norm()
+                    val lengthS =
+                        (Transformation.fromPose(deltaState.p, deltaState.d)(locatorOnRobot) - locatorOnRobot).norm()
                     val inconsistency = abs(lengthM - lengthS).takeIf { it < maxInconsistency } ?: return@forEach
                     // 计算校准权重：定位器本身的可靠性与此次测量的可靠性相乘
                     val measureWeight = locatorWeight * mapOf(
@@ -113,7 +116,7 @@ class ParticleFilter(private val size: Int,
                     // 计算每个粒子对应的校准器坐标
                     val locators = particles.map { (odometry, _) ->
                         val (p, d) = odometry
-                        Odometry(Transformation.fromPose(p, d)(locator).to2D(), d)
+                        Odometry(Transformation.fromPose(p, d)(locatorOnRobot).to2D(), d)
                     }
                     // 计算粒子权重
                     val weights = locators.map { (p, _) -> 1 - min(1.0, (p - measure).norm() / maxInconsistency) }
@@ -142,12 +145,12 @@ class ParticleFilter(private val size: Int,
                     particles = particles.mapIndexed { i, item ->
                         if (weights[i] < 0.2) {
                             val d = (random.nextGaussian() * sigma + eD).toRad()
-                            val p = Transformation.fromPose(measure, d)(-locator).to2D()
+                            val p = Transformation.fromPose(measure, d)(-locatorOnRobot).to2D()
                             Odometry(p, d) to 0
                         } else item
                     }
                     // 猜测真实位姿
-                    val eRobot = Transformation.fromPose(eP, eD.toRad())(-locator).to2D()
+                    val eRobot = Transformation.fromPose(eP, eD.toRad())(-locatorOnRobot).to2D()
                     expectation = Odometry(eRobot, eD.toRad())
                     @Temporary(DELETE)
                     stepFeedback?.let {
@@ -167,16 +170,14 @@ class ParticleFilter(private val size: Int,
         val step = 2 * PI / size
         particles = List(size) {
             val d = (it * step).toRad()
-            val p = Transformation.fromPose(measure, d)(-locator).to2D()
+            val p = Transformation.fromPose(measure, d)(-locatorOnRobot).to2D()
             Odometry(p, d) to 0
         }
     }
 
     override operator fun get(item: Stamped<Odometry>) =
-        stateSave
-            ?.second
-            ?.let { expectation plusDelta (item.data minusState it) }
-            .also @Temporary(DELETE) { lastResult = it }
+        stateSave?.second
+            ?.let { Stamped(item.time, expectation plusDelta (item.data minusState it)) }
 
     private companion object {
         // 里程计线性可加性（用于加权平均）

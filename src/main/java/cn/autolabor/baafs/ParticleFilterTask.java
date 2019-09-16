@@ -62,15 +62,15 @@ public class ParticleFilterTask extends AbstractTask {
         super(name);
         topicSender = ServerManager.me().getOrCreateMessageHandle(fusionTopic, new TypeNode(Msg2DOdometry.class));
         ServerManager.me()
-                .getOrCreateMessageHandle(marvelmindTopic, new TypeNode(Msg2DOdometry.class))
-                .addCallback(this, "ReceiveMarvelmind", new MessageSourceType[]{});
+            .getOrCreateMessageHandle(marvelmindTopic, new TypeNode(Msg2DOdometry.class))
+            .addCallback(this, "ReceiveMarvelmind", new MessageSourceType[]{});
         ServerManager.me()
-                .getOrCreateMessageHandle(odometryTopic, new TypeNode(Msg2DOdometry.class))
-                .addCallback(this, "ReceiveOdometry", new MessageSourceType[]{});
+            .getOrCreateMessageHandle(odometryTopic, new TypeNode(Msg2DOdometry.class))
+            .addCallback(this, "ReceiveOdometry", new MessageSourceType[]{});
         filter = new ParticleFilter(
-                particlesCount,
-                new Vector2D(locationX, locationY), locatorWeight,
-                maxInterval, maxInconsistency, maxAge, RangesKt.rangeTo(sigmaRangeMin, sigmaRangeMax), null);
+            particlesCount,
+            new Vector2D(locationX, locationY), locatorWeight,
+            maxInterval, maxInconsistency, maxAge, RangesKt.rangeTo(sigmaRangeMin, sigmaRangeMax), null);
     }
 
     @TaskFunction
@@ -81,61 +81,62 @@ public class ParticleFilterTask extends AbstractTask {
     @TaskFunction
     public void ReceiveMarvelmind(Msg2DOdometry p) {
         filter.measureHelper(
-                new Stamped<>(
-                        p.getHeader().getStamp(),
-                        new Vector2D(
-                                p.getPose().getX(),
-                                p.getPose().getY()
-                        )
+            new Stamped<>(
+                p.getHeader().getStamp(),
+                new Vector2D(
+                    p.getPose().getX(),
+                    p.getPose().getY()
                 )
+            )
         );
     }
 
     @TaskFunction
     public void ReceiveOdometry(Msg2DOdometry p) {
         Stamped<Odometry> in =
-                new Stamped<>(p.getHeader().getStamp(),
-                        new Odometry(
-                                new Vector2D(
-                                        p.getPose().getX(),
-                                        p.getPose().getY()
-                                ),
-                                new Angle(p.getPose().getYaw())
-                        )
-                );
+            new Stamped<>(p.getHeader().getStamp(),
+                new Odometry(
+                    new Vector2D(
+                        p.getPose().getX(),
+                        p.getPose().getY()
+                    ),
+                    new Angle(p.getPose().getYaw())
+                )
+            );
 
         filter.measureMaster(in);
-        Odometry out = filter.get(in);
+        Stamped<Odometry> out = filter.get(in);
         if (out == null) return;
+        Odometry data = out.getData();
         Msg2DOdometry temp = new Msg2DOdometry();
         temp.getHeader().setStamp(p.getHeader().getStamp());
         temp.getHeader().setCoordinate("map");
         temp.setPose(new Msg2DPose(
-                out.getP().getX(),
-                out.getP().getY(),
-                out.getD().getValue()
+            data.getP().getX(),
+            data.getP().getY(),
+            data.getD().getValue()
         ));
         topicSender.pushSubData(temp);
 
         matcher.add2(new Stamped<>(temp.getHeader().getStamp(), temp));
         Triple<Stamped<Msg2DOdometry>, Stamped<Msg2DOdometry>, Stamped<Msg2DOdometry>>
-                triple = matcher.match2();
+            triple = matcher.match2();
         if (triple != null) {
             Msg2DOdometry
-                    pair = triple.component1().getData(),
-                    a = triple.component2().getData(),
-                    b = triple.component3().getData();
+                pair = triple.component1().getData(),
+                a = triple.component2().getData(),
+                b = triple.component3().getData();
             long time = pair.getHeader().getStamp();
             Msg2DOdometry
-                    min = abs(time - a.getHeader().getStamp()) < abs(time - b.getHeader().getStamp())
-                    ? a : b;
+                min = abs(time - a.getHeader().getStamp()) < abs(time - b.getHeader().getStamp())
+                ? a : b;
             long t1 = min.getHeader().getStamp();
             double dx = pair.getPose().getX() - min.getPose().getX();
             double dy = pair.getPose().getY() - min.getPose().getY();
             System.out.println(String.format("%d - %d = %d, error = %f",
-                    time, t1,
-                    abs(time - t1),
-                    Math.hypot(dx, dy)));
+                time, t1,
+                abs(time - t1),
+                Math.hypot(dx, dy)));
         }
     }
 }

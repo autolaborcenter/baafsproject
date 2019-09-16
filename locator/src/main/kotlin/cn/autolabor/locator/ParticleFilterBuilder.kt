@@ -42,7 +42,7 @@ class ParticleFilterBuilder {
                 }
                 .run {
                     ParticleFilter(size = size,
-                                   locator = locatorOnRobot,
+                                   locatorOnRobot = locatorOnRobot,
                                    locatorWeight = locatorWeight!!,
                                    maxInterval = maxInterval,
                                    maxInconsistency = maxInconsistency,

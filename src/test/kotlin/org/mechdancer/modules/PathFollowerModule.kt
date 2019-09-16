@@ -1,6 +1,7 @@
 package org.mechdancer.modules
 
 import cn.autolabor.Odometry
+import cn.autolabor.Stamped
 import cn.autolabor.Temporary
 import cn.autolabor.Temporary.Operation.DELETE
 import cn.autolabor.pathfollower.Circle
@@ -9,15 +10,14 @@ import cn.autolabor.pathfollower.VirtualLightSensorPathFollower
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.*
 import cn.autolabor.pathmaneger.PathManager
 import cn.autolabor.pm1.sdk.PM1
-import cn.autolabor.transform.TransformSystem
 import cn.autolabor.transform.Transformation
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
-import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.console.parser.buildParser
@@ -25,8 +25,6 @@ import org.mechdancer.console.parser.display
 import org.mechdancer.console.parser.feedback
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toRad
-import org.mechdancer.modules.Coordination.Map
-import org.mechdancer.modules.Coordination.Robot
 import org.mechdancer.modules.PathFollowerModule.Mode.Idle
 import org.mechdancer.modules.PathFollowerModule.Mode.Record
 import org.mechdancer.paintFrame2
@@ -46,18 +44,16 @@ import kotlin.math.sign
  */
 class PathFollowerModule(
     private val remote: RemoteHub? = Default.remote,
-    private val system: TransformSystem<Coordination> = Default.system,
-    private val control: (Double, Double) -> Unit
+    private val robotOnMap: ReceiveChannel<Stamped<Odometry>>,
+    private val twistChannel: SendChannel<Twist>
 ) : Closeable {
+    data class Twist(val v: Double, val w: Double)
+
     // 任务类型/工作状态
     private enum class Mode {
         Record,
         Follow,
         Idle
-    }
-
-    init {
-        system[Robot to Map] = Transformation.unit(2)
     }
 
     private val file = File("path.txt")
@@ -80,7 +76,7 @@ class PathFollowerModule(
                 Record      -> "Recording"
                 Mode.Follow -> "Is following now"
                 Idle        -> {
-                    mode = Record
+                    startRecord()
                     "Recording"
                 }
             }
@@ -144,12 +140,6 @@ class PathFollowerModule(
         this["shutdown"] = { running = false; "Bye~" }
     }
 
-    /** 记录路径点 */
-    fun record(p: Vector2D) {
-        if (mode == Record && path.record(p))
-            remote?.paintVectors("path", path.get())
-    }
-
     /** 从控制台阻塞解析 */
     fun parseRepeatedly() {
         while (running)
@@ -164,23 +154,27 @@ class PathFollowerModule(
         cmd.let(parser::invoke)
             .map(::feedback)
 
+    private fun startRecord() {
+        mode = Record
+        GlobalScope.launch {
+            while (mode == Record) {
+                val (_, current) = robotOnMap.receive()
+                if (path.record(current.p))
+                    remote?.paintVectors("path", path.get())
+            }
+        }
+    }
+
     private fun startFollow() {
         mode = Mode.Follow
         follower.path = path.get()
         GlobalScope.launch {
-            val channel = Channel<Transformation>()
-            launch {
-                while (mode == Mode.Follow) {
-                    channel.send(system[Map to Robot]!!.transformation)
-                    delay(100L)
-                }
-            }
             while (mode == Mode.Follow) {
-                val current = channel.receive()
-                when (val command = follower(current)) {
+                val (_, current) = robotOnMap.receive()
+                when (val command = follower(current.toTransformation())) {
                     is Follow -> {
                         val (v, w) = command
-                        control(v, w)
+                        twistChannel.send(Twist(v, w))
                     }
                     else      -> {
                         println(command)
@@ -188,23 +182,21 @@ class PathFollowerModule(
                             is Turn   -> {
                                 val (angle) = command
                                 println("turn $angle rad")
-                                control(.0, .0)
+                                twistChannel.send(Twist(.0, .0))
                                 delay(200L)
-                                val (p0, d0) = channel.receive().toPose()
+                                val (p0, d0) = robotOnMap.receive().data
                                 // 前进 2.5cm 补不足
-                                println("a")
                                 while (true) {
-                                    control(0.1, .0)
-                                    val (p, _) = channel.receive().toPose()
+                                    twistChannel.send(Twist(.1, .0))
+                                    val (p, _) = robotOnMap.receive().data
                                     if ((p - p0).norm() > 0.025) break
                                 }
                                 // 旋转
                                 val w = angle.sign * PI / 10
                                 val delta = abs(angle)
-                                println("b")
                                 while (true) {
-                                    control(.0, w)
-                                    val (_, d) = channel.receive().toPose()
+                                    twistChannel.send(Twist(.0, w))
+                                    val (_, d) = robotOnMap.receive().data
                                     if (abs(d.asRadian() - d0.asRadian()) > delta) break
                                 }
                             }
