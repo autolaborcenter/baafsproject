@@ -62,6 +62,8 @@ dependencies {
     api(project(":obstacledetector"))
     api(project(":pathfollower"))
 
+    testImplementation("org.jetbrains.kotlinx", "kotlinx-coroutines-core", "+")
+
     testImplementation("junit", "junit", "+")
     testImplementation(kotlin("test-junit"))
 

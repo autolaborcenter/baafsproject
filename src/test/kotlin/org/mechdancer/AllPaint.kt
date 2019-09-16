@@ -13,7 +13,7 @@ fun main() {
     // 坐标系管理器
     val system = Default.system
     // 导航模块
-    val follower = PathFollowerModule()
+    val follower = PathFollowerModule { v, w -> PM1.drive(v, w) }
     // 定位模块
     val locator = LocatorModule { (time, data) ->
         system.cleanup(Robot to Map, System.currentTimeMillis() - 5000)

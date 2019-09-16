@@ -14,7 +14,7 @@ fun main() {
     val remote = Default.remote
     val system = Default.system
     // 导航模块
-    val follower = PathFollowerModule()
+    val follower = PathFollowerModule { v, w -> PM1.drive(v, w) }
     PM1.initialize()
     PM1.locked = false
     PM1.setCommandEnabled(false)

@@ -1,31 +1,32 @@
 package org.mechdancer.modules
 
-import cn.autolabor.BehaviorTree.Behavior.Action
-import cn.autolabor.BehaviorTree.Behavior.Waiting
-import cn.autolabor.BehaviorTree.Logic.*
-import cn.autolabor.BehaviorTree.Result.*
 import cn.autolabor.Odometry
 import cn.autolabor.Temporary
 import cn.autolabor.Temporary.Operation.DELETE
 import cn.autolabor.pathfollower.Circle
 import cn.autolabor.pathfollower.VirtualLightSensor
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower
-import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.*
 import cn.autolabor.pathmaneger.PathManager
 import cn.autolabor.pm1.sdk.PM1
 import cn.autolabor.transform.TransformSystem
 import cn.autolabor.transform.Transformation
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.mechdancer.algebra.function.vector.minus
+import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.console.parser.display
 import org.mechdancer.console.parser.feedback
 import org.mechdancer.geometry.angle.toAngle
-import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
+import org.mechdancer.geometry.angle.toVector
 import org.mechdancer.modules.Coordination.Map
 import org.mechdancer.modules.Coordination.Robot
 import org.mechdancer.modules.PathFollowerModule.Mode.Idle
@@ -35,7 +36,9 @@ import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.RemoteHub
 import java.io.Closeable
 import java.io.File
-import kotlin.concurrent.thread
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.sign
 
 /**
  * 循径模块
@@ -66,47 +69,6 @@ class PathFollowerModule(
             VirtualLightSensor(
                 -Transformation.fromPose(vector2DOf(0.15, 0.0), 0.toRad()),
                 Circle(radius = 0.2, vertexCount = 64)))
-    private var command: FollowCommand = Follow(.0, .0)
-    private val behaviors = LoopEach(
-        Action {
-            command = follower(system[Map to Robot]!!.transformation)
-            when (command) {
-                is Follow -> Success
-                is Turn   -> Success
-                Error     -> {
-                    println("error")
-                    Failure
-                }
-                Finish    -> {
-                    println("finish")
-                    Failure
-                }
-            }
-        },
-        First(
-            Action {
-                val temp = command
-                if (temp is Follow) {
-                    val (v, w) = temp
-                    control(v, w)
-                    Success
-                } else
-                    Failure
-            },
-            Sequence(
-                Action {
-                    control(.0, .0)
-                    Success
-                },
-                Waiting(200L),
-                Action {
-                    control(.05, .0)
-                    Running
-                },
-                Action {
-                    control(.0, 10.0.toDegree().asRadian())
-                    Running
-                })))
 
     @Temporary(DELETE)
     var offset = Odometry()
@@ -169,14 +131,7 @@ class PathFollowerModule(
                 Record      -> "Is Recording now."
                 Mode.Follow -> "Ok."
                 Idle        -> {
-                    mode = Mode.Follow
-                    follower.path = path.get()
-                    thread {
-                        while (mode == Mode.Follow) {
-                            follow()
-                            Thread.sleep(100)
-                        }
-                    }
+                    startFollow()
                     "Ok."
                 }
             }
@@ -211,23 +166,76 @@ class PathFollowerModule(
         cmd.let(parser::invoke)
             .map(::feedback)
 
-    private fun follow() {
-        when (behaviors()) {
-            Success -> TODO()
-            Failure -> mode = Idle
-            Running -> Unit
-        }
-        remote?.run {
-            val shape = follower.sensor.areaShape
-            paintVectors("sensor", shape + shape.first())
-        }
-        if (mode != Mode.Follow) {
-            enabled = false
-            PM1.setCommandEnabled(false)
+    private fun startFollow() {
+        mode = Mode.Follow
+        follower.path = path.get()
+        GlobalScope.launch {
+            val channel = Channel<Transformation>()
+            launch {
+                while (mode == Mode.Follow) {
+                    channel.send(system[Map to Robot]!!.transformation)
+                    delay(100L)
+                }
+            }
+            while (mode == Mode.Follow) {
+                val current = channel.receive()
+                when (val command = follower(current)) {
+                    is Follow -> {
+                        val (v, w) = command
+                        control(v, w)
+                    }
+                    else      -> {
+                        println(command)
+                        when (command) {
+                            is Turn   -> {
+                                val (angle) = command
+                                println("turn $angle rad")
+                                while (true) {
+                                    control(.0, .0)
+                                    delay(200L)
+                                    val (p0, d0) = channel.receive().toPose()
+                                    // 前进 2.5cm 补不足
+                                    while (true) {
+                                        control(0.1, .0)
+                                        val (p, _) = channel.receive().toPose()
+                                        if ((p - p0).norm() > 0.025) break
+                                    }
+                                    // 旋转
+                                    val w = angle.sign * PI / 10
+                                    while (true) {
+                                        control(.0, w)
+                                        val (_, d) = channel.receive().toPose()
+                                        if (abs(d.asRadian() - d0.asRadian()) > angle) break
+                                    }
+                                }
+                            }
+                            is Error,
+                            is Finish -> mode = Idle
+                        }
+                    }
+                }
+                remote?.run {
+                    val shape = follower.sensor.areaShape
+                    paintVectors("sensor", shape + shape.first())
+                }
+                if (mode != Mode.Follow) {
+                    enabled = false
+                    PM1.setCommandEnabled(false)
+                }
+            }
         }
     }
 
     override fun close() {
         running = false
+    }
+
+    private companion object {
+        fun Transformation.toPose(): Odometry {
+            require(dim == 2) { "pose is a 2d transformation" }
+            val p = invokeLinear(vector2DOfZero()).to2D()
+            val d = invoke(.0.toRad().toVector()).to2D().toAngle()
+            return Odometry(p, d)
+        }
     }
 }
