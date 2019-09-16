@@ -12,9 +12,9 @@ import org.mechdancer.algebra.function.vector.normalize
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 
-/** 位于 [fromBaseLink] 位置处具有 [lightRange] 形状的虚拟光感 */
+/** 位于 [robotToSensor] 位置处具有 [lightRange] 形状的虚拟光感 */
 class VirtualLightSensor(
-    private val fromBaseLink: Transformation,
+    private val robotToSensor: Transformation,
     private val lightRange: Shape
 ) {
     @Temporary(DELETE)
@@ -27,12 +27,12 @@ class VirtualLightSensor(
 
     /** 虚拟光值计算 */
     operator fun invoke(
-        baseLinkFromMap: Transformation,
+        mapToRobot: Transformation,
         path: Iterable<Vector2D>
     ): Pair<Int, Double> {
         // 地图到传感器坐标的变换
         val sensorFromMap =
-            fromBaseLink * baseLinkFromMap
+            robotToSensor * mapToRobot
         // 转化路径到传感器坐标系并约束局部路径
         val local =
             path.asSequence()

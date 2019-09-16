@@ -2,15 +2,15 @@ package org.mechdancer
 
 import cn.autolabor.Odometry
 import cn.autolabor.Stamped
-import cn.autolabor.locator.ParticleFilterBuilder
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.algebra.implement.vector.Vector2D
-import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.modules.devices.Default
+import org.mechdancer.modules.devices.Default.channel
 
 fun main() = runBlocking<Unit> {
     // 粒子滤波器
-    val filter = ParticleFilterBuilder.particleFilter { locatorOnRobot = vector2DOf(-0.31, 0) }
+    val filter = Default.filter
     // 消息通道
     val robotOnLocator = channel<Stamped<Vector2D>>()
     val robotOnOdometry = channel<Stamped<Odometry>>()

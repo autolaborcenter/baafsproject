@@ -1,7 +1,7 @@
 package org.mechdancer
 
 import com.marvelmind.Resource
-import org.mechdancer.modules.Default
+import org.mechdancer.modules.devices.Default
 
 fun main() {
     val remote = Default.remote

@@ -27,6 +27,8 @@ import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.modules.PathFollowerModule.Mode.Idle
 import org.mechdancer.modules.PathFollowerModule.Mode.Record
+import org.mechdancer.modules.devices.Default
+import org.mechdancer.modules.devices.Twist
 import org.mechdancer.paintFrame2
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.RemoteHub
@@ -47,7 +49,6 @@ class PathFollowerModule(
     private val robotOnMap: ReceiveChannel<Stamped<Odometry>>,
     private val twistChannel: SendChannel<Twist>
 ) : Closeable {
-    data class Twist(val v: Double, val w: Double)
 
     // 任务类型/工作状态
     private enum class Mode {
@@ -157,7 +158,7 @@ class PathFollowerModule(
     private fun startRecord() {
         mode = Record
         GlobalScope.launch {
-            while (mode == Record) {
+            while (running && mode == Record) {
                 val (_, current) = robotOnMap.receive()
                 if (path.record(current.p))
                     remote?.paintVectors("path", path.get())
@@ -169,42 +170,46 @@ class PathFollowerModule(
         mode = Mode.Follow
         follower.path = path.get()
         GlobalScope.launch {
-            while (mode == Mode.Follow) {
-                val (_, current) = robotOnMap.receive()
-                when (val command = follower(current.toTransformation())) {
-                    is Follow -> {
-                        val (v, w) = command
-                        twistChannel.send(Twist(v, w))
-                    }
-                    else      -> {
-                        println(command)
+            while (running && mode == Mode.Follow) {
+                robotOnMap.receive().data
+                    .toTransformation()
+                    .let { follower(-it) }
+                    .let { command ->
                         when (command) {
-                            is Turn   -> {
-                                val (angle) = command
-                                println("turn $angle rad")
-                                twistChannel.send(Twist(.0, .0))
-                                delay(200L)
-                                val (p0, d0) = robotOnMap.receive().data
-                                // 前进 2.5cm 补不足
-                                while (true) {
-                                    twistChannel.send(Twist(.1, .0))
-                                    val (p, _) = robotOnMap.receive().data
-                                    if ((p - p0).norm() > 0.025) break
-                                }
-                                // 旋转
-                                val w = angle.sign * PI / 10
-                                val delta = abs(angle)
-                                while (true) {
-                                    twistChannel.send(Twist(.0, w))
-                                    val (_, d) = robotOnMap.receive().data
-                                    if (abs(d.asRadian() - d0.asRadian()) > delta) break
+                            is Follow -> {
+                                val (v, w) = command
+                                twistChannel.send(Twist(v, w))
+                            }
+                            else      -> {
+                                println(command)
+                                when (command) {
+                                    is Turn   -> {
+                                        val (angle) = command
+                                        println("turn $angle rad")
+                                        twistChannel.send(Twist(.0, .0))
+                                        delay(200L)
+                                        val (p0, d0) = robotOnMap.receive().data
+                                        // 前进 2.5cm 补不足
+                                        while (true) {
+                                            twistChannel.send(Twist(.1, .0))
+                                            val (p, _) = robotOnMap.receive().data
+                                            if ((p - p0).norm() > 0.025) break
+                                        }
+                                        // 旋转
+                                        val w = angle.sign * PI / 10
+                                        val delta = abs(angle)
+                                        while (true) {
+                                            twistChannel.send(Twist(.0, w))
+                                            val (_, d) = robotOnMap.receive().data
+                                            if (abs(d.asRadian() - d0.asRadian()) > delta) break
+                                        }
+                                    }
+                                    is Error,
+                                    is Finish -> mode = Idle
                                 }
                             }
-                            is Error,
-                            is Finish -> mode = Idle
                         }
                     }
-                }
                 remote?.run {
                     val shape = follower.sensor.areaShape
                     paintVectors("sensor", shape + shape.first())
@@ -218,6 +223,6 @@ class PathFollowerModule(
     }
 
     override fun close() {
-        running = false
+        // running = false
     }
 }
