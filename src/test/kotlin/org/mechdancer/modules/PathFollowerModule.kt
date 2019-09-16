@@ -20,13 +20,11 @@ import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
-import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.console.parser.display
 import org.mechdancer.console.parser.feedback
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toRad
-import org.mechdancer.geometry.angle.toVector
 import org.mechdancer.modules.Coordination.Map
 import org.mechdancer.modules.Coordination.Robot
 import org.mechdancer.modules.PathFollowerModule.Mode.Idle
@@ -138,7 +136,7 @@ class PathFollowerModule(
         }
         this["\'"] = {
             enabled = !enabled
-            PM1.setCommandEnabled(enabled)
+            PM1.runCatching { setCommandEnabled(enabled) }
             if (enabled) "!" else "?"
         }
 
@@ -190,23 +188,24 @@ class PathFollowerModule(
                             is Turn   -> {
                                 val (angle) = command
                                 println("turn $angle rad")
+                                control(.0, .0)
+                                delay(200L)
+                                val (p0, d0) = channel.receive().toPose()
+                                // 前进 2.5cm 补不足
+                                println("a")
                                 while (true) {
-                                    control(.0, .0)
-                                    delay(200L)
-                                    val (p0, d0) = channel.receive().toPose()
-                                    // 前进 2.5cm 补不足
-                                    while (true) {
-                                        control(0.1, .0)
-                                        val (p, _) = channel.receive().toPose()
-                                        if ((p - p0).norm() > 0.025) break
-                                    }
-                                    // 旋转
-                                    val w = angle.sign * PI / 10
-                                    while (true) {
-                                        control(.0, w)
-                                        val (_, d) = channel.receive().toPose()
-                                        if (abs(d.asRadian() - d0.asRadian()) > angle) break
-                                    }
+                                    control(0.1, .0)
+                                    val (p, _) = channel.receive().toPose()
+                                    if ((p - p0).norm() > 0.025) break
+                                }
+                                // 旋转
+                                val w = angle.sign * PI / 10
+                                val delta = abs(angle)
+                                println("b")
+                                while (true) {
+                                    control(.0, w)
+                                    val (_, d) = channel.receive().toPose()
+                                    if (abs(d.asRadian() - d0.asRadian()) > delta) break
                                 }
                             }
                             is Error,
@@ -220,7 +219,7 @@ class PathFollowerModule(
                 }
                 if (mode != Mode.Follow) {
                     enabled = false
-                    PM1.setCommandEnabled(false)
+                    PM1.runCatching { setCommandEnabled(false) }
                 }
             }
         }
@@ -228,14 +227,5 @@ class PathFollowerModule(
 
     override fun close() {
         running = false
-    }
-
-    private companion object {
-        fun Transformation.toPose(): Odometry {
-            require(dim == 2) { "pose is a 2d transformation" }
-            val p = invokeLinear(vector2DOfZero()).to2D()
-            val d = invoke(.0.toRad().toVector()).to2D().toAngle()
-            return Odometry(p, d)
-        }
     }
 }

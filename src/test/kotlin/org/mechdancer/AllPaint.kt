@@ -10,6 +10,7 @@ import org.mechdancer.modules.PathFollowerModule
 import kotlin.concurrent.thread
 
 fun main() {
+
     // 坐标系管理器
     val system = Default.system
     // 导航模块
