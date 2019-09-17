@@ -4,6 +4,7 @@ import cn.autolabor.transform.TransformSystem.Companion.Constant
 import cn.autolabor.transform.struct.from
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.geometry.angle.toRad
+import org.mechdancer.geometry.transformation.Transformation
 import kotlin.math.PI
 
 fun main() {

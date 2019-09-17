@@ -1,7 +1,6 @@
 package org.mechdancer.modules
 
 import cn.autolabor.Odometry
-import cn.autolabor.transform.Transformation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
@@ -10,6 +9,7 @@ import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.geometry.angle.toVector
+import org.mechdancer.geometry.transformation.Transformation
 
 fun CoroutineScope.await() {
     runBlocking { this@await.coroutineContext[Job]?.join() }

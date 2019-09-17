@@ -5,7 +5,6 @@ import cn.autolabor.Stamped
 import cn.autolabor.Temporary
 import cn.autolabor.Temporary.Operation.DELETE
 import cn.autolabor.Temporary.Operation.REDUCE
-import cn.autolabor.transform.Transformation
 import cn.autolabor.utilities.ClampMatcher
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -14,6 +13,7 @@ import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.geometry.angle.rotate
 import org.mechdancer.geometry.angle.times
 import org.mechdancer.geometry.angle.toRad
+import org.mechdancer.geometry.transformation.Transformation
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.min
@@ -73,22 +73,20 @@ class ParticleFilter(private val size: Int,
     private var expectation = Odometry()
 
     private fun update() {
-        generateSequence(matcher::match2)
-            // 匹配 ↑
-            // 插值 ↓
-            .mapNotNull { (measure, before, after) ->
-                (after.time - before.time)
-                    // 一对匹配项间隔不应该超过间隔范围
-                    .takeIf { it in 1..maxInterval }
-                    // 进行线性插值
-                    ?.let { interval ->
-                        val k = (measure.time - before.time).toDouble() / interval
-                        measure.data to before.data * k + after.data * (1 - k)
-                    }
-            }
-            // 计算
-            .forEach { (measure, state) ->
-                synchronized(particles) {
+        synchronized(particles) {
+            generateSequence(matcher::match2)
+                // 匹配 ↑
+                // 插值 ↓
+                .mapNotNull { (measure, before, after) ->
+                    (after.time - before.time)
+                        // 一对匹配项间隔不应该超过间隔范围
+                        .takeIf { it in 1..maxInterval }.let { interval ->
+                            val k = (measure.time - before.time).toDouble() / interval
+                            measure.data to before.data * k + after.data * (1 - k)
+                        }
+                }
+                // 计算
+                .forEach { (measure, state) ->
                     // 判断第一帧
                     val (lastMeasure, lastState) =
                         stateSave ?: run {
@@ -114,12 +112,15 @@ class ParticleFilter(private val size: Int,
                     // 更新粒子群
                     particles = particles.map { (p, i) -> (p plusDelta deltaState) to min(i + 1, maxAge) }
                     // 计算每个粒子对应的校准器坐标
-                    val locators = particles.map { (odometry, _) ->
+                    val locators = particles.map { (odometry, age) ->
                         val (p, d) = odometry
-                        Odometry(Transformation.fromPose(p, d)(locatorOnRobot).to2D(), d)
+                        Odometry(Transformation.fromPose(p, d)(locatorOnRobot).to2D(), d) to age
                     }
                     // 计算粒子权重
-                    val weights = locators.map { (p, _) -> 1 - min(1.0, (p - measure).norm() / maxInconsistency) }
+                    val weights = locators
+                        .map { (odometry, age) ->
+                            age.ageWeight() * (1 - min(1.0, (odometry.p - measure).norm() / maxInconsistency))
+                        }
                     // 计算粒子总权重，若过低，直接重新初始化
                     val weightsSum = weights.sum().takeIf { it > 0.1 * size }
                                      ?: run {
@@ -130,7 +131,8 @@ class ParticleFilter(private val size: Int,
                     var eP = vector2DOfZero()
                     var eD = .0
                     var eD2 = .0
-                    locators.forEachIndexed { i, (p, d) ->
+                    locators.forEachIndexed { i, (odometry, _) ->
+                        val (p, d) = odometry
                         val k = weights[i]
                         eP += p * k
                         eD += k * d.value
@@ -143,7 +145,7 @@ class ParticleFilter(private val size: Int,
                     val sigma = sqrt(eD2 - eD * eD) clamp sigmaRange
                     val random = java.util.Random()
                     particles = particles.mapIndexed { i, item ->
-                        if (weights[i] < 0.2) {
+                        if (weights[i] < item.second.ageWeight() * 0.2) {
                             val d = (random.nextGaussian() * sigma + eD).toRad()
                             val p = Transformation.fromPose(measure, d)(-locatorOnRobot).to2D()
                             Odometry(p, d) to 0
@@ -161,8 +163,11 @@ class ParticleFilter(private val size: Int,
                                      Odometry(eRobot, eDir)))
                     }
                 }
-            }
+        }
     }
+
+    // 来自寿命的权重增益
+    private fun Int.ageWeight() = (maxAge + this).toDouble() / 2 * maxAge
 
     // 重新初始化
     private fun initialize(measure: Vector2D, state: Odometry) {

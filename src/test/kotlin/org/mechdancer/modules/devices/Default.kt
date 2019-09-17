@@ -24,7 +24,7 @@ object Default {
             .apply { paintWith(remote) }
     }
 
-    private fun ParticleFilter.paintWith(remote: RemoteHub) {
+    fun ParticleFilter.paintWith(remote: RemoteHub) {
         stepFeedback = { (measureWeight, particleWeight, _, _, eLocator, _) ->
             with(remote) {
                 paint("定位权重", measureWeight)

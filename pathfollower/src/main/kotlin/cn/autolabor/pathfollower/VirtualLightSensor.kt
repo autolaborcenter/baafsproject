@@ -3,7 +3,6 @@ package cn.autolabor.pathfollower
 import cn.autolabor.Temporary
 import cn.autolabor.Temporary.Operation.DELETE
 import cn.autolabor.Temporary.Operation.INLINE
-import cn.autolabor.transform.Transformation
 import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.minus
@@ -11,6 +10,7 @@ import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.function.vector.normalize
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
+import org.mechdancer.geometry.transformation.Transformation
 
 /** 位于 [robotToSensor] 位置处具有 [lightRange] 形状的虚拟光感 */
 class VirtualLightSensor(

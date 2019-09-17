@@ -3,6 +3,7 @@ package cn.autolabor.transform
 import cn.autolabor.transform.struct.shortedFrom
 import org.mechdancer.common.collection.map2d.CompletePairMap2D
 import org.mechdancer.common.collection.map2d.viewBy
+import org.mechdancer.geometry.transformation.Transformation
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
