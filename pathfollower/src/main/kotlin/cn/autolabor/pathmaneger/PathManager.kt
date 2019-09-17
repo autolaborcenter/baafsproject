@@ -4,7 +4,6 @@ import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
-import org.mechdancer.common.extension.then
 import java.io.File
 
 /**
@@ -23,7 +22,7 @@ class PathManager(private val interval: Double) {
     fun record(p: Vector2D) =
         path.lastOrNull()
             .let { it == null || (it - p).norm() >= interval }
-            .then { path += p }
+            .also { if (it) path += p }
 
     /** 清空记录的路径点 */
     fun clear() = path.clear()
