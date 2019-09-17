@@ -15,7 +15,7 @@ fun main() {
     ServerManager.me().register(ObstacleDetectionTask("ObstacleDetectionTask"))
     ServerManager.me().register(PoseDetectionTask("PoseDetectionTask"))
     ServerManager.me().register(FilterTwistTask("FilterTwistTask"))
-
+    ServerManager.me().dump()
     val scope = CoroutineScope(Dispatchers.Default)
     val chassis = FrameworkRemoteChassis(scope)
     scope.startPathFollower(

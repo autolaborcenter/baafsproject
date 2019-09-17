@@ -12,6 +12,7 @@ import cn.autolabor.message.navigation.Msg2DTwist;
 import cn.autolabor.message.navigation.MsgPolygon;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 import static cn.autolabor.GeometricUtil.detectCollision;
@@ -62,23 +63,24 @@ public class PoseDetectionTask extends AbstractTask {
      */
     @TaskFunction
     public Msg2DTwist choiceTwist(Msg2DTwist in) {
-        List<MsgPolygon> obstacles = obstaclesHandle.getFirstData();
-        if (null != obstacles) {
-            if (checkTwist(in, obstacles)) {
-                return in;
-            } else {
-                Msg2DTwist testTwist = new Msg2DTwist(in.getX(), 0, 0);
-                for (int i = 1; i <= deltaNumber; i++) {
-                    // 测试左转
-                    testTwist.setYaw(in.getYaw() + i * deltaOmega);
-                    if (checkTwist(testTwist, obstacles)) {
-                        return testTwist;
-                    }
-                    // 测试右转
-                    testTwist.setYaw(in.getYaw() - i * deltaOmega);
-                    if (checkTwist(testTwist, obstacles)) {
-                        return testTwist;
-                    }
+        List<MsgPolygon> obstacles = new LinkedList<>();
+        List<MsgPolygon> temp = obstaclesHandle.getFirstData();
+        if (null != temp) obstacles.addAll(temp);
+        if (checkTwist(in, obstacles)) {
+            return in;
+        } else {
+            Msg2DTwist testTwist = new Msg2DTwist(in.getX(), 0, 0);
+            for (int i = 1; i <= deltaNumber; i++) {
+                System.out.println(i);
+                // 测试左转
+                testTwist.setYaw(in.getYaw() + i * deltaOmega);
+                if (checkTwist(testTwist, obstacles)) {
+                    return testTwist;
+                }
+                // 测试右转
+                testTwist.setYaw(in.getYaw() - i * deltaOmega);
+                if (checkTwist(testTwist, obstacles)) {
+                    return testTwist;
                 }
             }
         }

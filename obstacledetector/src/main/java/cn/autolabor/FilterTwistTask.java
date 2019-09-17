@@ -43,7 +43,9 @@ public class FilterTwistTask extends AbstractTask {
     public void filterTwist(Msg2DOdometry msg) {
         if (poseDetectionTask != null) {
             Msg2DTwist twist = poseDetectionTask.choiceTwist(msg.getTwist());
-            twistOutHandle.pushSubData(new Msg2DOdometry(new Msg2DPose(0, 0, 0), null == twist ? new Msg2DTwist(0, 0, 0) : twist));
+            Msg2DOdometry out = new Msg2DOdometry(new Msg2DPose(0, 0, 0), null == twist ? new Msg2DTwist(0, 0, 0) : twist);
+            System.out.println(out);
+            twistOutHandle.pushSubData(out);
         }
     }
 

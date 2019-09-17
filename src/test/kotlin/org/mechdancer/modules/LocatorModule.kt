@@ -6,7 +6,6 @@ import cn.autolabor.locator.ParticleFilter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.modules.devices.Default
@@ -25,18 +24,18 @@ fun CoroutineScope.startLocationFilter(
 ) {
     // 使用里程计数据
     launch {
-        while (isActive)
-            robotOnOdometry.receive()
-                .also { (_, data) -> remote?.paint("里程计", data.p.x, data.p.y, data.d.asRadian()) }
-                .let(filter::measureMaster)
-                ?.also { (_, data) -> remote?.paint("粒子滤波", data.p.x, data.p.y, data.d.value) }
+        for (item in robotOnOdometry) {
+            item.also { (_, data) -> remote?.paint("里程计", data.p.x, data.p.y, data.d.asRadian()) }
+            filter.measureMaster(item)
                 ?.also { robotOnMap.send(it) }
+                ?.also { (_, data) -> remote?.paint("粒子滤波", data.p.x, data.p.y, data.d.value) }
+        }
     }
     // 使用定位数据
     launch {
-        while (isActive)
-            robotOnLocator.receive()
-                .also(filter::measureHelper)
-                .also { (_, data) -> remote?.paint("定位", data.x, data.y) }
+        for (item in robotOnLocator) {
+            filter.measureHelper(item)
+            remote?.paint("定位", item.data.x, item.data.y)
+        }
     }
 }
