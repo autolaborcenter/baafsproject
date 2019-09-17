@@ -28,6 +28,11 @@ public class PoseDetectionTask extends AbstractTask {
     @TaskParameter(name = "deltaRotation", value = "0.2")
     private double deltaRotation;
 
+    @TaskParameter(name = "deltaOmega", value = "0.05")
+    private double deltaOmega;
+    @TaskParameter(name = "deltaNumber", value = "3")
+    private int deltaNumber;
+
     @InjectMessage(topic = "obstacles")
     private MessageHandle<List<MsgPolygon>> obstaclesHandle;
 
@@ -58,7 +63,24 @@ public class PoseDetectionTask extends AbstractTask {
     @TaskFunction
     public Msg2DTwist choiceTwist(Msg2DTwist in) {
         List<MsgPolygon> obstacles = obstaclesHandle.getFirstData();
-        return checkTwist(in, obstacles) ? in : null;
+        if (checkTwist(in, obstacles)) {
+            return in;
+        } else {
+            Msg2DTwist testTwist = new Msg2DTwist(in.getX(), 0, 0);
+            for (int i = 1; i <= deltaNumber; i++) {
+                // 测试左转
+                testTwist.setYaw(in.getYaw() + i * deltaOmega);
+                if (checkTwist(testTwist, obstacles)) {
+                    return testTwist;
+                }
+                // 测试右转
+                testTwist.setYaw(in.getYaw() - i * deltaOmega);
+                if (checkTwist(testTwist, obstacles)) {
+                    return testTwist;
+                }
+            }
+            return null;
+        }
     }
 
     /**
