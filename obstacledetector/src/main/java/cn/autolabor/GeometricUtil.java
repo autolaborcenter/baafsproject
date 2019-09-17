@@ -48,7 +48,7 @@ public class GeometricUtil {
                 return checkPointInside(p2.get(0), p1);
             }
 
-            if (p1.stream().noneMatch(p -> checkPointInside(p, p2)) && p2.stream().noneMatch(p -> checkPointInside(p, p1))) {
+            if (p1.stream().anyMatch(p -> checkPointInside(p, p2)) && p2.stream().anyMatch(p -> checkPointInside(p, p1))) {
                 return true;
             } else {
                 for (int i = 0; i < p1.size() - 1; i++) {

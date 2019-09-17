@@ -19,7 +19,7 @@ import static cn.autolabor.GeometricUtil.detectCollision;
 @TaskProperties
 public class PoseDetectionTask extends AbstractTask {
 
-    @TaskParameter(name = "outline", value = "[[1.0,1.0],[1.0,-1.0],[-1.0,-1.0],[-1.0,1.0]]")
+    @TaskParameter(name = "outline", value = "[[0.4,0.2],[0.4,-0.2],[-0.4,-0.2],[-0.4,0.2]]")
     List<List<Double>> outline;
     @TaskParameter(name = "baseLinkFrame", value = "baseLink")
     private String baseLinkFrame;
