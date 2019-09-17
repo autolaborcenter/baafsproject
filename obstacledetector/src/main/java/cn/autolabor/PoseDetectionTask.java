@@ -63,24 +63,26 @@ public class PoseDetectionTask extends AbstractTask {
     @TaskFunction
     public Msg2DTwist choiceTwist(Msg2DTwist in) {
         List<MsgPolygon> obstacles = obstaclesHandle.getFirstData();
-        if (checkTwist(in, obstacles)) {
-            return in;
-        } else {
-            Msg2DTwist testTwist = new Msg2DTwist(in.getX(), 0, 0);
-            for (int i = 1; i <= deltaNumber; i++) {
-                // 测试左转
-                testTwist.setYaw(in.getYaw() + i * deltaOmega);
-                if (checkTwist(testTwist, obstacles)) {
-                    return testTwist;
-                }
-                // 测试右转
-                testTwist.setYaw(in.getYaw() - i * deltaOmega);
-                if (checkTwist(testTwist, obstacles)) {
-                    return testTwist;
+        if (null != obstacles) {
+            if (checkTwist(in, obstacles)) {
+                return in;
+            } else {
+                Msg2DTwist testTwist = new Msg2DTwist(in.getX(), 0, 0);
+                for (int i = 1; i <= deltaNumber; i++) {
+                    // 测试左转
+                    testTwist.setYaw(in.getYaw() + i * deltaOmega);
+                    if (checkTwist(testTwist, obstacles)) {
+                        return testTwist;
+                    }
+                    // 测试右转
+                    testTwist.setYaw(in.getYaw() - i * deltaOmega);
+                    if (checkTwist(testTwist, obstacles)) {
+                        return testTwist;
+                    }
                 }
             }
-            return null;
         }
+        return null;
     }
 
     /**
