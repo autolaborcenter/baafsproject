@@ -20,23 +20,41 @@ public class PM1Task extends AbstractTask {
     @TaskParameter(name = "odometryTopic", value = "odom")
     private String odometryTopic;
 
-    private final MessageHandle<Msg2DOdometry> topicSender;
+    private final MessageHandle<Msg2DOdometry> odomHandle;
+    private final MessageHandle<Msg2DOdometry> cmdHandle;
+    @TaskParameter(name = "cmdTopic", value = "cmd_vel")
+    private String cmdTopic;
+    @TaskParameter(name = "controlRate", value = "10.0")
+    private double controlRate;
+    @TaskParameter(name = "controlTimeout", value = "1000")
+    private int controlTimeout;
 
     // 打开里程计资源，翻译数据帧并发送
     @SuppressWarnings("unchecked")
     public PM1Task(String... name) {
         super(name);
-        topicSender = ServerManager.me().getOrCreateMessageHandle(odometryTopic, new TypeNode(Msg2DPose.class));
+        odomHandle = ServerManager.me().getOrCreateMessageHandle(odometryTopic, new TypeNode(Msg2DOdometry.class));
+        cmdHandle = ServerManager.me().getOrCreateMessageHandle(cmdTopic, new TypeNode(Msg2DOdometry.class));
+        asyncRun("driver");
     }
 
-    @TaskFunction
-    public void sendOdometry() {
+    @TaskFunction(name = "driver")
+    public void driver() {
+        if (cmdHandle.getLastMessageReceiveTime() > 0 && System.currentTimeMillis() - cmdHandle.getLastMessageReceiveTime() < controlTimeout) {
+            Msg2DOdometry msg = cmdHandle.getFirstData();
+            PM1.drive(msg.getTwist().getX(), msg.getTwist().getYaw());
+        }
+        asyncRunDelay("driver", Math.round(1000 / controlRate));
+    }
+
+    @TaskFunction(name = "getOdometry")
+    public void getOdometry() {
         Odometry odometry = PM1.getOdometry();
         Msg2DOdometry temp = new Msg2DOdometry();
         temp.getHeader().setStamp(odometry.getStamp());
         temp.setPose(new Msg2DPose(odometry.getX(), odometry.getY(), odometry.getTheta()));
-        topicSender.pushSubData(temp);
-        ServerManager.me().delayRun(this, 100L, "sendOdometry");
+        odomHandle.pushSubData(temp);
+        ServerManager.me().delayRun(this, 100L, "getOdometry");
     }
 
     @Override
