@@ -35,7 +35,7 @@ sealed class Locator {
                     }
                     delay(100L)
                 }
-                println("over")
+                locateChannel.close()
             }
         }
     }
@@ -49,6 +49,7 @@ sealed class Locator {
                 Resource { time, x, y ->
                     scope.launch { locateChannel.send(Stamped(time, vector2DOf(x, y))) }
                 }.use { while (isActive) it() }
+                locateChannel.close()
             }
         }
     }

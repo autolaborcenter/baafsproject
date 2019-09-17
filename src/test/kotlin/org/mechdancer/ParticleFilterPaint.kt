@@ -2,19 +2,23 @@ package org.mechdancer
 
 import cn.autolabor.Odometry
 import cn.autolabor.Stamped
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.runBlocking
+import org.mechdancer.modules.await
 import org.mechdancer.modules.devices.Chassis.FrameworkRemoteChassis
 import org.mechdancer.modules.devices.Locator.FrameworkRemoteLocator
 import org.mechdancer.modules.startLocationFilter
 
-fun main() = runBlocking {
+fun main() {
+    val scope = CoroutineScope(Dispatchers.Default)
     // 话题
-    val locator = FrameworkRemoteLocator(this)
-    val chassis = FrameworkRemoteChassis(this)
+    val locator = FrameworkRemoteLocator(scope)
+    val chassis = FrameworkRemoteChassis(scope)
     val robotOnMap = Channel<Stamped<Odometry>>(Channel.CONFLATED)
-    startLocationFilter(
+    scope.startLocationFilter(
         robotOnLocator = locator.robotLocation,
         robotOnOdometry = chassis.robotPose,
         robotOnMap = robotOnMap)
+    scope.await()
 }

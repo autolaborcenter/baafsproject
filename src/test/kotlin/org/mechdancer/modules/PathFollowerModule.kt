@@ -21,8 +21,8 @@ import org.mechdancer.console.parser.feedback
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.modules.Mode.Idle
 import org.mechdancer.modules.Mode.Record
+import org.mechdancer.modules.devices.Chassis.Twist
 import org.mechdancer.modules.devices.Default
-import org.mechdancer.modules.devices.Twist
 import org.mechdancer.paintFrame2
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.RemoteHub

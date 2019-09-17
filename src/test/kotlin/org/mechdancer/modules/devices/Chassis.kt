@@ -22,6 +22,8 @@ import org.mechdancer.geometry.angle.toRad
  * 底盘设备封装
  */
 sealed class Chassis {
+    data class Twist(val v: Double, val w: Double)
+
     protected val poseChannel = Channel<Stamped<Odometry>>(Channel.CONFLATED)
     protected val twistChannel = Channel<Twist>(Channel.CONFLATED)
 
@@ -38,7 +40,7 @@ sealed class Chassis {
             val cmdvelTopic = framework.getConfig("PM1Task", "cmdvelTopic") as? String ?: "cmdvel"
             val odometryTopic = framework.getConfig("PM1Task", "odometryTopic") as? String ?: "odometry"
 
-            val handle = framework.getOrCreateMessageHandle(cmdvelTopic, TypeNode(Msg2DOdometry::class.java))
+            val cmdvel = framework.getOrCreateMessageHandle(cmdvelTopic, TypeNode(Msg2DOdometry::class.java))
             val odometry = framework.getOrCreateMessageHandle(odometryTopic, TypeNode(Msg2DOdometry::class.java))
             scope.launch {
                 while (isActive) {
@@ -47,12 +49,14 @@ sealed class Chassis {
                     poseChannel.send(Stamped(temp.header.stamp, Odometry(vector2DOf(data.x, data.y), data.yaw.toRad())))
                     delay(30L)
                 }
+                poseChannel.close()
             }
             scope.launch {
                 while (isActive) {
                     val (v, w) = twistChannel.receive()
-                    handle.pushSubData(Msg2DOdometry(Msg2DPose(), Msg2DTwist(v, .0, w)))
+                    cmdvel.pushSubData(Msg2DOdometry(Msg2DPose(), Msg2DTwist(v, .0, w)))
                 }
+                twistChannel.close()
             }
         }
     }
@@ -70,12 +74,14 @@ sealed class Chassis {
                     poseChannel.send(Stamped.stamp(Odometry(vector2DOf(x, y), theta.toRad())))
                     delay(40L)
                 }
+                poseChannel.close()
             }
             scope.launch {
                 while (isActive) {
                     val (v, w) = twistChannel.receive()
                     PM1.drive(v, w)
                 }
+                twistChannel.close()
             }
         }
     }
