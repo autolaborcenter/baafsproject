@@ -1,14 +1,10 @@
 package org.mechdancer
 
-import com.marvelmind.Resource
-import org.mechdancer.modules.devices.Default
+import kotlinx.coroutines.runBlocking
+import org.mechdancer.modules.devices.Locator.MarvelmindLocator
 
-fun main() {
-    val remote = Default.remote
+fun main() = runBlocking {
     var i = 0
-    // launch marvelmind
-    Resource { _, x, y ->
-        println("${++i}: $x $y")
-        remote.paint("marvelmind", x, y)
-    }.use { while (true) it() }
+    for ((_, v) in MarvelmindLocator(this).robotLocation)
+        println("${++i}: ${v.x} ${v.y}")
 }

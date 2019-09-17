@@ -1,20 +1,12 @@
 package org.mechdancer
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import org.mechdancer.modules.PathFollowerModule
-import org.mechdancer.modules.await
+import kotlinx.coroutines.runBlocking
 import org.mechdancer.modules.devices.Chassis.FrameworkRemoteChassis
+import org.mechdancer.modules.startPathFollower
 
-fun main() {
-    val scope = CoroutineScope(Dispatchers.Default)
-    val chassis = FrameworkRemoteChassis(scope)
-    PathFollowerModule(
-        scope,
+fun main() = runBlocking {
+    val chassis = FrameworkRemoteChassis(this)
+    startPathFollower(
         robotOnMap = chassis.robotPose,
-        twistChannel = chassis.twistCommand
-    ).parseRepeatedly()
-    scope.await()
-    println("xxx")
+        twistCommand = chassis.twistCommand)
 }
-

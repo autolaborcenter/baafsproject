@@ -2,28 +2,25 @@ package org.mechdancer
 
 import cn.autolabor.Odometry
 import cn.autolabor.Stamped
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
-import org.mechdancer.modules.PathFollowerModule
-import org.mechdancer.modules.await
+import kotlinx.coroutines.runBlocking
 import org.mechdancer.modules.devices.Chassis.FrameworkRemoteChassis
 import org.mechdancer.modules.devices.Locator.FrameworkRemoteLocator
 import org.mechdancer.modules.startLocationFilter
+import org.mechdancer.modules.startPathFollower
 
-fun main() {
+fun main() = runBlocking {
     // 话题
     val robotOnMap = Channel<Stamped<Odometry>>(Channel.CONFLATED)
     // 模块
-    val scope = CoroutineScope(Dispatchers.Default)
-    val locator = FrameworkRemoteLocator(scope)
-    val chassis = FrameworkRemoteChassis(scope)
-    scope.startLocationFilter(
+    val locator = FrameworkRemoteLocator(this)
+    val chassis = FrameworkRemoteChassis(this)
+    startLocationFilter(
         robotOnLocator = locator.robotLocation,
         robotOnOdometry = chassis.robotPose,
         robotOnMap = robotOnMap)
-    // 导航模块
-    PathFollowerModule(scope, chassis.robotPose, chassis.twistCommand).parseRepeatedly()
-    scope.await()
+    startPathFollower(
+        robotOnMap = robotOnMap,
+        twistCommand = chassis.twistCommand)
 }
 
