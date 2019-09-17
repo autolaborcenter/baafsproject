@@ -80,7 +80,8 @@ class ParticleFilter(private val size: Int,
                 .mapNotNull { (measure, before, after) ->
                     (after.time - before.time)
                         // 一对匹配项间隔不应该超过间隔范围
-                        .takeIf { it in 1..maxInterval }.let { interval ->
+                        .takeIf { it in 1..maxInterval }
+                        ?.let { interval ->
                             val k = (measure.time - before.time).toDouble() / interval
                             measure.data to before.data * k + after.data * (1 - k)
                         }
