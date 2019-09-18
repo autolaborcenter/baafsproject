@@ -149,7 +149,7 @@ fun CoroutineScope.startPathFollower(
                                                         if (abs(d.asRadian() - d0.asRadian()) > delta) break
                                                     }
                                                 }
-                                                is Error,
+                                                is Error  -> Unit
                                                 is Finish -> mode = Idle
                                             }
                                         }

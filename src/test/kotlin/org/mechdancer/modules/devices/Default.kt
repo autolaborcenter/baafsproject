@@ -2,7 +2,6 @@ package org.mechdancer.modules.devices
 
 import cn.autolabor.locator.ParticleFilter
 import cn.autolabor.locator.ParticleFilterBuilder.Companion.particleFilter
-import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.dependency.must
 import org.mechdancer.paint
 import org.mechdancer.paintFrame2
@@ -20,7 +19,8 @@ object Default {
     }
 
     val filter by lazy {
-        particleFilter { locatorOnRobot = vector2DOf(-0.31, 0) }
+        // particleFilter { locatorOnRobot = vector2DOf(-0.31, 0) }
+        particleFilter { }
             .apply { paintWith(remote) }
     }
 
