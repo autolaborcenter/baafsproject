@@ -7,6 +7,8 @@ import cn.autolabor.message.navigation.Msg2DOdometry
 import cn.autolabor.message.navigation.Msg2DPose
 import cn.autolabor.message.navigation.Msg2DTwist
 import cn.autolabor.pm1.sdk.PM1
+import cn.autolabor.util.lambda.LambdaFunWithName
+import cn.autolabor.util.lambda.function.TaskLambdaFun01
 import cn.autolabor.util.reflect.TypeNode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -42,20 +44,25 @@ sealed class Chassis {
 
             val cmdvel = framework.getOrCreateMessageHandle(cmdvelTopic, TypeNode(Msg2DOdometry::class.java))
             val odometry = framework.getOrCreateMessageHandle(odometryTopic, TypeNode(Msg2DOdometry::class.java))
-            scope.launch {
-                while (isActive) {
-                    val temp = odometry.firstData as? Msg2DOdometry ?: continue
-                    val data = temp.pose
-                    poseChannel.send(Stamped(temp.header.stamp, Odometry(vector2DOf(data.x, data.y), data.yaw.toRad())))
-                    delay(30L)
-                }
-                poseChannel.close()
-            }
+
+            odometry.addCallback(LambdaFunWithName(
+                "odometry_handel",
+                object : TaskLambdaFun01<Msg2DOdometry> {
+                    override fun run(p0: Msg2DOdometry?) {
+                        val data = p0?.pose ?: return
+                        scope.launch {
+                            poseChannel.send(Stamped(
+                                p0.header.stamp,
+                                Odometry(vector2DOf(data.x, data.y), data.yaw.toRad())))
+                        }
+                    }
+                }))
             scope.launch {
                 while (isActive) {
                     val (v, w) = twistChannel.receive()
                     cmdvel.pushSubData(Msg2DOdometry(Msg2DPose(), Msg2DTwist(v, .0, w)))
                 }
+                poseChannel.close()
                 twistChannel.close()
             }
         }
