@@ -1,13 +1,12 @@
 package cn.autolabor.baafs;
 
+import cn.autolabor.core.annotation.InjectMessage;
 import cn.autolabor.core.annotation.TaskFunction;
 import cn.autolabor.core.annotation.TaskParameter;
 import cn.autolabor.core.annotation.TaskProperties;
-import cn.autolabor.core.server.ServerManager;
 import cn.autolabor.core.server.executor.AbstractTask;
 import cn.autolabor.core.server.message.MessageHandle;
 import cn.autolabor.message.sensor.MsgLidar;
-import cn.autolabor.util.reflect.TypeNode;
 import com.faselase.Resource;
 import kotlin.Unit;
 
@@ -26,13 +25,14 @@ public class FaselaseTask extends AbstractTask {
     @TaskParameter(name = "frameId", value = "lidar")
     private String frameId;
 
-    private final MessageHandle<MsgLidar> topicSender;
+    @InjectMessage(topic = "${topic}")
+    private MessageHandle<MsgLidar> topicSender;
+
     private final Resource resource;
 
     @SuppressWarnings("unchecked")
     public FaselaseTask(String... name) {
         super(name);
-        topicSender = ServerManager.me().getOrCreateMessageHandle(topic, new TypeNode(MsgLidar.class));
         resource = new Resource(list -> {
             // 拆分
             List<Double> distances = new ArrayList<>(list.size());

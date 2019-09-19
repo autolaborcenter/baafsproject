@@ -1,14 +1,9 @@
 package cn.autolabor.baafs;
 
-import cn.autolabor.core.annotation.TaskFunction;
-import cn.autolabor.core.annotation.TaskParameter;
-import cn.autolabor.core.annotation.TaskProperties;
-import cn.autolabor.core.server.ServerManager;
+import cn.autolabor.core.annotation.*;
 import cn.autolabor.core.server.executor.AbstractTask;
 import cn.autolabor.core.server.message.MessageHandle;
-import cn.autolabor.core.server.message.MessageSourceType;
 import cn.autolabor.message.sensor.MsgLidar;
-import cn.autolabor.util.reflect.TypeNode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,18 +24,14 @@ public class LaserFilterTask extends AbstractTask {
     @TaskParameter(name = "lidarTopicOutput", value = "scan_filter")
     private String lidarTopicOutput;
 
+    @InjectMessage(topic = "${lidarTopicOutput}")
     private MessageHandle<MsgLidar> lidarOutputMessageHandle;
 
-    @SuppressWarnings("unchecked")
     public LaserFilterTask(String... name) {
         super(name);
-        lidarOutputMessageHandle = ServerManager.me().getOrCreateMessageHandle(lidarTopicOutput, new TypeNode(MsgLidar.class));
-        MessageHandle<MsgLidar> lidarInputMessageHandle = ServerManager.me().getOrCreateMessageHandle(lidarTopicInput, new TypeNode(MsgLidar.class));
-        if (angleRange.size() == 2) {
-            lidarInputMessageHandle.addCallback(this, "filter", new MessageSourceType[]{});
-        }
     }
 
+    @SubscribeMessage(topic = "${lidarTopicInput}")
     @TaskFunction(name = "filter")
     public void filter(MsgLidar msgLidar) {
         MsgLidar msgLidarOut = new MsgLidar();

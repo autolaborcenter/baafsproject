@@ -1,15 +1,14 @@
 package cn.autolabor.baafs;
 
+import cn.autolabor.core.annotation.InjectMessage;
 import cn.autolabor.core.annotation.TaskFunction;
 import cn.autolabor.core.annotation.TaskParameter;
 import cn.autolabor.core.annotation.TaskProperties;
-import cn.autolabor.core.server.ServerManager;
 import cn.autolabor.core.server.executor.AbstractTask;
 import cn.autolabor.core.server.message.MessageHandle;
 import cn.autolabor.core.server.message.MessageSourceType;
 import cn.autolabor.message.navigation.Msg2DOdometry;
 import cn.autolabor.pathmaneger.PathManager;
-import cn.autolabor.util.reflect.TypeNode;
 import org.mechdancer.algebra.implement.vector.Vector2D;
 
 import java.io.File;
@@ -26,13 +25,14 @@ public class PathManagerTask extends AbstractTask {
     @TaskParameter(name = "outputPath", value = "path.txt")
     private String outputPath;
     private boolean recordFlag = false;
+
+    @InjectMessage(topic = "${positionTopic}")
     private MessageHandle<Msg2DOdometry> positionHandle;
 
     @SuppressWarnings("unchecked")
     public PathManagerTask(String... name) {
         super(name);
         path = new PathManager(positionInterval);
-        positionHandle = ServerManager.me().getOrCreateMessageHandle(positionTopic, new TypeNode(Msg2DOdometry.class));
     }
 
     @TaskFunction(name = "start")

@@ -1,13 +1,12 @@
 package cn.autolabor.baafs;
 
+import cn.autolabor.core.annotation.InjectMessage;
 import cn.autolabor.core.annotation.TaskFunction;
 import cn.autolabor.core.annotation.TaskParameter;
 import cn.autolabor.core.annotation.TaskProperties;
-import cn.autolabor.core.server.ServerManager;
 import cn.autolabor.core.server.executor.AbstractTask;
 import cn.autolabor.core.server.message.MessageHandle;
 import cn.autolabor.message.navigation.Msg2DOdometry;
-import cn.autolabor.util.reflect.TypeNode;
 import com.marvelmind.Resource;
 import kotlin.Unit;
 
@@ -23,14 +22,14 @@ public class MarvelmindTask extends AbstractTask {
     @TaskParameter(name = "frameId", value = "tag")
     private String frameId;
 
-    private final MessageHandle<Msg2DOdometry> topicSender;
+    @InjectMessage(topic = "${topic}")
+    private MessageHandle<Msg2DOdometry> topicSender;
     private final Resource resource;
 
     // 打开超声资源，翻译数据帧并发送
     @SuppressWarnings("unchecked")
     public MarvelmindTask(String... name) {
         super(name);
-        topicSender = ServerManager.me().getOrCreateMessageHandle(topic, new TypeNode(Msg2DOdometry.class));
         resource = new Resource((stamp, x, y) -> {
             Msg2DOdometry temp = new Msg2DOdometry();
             temp.getHeader().setStamp(stamp);
