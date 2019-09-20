@@ -1,7 +1,5 @@
 package org.mechdancer.modules
 
-import cn.autolabor.Odometry
-import cn.autolabor.Stamped
 import cn.autolabor.pathfollower.Circle
 import cn.autolabor.pathfollower.VirtualLightSensor
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower
@@ -14,6 +12,8 @@ import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.common.Odometry
+import org.mechdancer.common.Stamped
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.console.parser.display
 import org.mechdancer.console.parser.feedback

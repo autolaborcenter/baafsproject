@@ -11,7 +11,10 @@ fun main() {
     val faselase = Resource { list ->
         println(list.size)
         remote.paintFrame2("faselase",
-                           list.map { (_, data) -> data.x to data.y })
+                           list.asSequence()
+                               .map { it.data.toVector2D() }
+                               .map { it.x to it.y }
+                               .toList())
     }
     // launch faselase
     PM1.locked = false

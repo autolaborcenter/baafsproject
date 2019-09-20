@@ -1,9 +1,9 @@
 package com.faselase
 
-import cn.autolabor.Polar
 import cn.autolabor.Resource
-import cn.autolabor.Stamped
 import cn.autolabor.serialport.parser.SerialPortFinder
+import org.mechdancer.common.Polar
+import org.mechdancer.common.Stamped
 import java.util.*
 import kotlin.math.PI
 

@@ -1,7 +1,5 @@
 package cn.autolabor.locator
 
-import cn.autolabor.Odometry
-import cn.autolabor.Stamped
 import cn.autolabor.Temporary
 import cn.autolabor.Temporary.Operation.DELETE
 import cn.autolabor.Temporary.Operation.REDUCE
@@ -10,6 +8,8 @@ import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
+import org.mechdancer.common.Odometry
+import org.mechdancer.common.Stamped
 import org.mechdancer.geometry.angle.rotate
 import org.mechdancer.geometry.angle.times
 import org.mechdancer.geometry.angle.toRad

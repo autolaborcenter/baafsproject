@@ -44,6 +44,9 @@ subprojects {
     dependencies {
         // 子项目自动依赖 kotlin 标准库
         implementation(kotlin("stdlib-jdk8"))
+        // 子项目自动依赖重要数学和定义库
+        implementation(files("../libs/simulator-0.0.1.jar"))
+        implementation(files("../libs/linearalgebra-0.2.5-dev-3.jar"))
 
         testImplementation("junit", "junit", "+")
         testImplementation(kotlin("test-junit"))

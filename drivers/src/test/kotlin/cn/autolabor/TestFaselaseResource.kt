@@ -6,7 +6,8 @@ fun main() {
     val lidar = Resource { list ->
         println("time: ${list.last().time - list.first().time}, number: ${list.size}, rad: ${list.last().data.angle - list.first().data.angle}")
         list.asSequence()
-            .map { (_, data) -> "${data.x} ${data.y}" }
+            .map { it.data.toVector2D() }
+            .map { "${it.x} ${it.y}" }
             .joinToString("\n")
             .let(::println)
     }

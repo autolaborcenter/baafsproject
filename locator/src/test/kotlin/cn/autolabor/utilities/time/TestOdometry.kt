@@ -1,8 +1,8 @@
 package cn.autolabor.utilities.time
 
-import cn.autolabor.Odometry
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
+import org.mechdancer.common.Odometry
 import org.mechdancer.geometry.angle.toRad
 import kotlin.math.PI
 import kotlin.test.Test
@@ -34,6 +34,7 @@ class TestOdometry {
 
         val step3 = step2 plusDelta delta1
         val step4 = step3 plusDelta delta2 minusState step3
+        println(step4)
         assert(step4 == delta2) {
             "里程计标记错误：$step4 ≠ $step2"
         }

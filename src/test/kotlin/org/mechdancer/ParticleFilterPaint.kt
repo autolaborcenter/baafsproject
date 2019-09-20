@@ -1,7 +1,5 @@
 package org.mechdancer
 
-import cn.autolabor.Odometry
-import cn.autolabor.Stamped
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.message.navigation.Msg2DOdometry
 import cn.autolabor.message.navigation.Msg2DPose
@@ -11,6 +9,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import org.mechdancer.common.Odometry
+import org.mechdancer.common.Stamped
 import org.mechdancer.modules.await
 import org.mechdancer.modules.devices.Chassis.FrameworkRemoteChassis
 import org.mechdancer.modules.devices.Locator.FrameworkRemoteLocator

@@ -4,7 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.mechdancer.modules.await
-import org.mechdancer.modules.devices.Locator.MarvelmindLocator
+import org.mechdancer.modules.devices.Locator.FrameworkRemoteLocator.MarvelmindLocator
 
 fun main() {
     val scope = CoroutineScope(Dispatchers.Default)

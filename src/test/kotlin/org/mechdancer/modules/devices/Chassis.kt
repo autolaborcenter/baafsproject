@@ -1,7 +1,5 @@
 package org.mechdancer.modules.devices
 
-import cn.autolabor.Odometry
-import cn.autolabor.Stamped
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.message.navigation.Msg2DOdometry
 import cn.autolabor.message.navigation.Msg2DPose
@@ -18,6 +16,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.common.Odometry
+import org.mechdancer.common.Stamped
 import org.mechdancer.geometry.angle.toRad
 
 /**

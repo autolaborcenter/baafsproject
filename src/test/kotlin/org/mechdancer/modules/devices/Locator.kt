@@ -1,6 +1,5 @@
 package org.mechdancer.modules.devices
 
-import cn.autolabor.Stamped
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.message.navigation.Msg2DOdometry
 import cn.autolabor.util.lambda.LambdaFunWithName
@@ -14,6 +13,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.common.Stamped
 
 /**
  * 定位器

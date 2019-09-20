@@ -1,11 +1,11 @@
 package org.mechdancer.modules
 
-import cn.autolabor.Odometry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
+import org.mechdancer.common.Odometry
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.geometry.angle.toVector
