@@ -33,7 +33,7 @@ fun <T> speedSimulation(
     t0: Long = 0,
     dt: Long = 5L,
     speed: Int = 1,
-    block: () -> T
+    block: (Long) -> T
 ) =
     when {
         speed > 0 -> scope.produce {
@@ -42,7 +42,7 @@ fun <T> speedSimulation(
             while (true) {
                 val cost = measureTimeMillis {
                     time += dt * speed
-                    send(Stamped(time, block()))
+                    send(Stamped(time, block(time)))
                 }
                 if (dt > cost) delay(dt - cost)
             }
@@ -52,7 +52,7 @@ fun <T> speedSimulation(
             var time = t0
             while (true) {
                 time += dt
-                send(Stamped(time, block()))
+                send(Stamped(time, block(time)))
                 delay(dt * -speed)
             }
         }

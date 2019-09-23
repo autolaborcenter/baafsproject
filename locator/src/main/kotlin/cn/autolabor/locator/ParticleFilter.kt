@@ -10,6 +10,7 @@ import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
+import org.mechdancer.common.toTransformation
 import org.mechdancer.geometry.angle.*
 import org.mechdancer.geometry.transformation.Transformation
 import org.mechdancer.simulation.random.Normal
@@ -98,22 +99,20 @@ class ParticleFilter(private val count: Int,
                     stateSave = measure to state
                     // 计算不一致性，若过于不一致则放弃更新
                     val lengthM = deltaMeasure.norm()
-                    val lengthS =
-                        (Transformation.fromPose(deltaState.p, deltaState.d)(locatorOnRobot) - locatorOnRobot).norm()
+                    val lengthS = (deltaState.toTransformation()(locatorOnRobot) - locatorOnRobot).norm()
                     val inconsistency = abs(lengthM - lengthS).takeIf { it < maxInconsistency } ?: return@forEach
                     // 计算校准权重：定位器本身的可靠性与此次测量的可靠性相乘
                     val measureWeight = locatorWeight * mapOf(
                         // 校准值变化大本身就意味着不可靠
                         1 to 1 - min(1.0, lengthM / maxInconsistency),
                         // 校准值与测量值越不一致，意味着校准值越不可靠
-                        1 to 1 - min(1.0, inconsistency / maxInconsistency)
+                        2 to 1 - min(1.0, inconsistency / maxInconsistency)
                     ).run { toList().sumByDouble { (k, value) -> k * value } / keys.sum() }
                     // 更新粒子群
                     particles = particles.map { (p, i) -> (p plusDelta deltaState) to min(i + 1, maxAge) }
                     // 计算每个粒子对应的校准器坐标
                     val locators = particles.map { (odometry, age) ->
-                        val (p, d) = odometry
-                        Odometry(Transformation.fromPose(p, d)(locatorOnRobot).to2D(), d) to age
+                        Odometry(odometry.toTransformation()(locatorOnRobot).to2D(), odometry.d) to age
                     }
                     // 计算粒子权重
                     val weights = locators
@@ -141,7 +140,7 @@ class ParticleFilter(private val count: Int,
                     val angle = eAngle.asRadian()
                     // 计算方向标准差，对偏差较大的粒子进行随机方向的重采样
                     particles = particles.mapIndexed { i, item ->
-                        if (weights[i] < item.second.ageWeight() * 0.3) {
+                        if ((locators[i].first.p - measure).norm() > 0.05) {
                             val d = Normal.next(angle, sigma).toRad()
                             val p = Transformation.fromPose(measure, d)(-locatorOnRobot).to2D()
                             Odometry(p, d) to 0

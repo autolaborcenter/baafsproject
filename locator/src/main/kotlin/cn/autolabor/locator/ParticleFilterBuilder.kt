@@ -33,7 +33,7 @@ class ParticleFilterBuilder {
                 .apply(block)
                 .apply {
                     require(count > 1)
-                    require(locatorWeight!! > 0)
+                    require(locatorWeight!! >= 0)
                     require(maxInterval > 0)
                     require(maxInconsistency > 0)
                     require(maxAge > 0)
