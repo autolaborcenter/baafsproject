@@ -21,18 +21,28 @@ import static cn.autolabor.GeometricUtil.detectCollision;
 public class PoseDetectionTask extends AbstractTask {
 
     @TaskParameter(name = "outline", value = "[[0.4,0.2],[0.4,-0.2],[-0.4,-0.2],[-0.4,0.2]]")
-    List<List<Double>> outline;
+    private List<List<Double>> outline;
+    @TaskParameter(name = "fakeOutline", value = "[[0.4,0.2],[0.4,-0.2],[-0.4,-0.2],[-0.4,0.2]]")
+    private List<List<Double>> fakeOutline;
     @TaskParameter(name = "baseLinkFrame", value = "baseLink")
     private String baseLinkFrame;
     @TaskParameter(name = "predictionTime", value = "0.3")
     private double predictionTime;
-    @TaskParameter(name = "deltaRotation", value = "0.2")
-    private double deltaRotation;
-
     @TaskParameter(name = "deltaOmega", value = "0.05")
     private double deltaOmega;
     @TaskParameter(name = "deltaNumber", value = "3")
     private int deltaNumber;
+
+    @TaskParameter(name = "deltaRotation", value = "0.2")
+    private double deltaRotation;
+
+    @TaskParameter(name = "fakeTestMinOmega", value = "-1.0")
+    private double fakeTestMinOmega;
+    @TaskParameter(name = "fakeTestMaxOmega", value = "1.0")
+    private double fakeTestMaxOmega;
+    @TaskParameter(name = "fakeTestDeltaOmega", value = "0.1")
+    private double fakeTestDeltaOmega;
+
 
     @InjectMessage(topic = "obstacles")
     private MessageHandle<List<MsgPolygon>> obstaclesHandle;
@@ -42,12 +52,12 @@ public class PoseDetectionTask extends AbstractTask {
     }
 
     @TaskFunction
-    public List<Msg2DPose> filterPoses(List<Msg2DPose> poses) {
+    public List<Msg2DPose> filterPoses(List<Msg2DPose> poses, boolean realFlag) {
         List<MsgPolygon> obstacles = obstaclesHandle.getFirstData();
         List<Msg2DPose> out = new ArrayList<>();
         if (obstacles != null) {
             poses.forEach(p -> {
-                if (!detectCollision(obstacles, transform(p))) {
+                if (!detectCollision(obstacles, transform(p, realFlag ? outline : fakeOutline))) {
                     out.add(p);
                 }
             });
@@ -62,30 +72,51 @@ public class PoseDetectionTask extends AbstractTask {
      * @return 挑选后合适的速度信息，当无法选择合适速度信息时，返回 null
      */
     @TaskFunction
-    public Msg2DTwist choiceTwist(Msg2DTwist in) {
-        List<MsgPolygon> obstacles = new LinkedList<>();
+    public Msg2DTwist choiceTwist(Msg2DTwist in, boolean realFlag) {
         List<MsgPolygon> temp = obstaclesHandle.getFirstData();
-        if (null != temp) obstacles.addAll(temp);
-        if (checkTwist(in, obstacles)) {
+        List<MsgPolygon> obstacles = null == temp ? new LinkedList<>() : new LinkedList<>(temp);
+        if (checkTwist(in, obstacles, realFlag)) {
             return in;
         } else {
-            Msg2DTwist testTwist = new Msg2DTwist(in.getX(), 0, 0);
-            for (int i = 1; i <= deltaNumber; i++) {
-                System.out.println(i);
-                // 测试左转
-                testTwist.setYaw(in.getYaw() + i * deltaOmega);
-                if (checkTwist(testTwist, obstacles)) {
-                    return testTwist;
-                }
-                // 测试右转
-                testTwist.setYaw(in.getYaw() - i * deltaOmega);
-                if (checkTwist(testTwist, obstacles)) {
-                    return testTwist;
+            if (in.getX() != 0) {
+                Msg2DTwist testTwist = new Msg2DTwist(in.getX(), 0, 0);
+                for (int i = 1; i <= deltaNumber; i++) {
+                    System.out.println(i);
+                    // 测试左转
+                    testTwist.setYaw(in.getYaw() + i * deltaOmega);
+                    if (checkTwist(testTwist, obstacles, realFlag)) {
+                        return testTwist;
+                    }
+                    // 测试右转
+                    testTwist.setYaw(in.getYaw() - i * deltaOmega);
+                    if (checkTwist(testTwist, obstacles, realFlag)) {
+                        return testTwist;
+                    }
                 }
             }
         }
         return null;
     }
+
+    public Msg2DTwist smartChoiceTwist(Msg2DTwist in) {
+        List<MsgPolygon> temp = obstaclesHandle.getFirstData();
+        List<MsgPolygon> obstacles = null == temp ? new LinkedList<>() : new LinkedList<>(temp);
+        if (in.getX() != 0) { // 非原地转
+            List<Double> enableOmega = new ArrayList<>();
+            for (double omega = fakeTestMinOmega; omega <= fakeTestMaxOmega; omega += fakeTestDeltaOmega) {
+                if (checkTwist(new Msg2DTwist(in.getX(), 0, omega), obstacles, false)) {
+                    enableOmega.add(omega);
+                }
+            }
+            int size = enableOmega.size();
+            if (size > 0) {
+                System.out.println(String.format("SIZE : %d", size));
+                return new Msg2DTwist(in.getX(), 0, enableOmega.get(size % 2 == 0 ? (size / 2 - 1) : ((size - 1) / 2)));
+            }
+        }
+        return choiceTwist(in, true);
+    }
+
 
     /**
      * 根据传入的角度判断能否按照该角度进行旋转
@@ -94,41 +125,41 @@ public class PoseDetectionTask extends AbstractTask {
      * @return 可以进行旋转的角度（角度为+，表示逆时针旋转; 角度为-，表示顺时针旋转，角度模长为旋转角度; 0表示从两边都无法旋转过去
      */
     @TaskFunction
-    public double choiceAngle(double angle) {
+    public double choiceAngle(double angle, boolean realFlag) {
         List<MsgPolygon> obstacles = obstaclesHandle.getFirstData();
-        if (checkAngle(angle, obstacles)) {
+        if (checkAngle(angle, obstacles, realFlag)) {
             return angle;
         } else {
             double reverseAngle = angle - 2 * Math.signum(angle) * Math.PI;
-            if (checkAngle(reverseAngle, obstacles)) {
+            if (checkAngle(reverseAngle, obstacles, realFlag)) {
                 return reverseAngle;
             }
         }
         return 0;
     }
 
-    private boolean checkAngle(double angle, List<MsgPolygon> obstacles) {
+    private boolean checkAngle(double angle, List<MsgPolygon> obstacles, boolean realFlag) {
         Msg2DPose predictionPose = new Msg2DPose();
         if (angle >= 0) {
             for (double d = 0; d < angle; d += deltaRotation) {
                 predictionPose.setYaw(d);
-                if (detectCollision(obstacles, transform(predictionPose))) {
+                if (detectCollision(obstacles, transform(predictionPose, realFlag ? outline : fakeOutline))) {
                     return false;
                 }
             }
         } else {
             for (double d = 0; d > angle; d -= deltaRotation) {
                 predictionPose.setYaw(d);
-                if (detectCollision(obstacles, transform(predictionPose))) {
+                if (detectCollision(obstacles, transform(predictionPose, realFlag ? outline : fakeOutline))) {
                     return false;
                 }
             }
         }
         predictionPose.setYaw(angle);
-        return !detectCollision(obstacles, transform(predictionPose));
+        return !detectCollision(obstacles, transform(predictionPose, realFlag ? outline : fakeOutline));
     }
 
-    private boolean checkTwist(Msg2DTwist in, List<MsgPolygon> obstacles) {
+    private boolean checkTwist(Msg2DTwist in, List<MsgPolygon> obstacles, boolean realFlag) {
         Msg2DPose predictionPose = new Msg2DPose();
         if (in.getYaw() != 0) {
             double d = in.getX() / in.getYaw();
@@ -139,11 +170,11 @@ public class PoseDetectionTask extends AbstractTask {
         } else {
             predictionPose.setX(in.getX() * predictionTime);
         }
-        return !detectCollision(obstacles, transform(predictionPose));
+        return !detectCollision(obstacles, transform(predictionPose, realFlag ? outline : fakeOutline));
     }
 
 
-    private MsgPolygon transform(Msg2DPose pose) {
+    private MsgPolygon transform(Msg2DPose pose, List<List<Double>> outline) {
         List<Msg2DPoint> out = new ArrayList<>();
         for (List<Double> doubles : outline) {
             double x = doubles.get(0);
@@ -154,6 +185,4 @@ public class PoseDetectionTask extends AbstractTask {
         }
         return new MsgPolygon(baseLinkFrame, out);
     }
-
-
 }
