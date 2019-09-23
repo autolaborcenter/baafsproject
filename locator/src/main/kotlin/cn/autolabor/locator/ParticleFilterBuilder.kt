@@ -19,7 +19,7 @@ class ParticleFilterBuilder {
     var maxInconsistency: Double = 0.2
     var maxAge: Int = 10
 
-    var sigmaRange: ClosedFloatingPointRange<Double> = (0.1 * PI)..(0.25 * PI)
+    var sigma: Double = 0.1 * PI
 
     private var stepFeedback: ((StepState) -> Unit)? = null
     fun feedback(block: (StepState) -> Unit) {
@@ -37,8 +37,7 @@ class ParticleFilterBuilder {
                     require(maxInterval > 0)
                     require(maxInconsistency > 0)
                     require(maxAge > 0)
-                    require(sigmaRange.start > 0)
-                    require(sigmaRange.endInclusive > sigmaRange.start)
+                    require(sigma > 0)
                 }
                 .run {
                     ParticleFilter(count = count,
@@ -48,7 +47,7 @@ class ParticleFilterBuilder {
                                    maxInconsistency = maxInconsistency,
                                    maxAge = maxAge,
                                    stepFeedback = stepFeedback,
-                                   sigmaRange = sigmaRange)
+                                   sigma = sigma)
                 }
     }
 }

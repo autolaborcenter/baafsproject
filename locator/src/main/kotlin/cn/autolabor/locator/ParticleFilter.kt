@@ -12,6 +12,7 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.geometry.angle.*
 import org.mechdancer.geometry.transformation.Transformation
+import org.mechdancer.simulation.random.Normal
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.min
@@ -28,7 +29,7 @@ import kotlin.math.min
  *     测量传感器与校准传感器具有不同的误差模型，但可以确定一点：对同一个量的测量，二者不会相差太大
  *     若两次匹配之间两种传感器增量的欧氏长度相差大于这个值，则不使用新的匹配对更新测量
  *   * 运行中对粒子寿命的统计最大取值为 [maxAge]
- *   * 对死亡的粒子重采样时方向标准差在 [sigmaRange] 中取值
+ *   * 对死亡的粒子重采样时方向按标准差 [sigma] 进行随机
  */
 class ParticleFilter(private val count: Int,
                      private val locatorOnRobot: Vector2D,
@@ -36,7 +37,7 @@ class ParticleFilter(private val count: Int,
                      private val maxInterval: Long,
                      private val maxInconsistency: Double,
                      private val maxAge: Int,
-                     private val sigmaRange: ClosedFloatingPointRange<Double>,
+                     private val sigma: Double,
                      @Temporary(DELETE)
                      var stepFeedback: ((StepState) -> Unit)?
 ) : Mixer<Stamped<Odometry>, Stamped<Vector2D>, Stamped<Odometry>> {
@@ -136,26 +137,25 @@ class ParticleFilter(private val count: Int,
                     }
                     eP = (eP + measure * measureWeight) / (weightsSum + measureWeight)
                     eD /= weightsSum
-                    val temp = eD.toAngle()
+                    val eAngle = eD.toAngle()
+                    val angle = eAngle.asRadian()
                     // 计算方向标准差，对偏差较大的粒子进行随机方向的重采样
-                    val sigma = sigmaRange.start
-                    val random = java.util.Random()
                     particles = particles.mapIndexed { i, item ->
-                        if (weights[i] < item.second.ageWeight() * 0.2) {
-                            val d = (random.nextGaussian() * sigma + temp.asRadian()).toRad()
+                        if (weights[i] < item.second.ageWeight() * 0.3) {
+                            val d = Normal.next(angle, sigma).toRad()
                             val p = Transformation.fromPose(measure, d)(-locatorOnRobot).to2D()
                             Odometry(p, d) to 0
                         } else item
                     }
                     // 猜测真实位姿
-                    val eRobot = Transformation.fromPose(eP, temp)(-locatorOnRobot).to2D()
-                    expectation = Odometry(eRobot, temp)
+                    val eRobot = Transformation.fromPose(eP, eAngle)(-locatorOnRobot).to2D()
+                    expectation = Odometry(eRobot, eAngle)
                     @Temporary(DELETE)
                     stepFeedback?.let {
                         it(StepState(measureWeight, weightsSum,
                                      measure, state,
-                                     Odometry(eP, temp),
-                                     Odometry(eRobot, temp)))
+                                     Odometry(eP, eAngle),
+                                     Odometry(eRobot, eAngle)))
                     }
                 }
         }
@@ -187,13 +187,5 @@ class ParticleFilter(private val count: Int,
         // 里程计线性可数乘（用于加权平均）
         operator fun Odometry.plus(other: Odometry) =
             Odometry(p + other.p, d rotate other.d)
-
-        // 限幅算法
-        infix fun <T : Comparable<T>> T.clamp(range: ClosedRange<T>) =
-            when {
-                this < range.start        -> range.start
-                this > range.endInclusive -> range.endInclusive
-                else                      -> this
-            }
     }
 }

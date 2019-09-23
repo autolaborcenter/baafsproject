@@ -9,7 +9,6 @@ import cn.autolabor.message.navigation.Msg2DPose;
 import cn.autolabor.utilities.ClampMatcher;
 import cn.autolabor.utilities.Matcher;
 import kotlin.Triple;
-import kotlin.ranges.RangesKt;
 import org.mechdancer.algebra.implement.vector.Vector2D;
 import org.mechdancer.common.Odometry;
 import org.mechdancer.common.Stamped;
@@ -44,13 +43,11 @@ public class ParticleFilterTask extends AbstractTask {
     private int maxInconsistency;
     @TaskParameter(name = "maxAge", value = "10")
     private int maxAge;
-    @TaskParameter(name = "sigmaRangeMin", value = "0.314159")
-    private double sigmaRangeMin;
+    @TaskParameter(name = "sigma", value = "0.314159")
+    private double sigma;
 
     @InjectMessage(topic = "${fusionTopic}")
     private MessageHandle<Msg2DOdometry> topicSender;
-    @TaskParameter(name = "sigmaRangeMax", value = "0.785375")
-    private double sigmaRangeMax;
     public final ParticleFilter filter;
 
     @SuppressWarnings("unchecked")
@@ -59,7 +56,7 @@ public class ParticleFilterTask extends AbstractTask {
         filter = new ParticleFilter(
             particlesCount,
             new Vector2D(locationX, locationY), locatorWeight,
-            maxInterval, maxInconsistency, maxAge, RangesKt.rangeTo(sigmaRangeMin, sigmaRangeMax), null);
+            maxInterval, maxInconsistency, maxAge, sigma, null);
     }
 
     @TaskFunction

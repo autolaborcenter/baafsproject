@@ -10,6 +10,7 @@ import org.mechdancer.paint
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.simulation.prefabs.OneStepTransferRandomDrivingBuilderDSL
 import java.io.DataOutputStream
+import kotlin.system.measureTimeMillis
 
 fun newNonOmniRandomDriving() =
     OneStepTransferRandomDrivingBuilderDSL.oneStepTransferRandomDriving {
@@ -25,24 +26,37 @@ fun newNonOmniRandomDriving() =
         }
     }
 
-private const val dt = 5L
-
 // 倍速仿真
 @ExperimentalCoroutinesApi
 fun <T> speedSimulation(
     scope: CoroutineScope,
     t0: Long = 0,
+    dt: Long = 5L,
     speed: Int = 1,
     block: () -> T
 ) =
-    scope.produce {
-        // 仿真时间
-        var time = t0
-        while (true) {
-            time += dt * speed
-            send(Stamped(time, block()))
-            delay(dt)
+    when {
+        speed > 0 -> scope.produce {
+            // 仿真时间
+            var time = t0
+            while (true) {
+                val cost = measureTimeMillis {
+                    time += dt * speed
+                    send(Stamped(time, block()))
+                }
+                if (dt > cost) delay(dt - cost)
+            }
         }
+        speed < 0 -> scope.produce {
+            // 仿真时间
+            var time = t0
+            while (true) {
+                time += dt
+                send(Stamped(time, block()))
+                delay(dt * -speed)
+            }
+        }
+        else      -> throw IllegalArgumentException("speed cannot be zero")
     }
 
 /**
