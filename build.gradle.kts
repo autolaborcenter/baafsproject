@@ -46,8 +46,8 @@ subprojects {
         implementation(kotlin("stdlib-jdk8"))
         // 子项目自动依赖重要数学和定义库
         implementation(files("../libs/simulator-0.0.1.jar"))
-        implementation(files("../libs/linearalgebra-0.2.5-dev-3.jar"))
-
+        implementation("org.mechdancer", "linearalgebra", "+")
+        // 单元测试
         testImplementation("junit", "junit", "+")
         testImplementation(kotlin("test-junit"))
     }
@@ -64,11 +64,14 @@ dependencies {
     api(project(":locator"))
     api(project(":obstacledetector"))
     api(project(":pathfollower"))
+    api("org.mechdancer", "linearalgebra", "+")
 
     testImplementation("org.jetbrains.kotlinx", "kotlinx-coroutines-core", "+")
 
     testImplementation("junit", "junit", "+")
     testImplementation(kotlin("test-junit"))
+
+    testImplementation("com.1stleg", "jnativehook", "+")
 
     testImplementation("net.java.dev.jna", "jna", "+")
     testImplementation(project(":painter"))

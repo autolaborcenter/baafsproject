@@ -18,19 +18,18 @@ import kotlinx.coroutines.launch
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
+import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.geometry.angle.toRad
 
 /**
  * 底盘设备封装
  */
 sealed class Chassis {
-    data class Twist(val v: Double, val w: Double)
-
     protected val poseChannel = Channel<Stamped<Odometry>>(Channel.CONFLATED)
-    protected val twistChannel = Channel<Twist>(Channel.CONFLATED)
+    protected val twistChannel = Channel<NonOmnidirectional>(Channel.CONFLATED)
 
     val robotPose: ReceiveChannel<Stamped<Odometry>> get() = poseChannel
-    val twistCommand: SendChannel<Twist> get() = twistChannel
+    val twistCommand: SendChannel<NonOmnidirectional> get() = twistChannel
 
     /**
      * 框架底盘

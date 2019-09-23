@@ -31,7 +31,7 @@ import kotlin.random.Random
 private const val T0 = 0L
 // 仿真速度
 private const val SPEED = 1
-// 定位频率
+// 仿真运行频率
 private const val FREQUENCY = 50L
 // 定位频率
 private const val LOCATE_FREQUENCY = 7L
@@ -61,7 +61,7 @@ private fun randomDouble() =
 private fun locateError(p: Vector2D) =
     p + vector2DOf(randomDouble(), randomDouble())
 
-// 里程计增量计算
+// 位姿增量计算
 private val differential = Differential(robot.what.get(), T0) { _, old, new -> new minusState old }
 // 差动里程计
 private val odometry = DifferentialOdometry(0.4, Stamped(T0, Odometry()))
@@ -71,7 +71,7 @@ private val particleFilter = particleFilter {
     maxAge = 100
 }.apply { paintWith(remote) }
 // 仿真
-val random = newNonOmniRandomDriving().let { if (SPEED > 0) it power SPEED else it }
+private val random = newRandomDriving().let { if (SPEED > 0) it power SPEED else it }
 
 // 差动里程计仿真实验
 @ExperimentalCoroutinesApi
@@ -91,7 +91,6 @@ fun main() = runBlocking {
         // 计算里程计
         val get = { key: DifferentialOdometry.Key -> encodersOnRobot.keys.single { (k, _) -> k == key }.value }
         val pose = odometry.update(get(Left) to get(Right), t).data
-
         // 滤波
         if (Random.nextDouble() * FREQUENCY < LOCATE_FREQUENCY)
             actual.toTransformation()(beaconOnRobot).to2D()
@@ -100,27 +99,26 @@ fun main() = runBlocking {
                     remote.paint(BEACON_TAG, beacon.x, beacon.y)
                     particleFilter.measureHelper(Stamped(t, beacon))
                 }
-        // 显示
+        // 显示 1
         remote.paintPose("机器人", actual)
         remote.paintPose("里程计", pose)
-        particleFilter.measureMaster(Stamped(t, pose))
-            ?.data
-            ?.also { result ->
-                val error = (result.p - actual.p).norm()
-                remote.paintPose("滤波", result)
-                buildString {
-                    append("时刻 = ${format.format(t / 1000.0)}, ")
+        // 粒子滤波
+        val result = particleFilter.measureMaster(Stamped(t, pose))?.data ?: return@consumeEach
+        // 统计粒子滤波数据
+        val error = (result.p - actual.p).norm()
+        remote.paintPose("滤波", result)
+        buildString {
+            append("时刻 = ${format.format(t / 1000.0)}, ")
 
-                    append("误差 = ${format.format(error)}, ")
+            append("误差 = ${format.format(error)}, ")
 
-                    if (t > 10000) {
-                        errorSum += error
-                        append("平均误差 = ${format.format(errorSum / ++i)}, ")
-                    }
-
-                    errorMemory = errorMemory * 0.9 + error * 0.1
-                    append("近期平均误差 = ${format.format(errorMemory)}")
-                }.let(::println)
+            if (t > 10000) {
+                errorSum += error
+                append("平均误差 = ${format.format(errorSum / ++i)}, ")
             }
+
+            errorMemory = errorMemory * 0.9 + error * 0.1
+            append("近期平均误差 = ${format.format(errorMemory)}")
+        }.let(::println)
     }
 }

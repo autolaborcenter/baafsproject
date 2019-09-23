@@ -14,6 +14,9 @@ import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
+import org.mechdancer.common.Velocity.Companion.velocity
+import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.common.toTransformation
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.console.parser.display
 import org.mechdancer.console.parser.feedback
@@ -21,7 +24,6 @@ import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.geometry.transformation.Transformation
 import org.mechdancer.modules.Mode.Idle
 import org.mechdancer.modules.Mode.Record
-import org.mechdancer.modules.devices.Chassis.Twist
 import org.mechdancer.modules.devices.Default
 import org.mechdancer.paintFrame2
 import org.mechdancer.paintVectors
@@ -46,7 +48,7 @@ private enum class Mode {
  */
 fun CoroutineScope.startPathFollower(
     robotOnMap: ReceiveChannel<Stamped<Odometry>>,
-    twistCommand: SendChannel<Twist>,
+    twistCommand: SendChannel<NonOmnidirectional>,
     remote: RemoteHub? = Default.remote
 ) {
     val file = File("path.txt")
@@ -123,7 +125,7 @@ fun CoroutineScope.startPathFollower(
                                     when (command) {
                                         is Follow -> {
                                             val (v, w) = command
-                                            twistCommand.send(Twist(v, w))
+                                            twistCommand.send(velocity(v, w))
                                         }
                                         else      -> {
                                             println(command)
@@ -131,12 +133,12 @@ fun CoroutineScope.startPathFollower(
                                                 is Turn   -> {
                                                     val (angle) = command
                                                     println("turn $angle rad")
-                                                    twistCommand.send(Twist(.0, .0))
+                                                    twistCommand.send(velocity(.0, .0))
                                                     delay(200L)
                                                     val (p0, d0) = robotOnMap.receive().data
                                                     // 前进 2.5cm 补不足
                                                     while (true) {
-                                                        twistCommand.send(Twist(.1, .0))
+                                                        twistCommand.send(velocity(.1, .0))
                                                         val (p, _) = robotOnMap.receive().data
                                                         if ((p - p0).norm() > 0.025) break
                                                     }
@@ -144,7 +146,7 @@ fun CoroutineScope.startPathFollower(
                                                     val w = angle.sign * PI / 10
                                                     val delta = abs(angle)
                                                     while (true) {
-                                                        twistCommand.send(Twist(.0, w))
+                                                        twistCommand.send(velocity(.0, w))
                                                         val (_, d) = robotOnMap.receive().data
                                                         if (abs(d.asRadian() - d0.asRadian()) > delta) break
                                                     }
@@ -180,9 +182,10 @@ fun CoroutineScope.startPathFollower(
     }
 
     /** 从控制台阻塞解析 */
+
     launch {
         while (isActive)
-            readLine()
+            withContext(coroutineContext) { readLine() }
                 ?.let(parser::invoke)
                 ?.map(::feedback)
                 ?.forEach(::display)
