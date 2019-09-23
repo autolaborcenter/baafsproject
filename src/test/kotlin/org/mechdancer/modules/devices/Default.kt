@@ -9,13 +9,14 @@ import org.mechdancer.paintFrame3
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.presets.remoteHub
 import org.mechdancer.remote.resources.MulticastSockets
+import org.mechdancer.remote.resources.Networks
 
 object Default {
     val remote by lazy {
-        val it = remoteHub("path follower test")
-        it.openAllNetworks()
-        println("remote launched on ${it.components.must<MulticastSockets>().address}")
-        it
+        remoteHub("simulator").apply {
+            openAllNetworks()
+            println("simulator open ${components.must<Networks>().view.size} networks on ${components.must<MulticastSockets>().address}")
+        }
     }
 
     val filter by lazy {

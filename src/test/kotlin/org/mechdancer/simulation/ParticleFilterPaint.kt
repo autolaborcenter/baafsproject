@@ -6,59 +6,88 @@ import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import org.mechdancer.algebra.function.vector.x
-import org.mechdancer.algebra.function.vector.y
+import org.mechdancer.algebra.function.vector.minus
+import org.mechdancer.algebra.function.vector.norm
+import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.common.Odometry
+import org.mechdancer.common.Stamped
+import org.mechdancer.common.filters.Differential
+import org.mechdancer.common.toPose
 import org.mechdancer.common.toTransformation
+import org.mechdancer.modules.devices.Default.paintWith
 import org.mechdancer.modules.devices.Default.remote
 import org.mechdancer.paint
-import org.mechdancer.simulation.prefabs.OneStepTransferRandomDrivingBuilderDSL.Companion.oneStepTransferRandomDriving
-import org.mechdancer.simulation.random.Normal
+import org.mechdancer.simulation.DifferentialOdometry.Key.Left
+import org.mechdancer.simulation.DifferentialOdometry.Key.Right
+import org.mechdancer.struct.StructBuilderDSL.Companion.struct
 import kotlin.random.Random
 
-// 机器人机械结构
-private val chassis = Chassis()
-private val locatorOnRobot = vector2DOf(-0.31, 0)
-private val filter = particleFilter {
-    locatorOnRobot = vector2DOf(-0.31, 0)
-}
+private const val BEACON = "定位标签"
+private const val BEACON_OFFSET = -0.1
 
+// 差动里程计仿真实验
 @ExperimentalCoroutinesApi
 fun main() = runBlocking {
+    // 起始时刻
+    val t0 = 0L
+    // 机器人机械结构
+    val robot = struct(Chassis(Stamped(t0, Odometry()))) {
+        Encoder(Left) asSub { pose(0, +0.202) }
+        Encoder(Right) asSub { pose(0, -0.2) }
+        BEACON asSub { pose(BEACON_OFFSET, 0) }
+    }
+    // 编码器在机器人上的位姿
+    val encodersOnRobot =
+        robot.devices
+            .mapNotNull { (device, tf) -> (device as? Encoder)?.to(tf.toPose()) }
+            .toMap()
+    // 定位标签在机器人上的位姿
+    val beaconOnRobot =
+        robot.devices[BEACON]!!.toPose().p
+    // 里程计增量计算
+    val differential = Differential(robot.what.get(), t0) { _, old, new -> new minusState old }
+    // 差动里程计
+    val odometry = DifferentialOdometry(0.4, Stamped(t0, Odometry()))
+    // 粒子滤波
+    val particleFilter = particleFilter {
+        count = 128
+        locatorOnRobot = vector2DOf(BEACON_OFFSET, 0)
+    }.apply { paintWith(remote) }
+    // 仿真
+    val random = newNonOmniRandomDriving()
     produce {
-        // 随机行走
-        oneStepTransferRandomDriving {
-            vx(0.1) {
-                row(0.99, 0.01, 0.00)
-                row(0.00, 0.96, 0.04)
-                row(0.00, 0.01, 0.99)
-            }
-            w(0.5) {
-                row(0.90, 0.10, 0.00)
-                row(0.02, 0.96, 0.02)
-                row(0.00, 0.10, 0.90)
-            }
-        }.run {
-            while (true) {
-                send(next())
-                delay(100L)
-            }
+        // 仿真时间
+        var time = t0
+        while (true) {
+            time += 20
+            send(Stamped(time, random.next()))
+            delay(20)
         }
-    }.consumeEach { v ->
+    }.consumeEach { (t, v) ->
         //  计算机器人位姿增量
-        val data = chassis.drive(v)
-        val (_, robotOnOdometry) = data
-        val locatorOnOdometry = robotOnOdometry.toTransformation()(locatorOnRobot)
+        val actual = robot.what.drive(v, t).data
+        val delta = differential.update(actual, t).data
+        // 计算编码器增量
+        for ((encoder, p) in encodersOnRobot) encoder.update(p, delta)
+        // 计算里程计
+        val get = { key: DifferentialOdometry.Key -> encodersOnRobot.keys.single { (k, _) -> k == key }.value }
+        val pose = odometry.update(get(Left) to get(Right), t).data
+        // 计算定位标签
+        val beacon = actual.toTransformation()(beaconOnRobot).to2D()
+        // 显示
+        remote.paintPose("机器人", actual)
+        remote.paintPose("里程计", pose)
+        remote.paint(BEACON, beacon.x, beacon.y)
 
-        robotOnOdometry.also { (p, d) ->
-            remote.paint("chassis", p.x, p.y, d.asRadian())
-            filter.measureMaster(data)
-        }
-        if (Random.nextDouble() > 0.5)
-            locatorOnOdometry.run {
-                remote.paint("locator",
-                             x + Normal.next(.0, 0.02),
-                             y + Normal.next(.0, 0.02))
+        // 滤波
+        if (Random.nextDouble() < .4)
+            particleFilter.measureHelper(Stamped(t, beacon))
+        particleFilter.measureMaster(Stamped(t, pose))
+            ?.data
+            ?.also { result ->
+                println("time = ${t / 1000.0}, error = ${(result.p - actual.p).norm()}")
+                remote.paintPose("滤波", result)
             }
     }
 }

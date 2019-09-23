@@ -10,20 +10,17 @@ import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
-import org.mechdancer.geometry.angle.rotate
-import org.mechdancer.geometry.angle.times
-import org.mechdancer.geometry.angle.toRad
+import org.mechdancer.geometry.angle.*
 import org.mechdancer.geometry.transformation.Transformation
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.min
-import kotlin.math.sqrt
 
 /**
  * 粒子滤波器
  *
  * * 参数
- *   * 使用固定 [size] 个粒子的粒子滤波器
+ *   * 使用固定 [count] 个粒子的粒子滤波器
  *   * 机器人坐标系的 [locatorOnRobot] 处存在一个定位校准器，其可产生 [Vector2D] 表示的位置信号
  *   * 根据定位校准器本身的精度，在计算时，将其视为 [locatorWeight] 个粒子
  *   * 测量信号与校准信号用时间戳夹逼匹配，最大匹配间隔为 [maxInterval] 毫秒，并在夹逼间线性插值
@@ -33,7 +30,7 @@ import kotlin.math.sqrt
  *   * 运行中对粒子寿命的统计最大取值为 [maxAge]
  *   * 对死亡的粒子重采样时方向标准差在 [sigmaRange] 中取值
  */
-class ParticleFilter(private val size: Int,
+class ParticleFilter(private val count: Int,
                      private val locatorOnRobot: Vector2D,
                      private val locatorWeight: Double,
                      private val maxInterval: Long,
@@ -123,58 +120,55 @@ class ParticleFilter(private val size: Int,
                             age.ageWeight() * (1 - min(1.0, (odometry.p - measure).norm() / maxInconsistency))
                         }
                     // 计算粒子总权重，若过低，直接重新初始化
-                    val weightsSum = weights.sum().takeIf { it > 0.1 * size }
+                    val weightsSum = weights.sum().takeIf { it > 0.1 * count }
                                      ?: run {
                                          initialize(measure, state)
                                          return@forEach
                                      }
                     // 计算期望和方差
                     var eP = vector2DOfZero()
-                    var eD = .0
-                    var eD2 = .0
+                    var eD = vector2DOfZero()
                     locators.forEachIndexed { i, (odometry, _) ->
                         val (p, d) = odometry
                         val k = weights[i]
                         eP += p * k
-                        eD += k * d.value
-                        eD2 += k * d.value * d.value
+                        eD += d.toVector() * k
                     }
                     eP = (eP + measure * measureWeight) / (weightsSum + measureWeight)
                     eD /= weightsSum
-                    eD2 /= weightsSum
+                    val temp = eD.toAngle()
                     // 计算方向标准差，对偏差较大的粒子进行随机方向的重采样
-                    val sigma = sqrt(eD2 - eD * eD) clamp sigmaRange
+                    val sigma = sigmaRange.start
                     val random = java.util.Random()
                     particles = particles.mapIndexed { i, item ->
                         if (weights[i] < item.second.ageWeight() * 0.2) {
-                            val d = (random.nextGaussian() * sigma + eD).toRad()
+                            val d = (random.nextGaussian() * sigma + temp.asRadian()).toRad()
                             val p = Transformation.fromPose(measure, d)(-locatorOnRobot).to2D()
                             Odometry(p, d) to 0
                         } else item
                     }
                     // 猜测真实位姿
-                    val eRobot = Transformation.fromPose(eP, eD.toRad())(-locatorOnRobot).to2D()
-                    expectation = Odometry(eRobot, eD.toRad())
+                    val eRobot = Transformation.fromPose(eP, temp)(-locatorOnRobot).to2D()
+                    expectation = Odometry(eRobot, temp)
                     @Temporary(DELETE)
                     stepFeedback?.let {
-                        val eDir = eD.toRad()
                         it(StepState(measureWeight, weightsSum,
                                      measure, state,
-                                     Odometry(eP, eDir),
-                                     Odometry(eRobot, eDir)))
+                                     Odometry(eP, temp),
+                                     Odometry(eRobot, temp)))
                     }
                 }
         }
     }
 
     // 来自寿命的权重增益
-    private fun Int.ageWeight() = (maxAge + this).toDouble() / 2 * maxAge
+    private fun Int.ageWeight() = (maxAge + this).toDouble() / (2 * maxAge)
 
     // 重新初始化
     private fun initialize(measure: Vector2D, state: Odometry) {
         stateSave = measure to state
-        val step = 2 * PI / size
-        particles = List(size) {
+        val step = 2 * PI / count
+        particles = List(count) {
             val d = (it * step).toRad()
             val p = Transformation.fromPose(measure, d)(-locatorOnRobot).to2D()
             Odometry(p, d) to 0

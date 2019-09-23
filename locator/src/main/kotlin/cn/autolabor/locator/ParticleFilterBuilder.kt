@@ -9,11 +9,11 @@ import kotlin.math.PI
  * 粒子滤波器构建器
  */
 class ParticleFilterBuilder {
-    var size: Int = 128
+    var count: Int = 128
 
     var locatorOnRobot: Vector2D = vector2DOfZero()
     var locatorWeight: Double? = null
-        get() = field ?: 0.5 * size
+        get() = field ?: 0.5 * count
 
     var maxInterval: Long = 500L
     var maxInconsistency: Double = 0.2
@@ -32,7 +32,7 @@ class ParticleFilterBuilder {
             ParticleFilterBuilder()
                 .apply(block)
                 .apply {
-                    require(size > 1)
+                    require(count > 1)
                     require(locatorWeight!! > 0)
                     require(maxInterval > 0)
                     require(maxInconsistency > 0)
@@ -41,7 +41,7 @@ class ParticleFilterBuilder {
                     require(sigmaRange.endInclusive > sigmaRange.start)
                 }
                 .run {
-                    ParticleFilter(size = size,
+                    ParticleFilter(count = count,
                                    locatorOnRobot = locatorOnRobot,
                                    locatorWeight = locatorWeight!!,
                                    maxInterval = maxInterval,
