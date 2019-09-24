@@ -52,7 +52,6 @@ public class FaselaseTask extends AbstractTask {
             if (now - time > 100) {
                 time = now;
                 topicSender.pushSubData(msg);
-
             }
 
             return Unit.INSTANCE;

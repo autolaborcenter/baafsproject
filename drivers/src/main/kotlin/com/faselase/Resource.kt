@@ -48,10 +48,9 @@ class Resource(
 
                     val head = theta + offset - 2 * PI
                     while (list.first().data.angle < head) list.poll()
-
-                    callback(list)
                 }
             }
+            ?.also { callback(list) }
     }
 
     override fun close() {
