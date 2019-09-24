@@ -8,7 +8,6 @@ import kotlinx.coroutines.launch
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
-import org.mechdancer.modules.devices.Default
 import org.mechdancer.paint
 import org.mechdancer.remote.presets.RemoteHub
 

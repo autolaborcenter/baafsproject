@@ -1,6 +1,6 @@
-package cn.autolabor
+package org.mechdancer
 
-import cn.autolabor.BehaviorTree.Result.*
+import org.mechdancer.BehaviorTree.Result.*
 
 /**
  * 行为树

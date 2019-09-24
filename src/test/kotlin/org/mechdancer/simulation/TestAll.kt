@@ -17,8 +17,8 @@ import org.mechdancer.common.extension.clamp
 import org.mechdancer.common.filters.Differential
 import org.mechdancer.common.toPose
 import org.mechdancer.common.toTransformation
-import org.mechdancer.modules.devices.Default.paintWith
-import org.mechdancer.modules.devices.Default.remote
+import org.mechdancer.modules.Default.paintWith
+import org.mechdancer.modules.Default.remote
 import org.mechdancer.paint
 import org.mechdancer.simulation.DifferentialOdometry.Key.Left
 import org.mechdancer.simulation.DifferentialOdometry.Key.Right

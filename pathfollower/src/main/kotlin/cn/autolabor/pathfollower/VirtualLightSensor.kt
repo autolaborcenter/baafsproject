@@ -1,8 +1,8 @@
 package cn.autolabor.pathfollower
 
-import cn.autolabor.Temporary
-import cn.autolabor.Temporary.Operation.DELETE
-import cn.autolabor.Temporary.Operation.INLINE
+import org.mechdancer.Temporary
+import org.mechdancer.Temporary.Operation.DELETE
+import org.mechdancer.Temporary.Operation.INLINE
 import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.minus

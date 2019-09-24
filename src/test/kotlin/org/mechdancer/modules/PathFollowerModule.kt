@@ -24,7 +24,6 @@ import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.geometry.transformation.Transformation
 import org.mechdancer.modules.Mode.Idle
 import org.mechdancer.modules.Mode.Record
-import org.mechdancer.modules.devices.Default
 import org.mechdancer.paintFrame2
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.RemoteHub

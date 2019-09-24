@@ -1,9 +1,9 @@
 package cn.autolabor.locator
 
-import cn.autolabor.Temporary
-import cn.autolabor.Temporary.Operation.DELETE
-import cn.autolabor.Temporary.Operation.REDUCE
 import cn.autolabor.utilities.ClampMatcher
+import org.mechdancer.Temporary
+import org.mechdancer.Temporary.Operation.DELETE
+import org.mechdancer.Temporary.Operation.REDUCE
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
@@ -38,11 +38,13 @@ class ParticleFilter(private val count: Int,
                      private val maxInterval: Long,
                      private val maxInconsistency: Double,
                      private val maxAge: Int,
-                     private val sigma: Double,
-                     @Temporary(DELETE)
-                     var stepFeedback: ((StepState) -> Unit)?
+                     private val sigma: Double
 ) : Mixer<Stamped<Odometry>, Stamped<Vector2D>, Stamped<Odometry>> {
     private val matcher = ClampMatcher<Stamped<Odometry>, Stamped<Vector2D>>()
+
+    // 过程记录器
+    @Temporary(DELETE)
+    val stepFeedback = mutableListOf<(StepState) -> Unit>()
 
     // 粒子：位姿 - 寿命
     @Temporary(REDUCE)
@@ -150,11 +152,12 @@ class ParticleFilter(private val count: Int,
                     val eRobot = Transformation.fromPose(eP, eAngle)(-locatorOnRobot).to2D()
                     expectation = Odometry(eRobot, eAngle)
                     @Temporary(DELETE)
-                    stepFeedback?.let {
-                        it(StepState(measureWeight, weightsSum,
-                                     measure, state,
-                                     Odometry(eP, eAngle),
-                                     Odometry(eRobot, eAngle)))
+                    val stepState = StepState(measureWeight, weightsSum,
+                                              measure, state,
+                                              Odometry(eP, eAngle),
+                                              Odometry(eRobot, eAngle))
+                    synchronized(stepFeedback) {
+                        for (callback in stepFeedback) callback(stepState)
                     }
                 }
         }

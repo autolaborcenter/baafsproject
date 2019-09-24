@@ -5,6 +5,7 @@ import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.function.vector.x
 import org.mechdancer.algebra.function.vector.y
 import org.mechdancer.algebra.function.vector.z
+import org.mechdancer.common.Odometry
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.protocol.writeEnd
 import org.mechdancer.remote.resources.Command
@@ -142,6 +143,24 @@ fun RemoteHub.paintFrame3(
             writeDouble(x)
             writeDouble(y)
             writeDouble(theta)
+        }
+    }
+}
+
+/**
+ * 画单帧位姿信号
+ */
+fun RemoteHub.paintPoses(
+    topic: String,
+    list: List<Odometry>
+) = paint(topic) {
+    DataOutputStream(this).apply {
+        writeByte(0)
+        writeByte(ThreeDouble.value)
+        for ((p, d) in list) {
+            writeDouble(p.x)
+            writeDouble(p.y)
+            writeDouble(d.asRadian())
         }
     }
 }
