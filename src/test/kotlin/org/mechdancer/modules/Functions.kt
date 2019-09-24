@@ -1,5 +1,9 @@
 package org.mechdancer.modules
 
+import cn.autolabor.FilterTwistTask
+import cn.autolabor.ObstacleDetectionTask
+import cn.autolabor.PoseDetectionTask
+import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.ParticleFilter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -45,4 +49,12 @@ fun ParticleFilter.registerLogger() {
             }
         }
     }
+}
+
+fun obstacleDetecting() {
+    ServerManager.me().loadConfig("conf/obstacle.conf")
+    ServerManager.me().register(ObstacleDetectionTask("ObstacleDetectionTask"))
+    ServerManager.me().register(PoseDetectionTask("PoseDetectionTask"))
+    ServerManager.me().register(FilterTwistTask("FilterTwistTask"))
+    ServerManager.me().dump()
 }

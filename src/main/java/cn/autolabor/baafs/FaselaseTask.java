@@ -30,7 +30,8 @@ public class FaselaseTask extends AbstractTask {
 
     private final Resource resource;
 
-    @SuppressWarnings("unchecked")
+    private long time = System.currentTimeMillis();
+
     public FaselaseTask(String... name) {
         super(name);
         resource = new Resource(list -> {
@@ -46,7 +47,13 @@ public class FaselaseTask extends AbstractTask {
             msg.getHeader().setCoordinate(frameId);
             msg.setDistances(distances);
             msg.setAngles(angles);
-            topicSender.pushSubData(msg);
+
+            long now = System.currentTimeMillis();
+            if (now - time > 100) {
+                time = now;
+                topicSender.pushSubData(msg);
+
+            }
 
             return Unit.INSTANCE;
         });

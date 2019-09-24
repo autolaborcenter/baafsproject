@@ -13,7 +13,6 @@ import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.Companion.velocity
-import org.mechdancer.common.extension.clamp
 import org.mechdancer.common.filters.Differential
 import org.mechdancer.common.toPose
 import org.mechdancer.common.toTransformation
@@ -40,6 +39,8 @@ private const val FREQUENCY = 50L
 private const val LOCATE_FREQUENCY = 7.0
 // 定位命中率
 private const val LOCATE_RATE = LOCATE_FREQUENCY / FREQUENCY
+// 定位标准差
+private const val LOCATE_SIGMA = 1E-4
 // 定位标签
 private const val BEACON_TAG = "定位标签"
 // 标签位置
@@ -50,8 +51,8 @@ private const val ODOMETRY_FREQUENCY = 20L
 private val ODOMETRY_PERIOD = (FREQUENCY / ODOMETRY_FREQUENCY).takeIf { it > 0 } ?: 1L
 // 机器人机械结构
 private val robot = struct(Chassis(Stamped(T0, Odometry()))) {
-    Encoder(Left) asSub { pose(0, +0.2) }
-    Encoder(Right) asSub { pose(0, -0.2) }
+    Encoder(Left) asSub { pose(0, +0.205) }
+    Encoder(Right) asSub { pose(0, -0.205) }
     BEACON_TAG asSub { pose(BEACON_OFFSET, 0) }
 }
 // 编码器在机器人上的位姿
@@ -63,12 +64,10 @@ private val encodersOnRobot =
 private val beaconOnRobot =
     robot.devices[BEACON_TAG]!!.toPose().p
 
-private fun randomDouble() =
-    (-.05..+.05).clamp(Normal.next(.0, 1E-4))
-
 // 定位误差
 private fun locateError(p: Vector2D) =
-    p + vector2DOf(randomDouble(), randomDouble())
+    p + vector2DOf(Normal.next(.0, LOCATE_SIGMA),
+                   Normal.next(.0, LOCATE_SIGMA))
 
 // 位姿增量计算
 private val differential = Differential(robot.what.get(), T0) { _, old, new -> new minusState old }
