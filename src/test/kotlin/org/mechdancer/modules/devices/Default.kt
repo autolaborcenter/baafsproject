@@ -20,9 +20,7 @@ object Default {
     }
 
     val filter by lazy {
-        // particleFilter { locatorOnRobot = vector2DOf(-0.31, 0) }
-        particleFilter { }
-            .apply { paintWith(remote) }
+        particleFilter { maxAge = 100 }.apply { paintWith(remote) }
     }
 
     fun ParticleFilter.paintWith(remote: RemoteHub) {

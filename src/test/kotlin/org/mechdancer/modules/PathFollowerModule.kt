@@ -56,8 +56,8 @@ fun CoroutineScope.startPathFollower(
     val follower =
         VirtualLightSensorPathFollower(
             VirtualLightSensor(
-                -Transformation.fromPose(vector2DOf(0.15, 0.0), 0.toRad()),
-                Circle(radius = 0.2, vertexCount = 64)))
+                -Transformation.fromPose(vector2DOf(0.28, 0.0), 0.toRad()),
+                Circle(radius = 0.3, vertexCount = 64)))
 
     var mode = Idle
     var enabled = false
@@ -71,8 +71,7 @@ fun CoroutineScope.startPathFollower(
                     launch {
                         while (isActive && mode == Record) {
                             val (_, current) = robotOnMap.receive()
-                            if (path.record(current.p))
-                                remote?.paintVectors("path", path.get())
+                            path.record(current)
                         }
                     }
                     "Recording"
@@ -96,15 +95,13 @@ fun CoroutineScope.startPathFollower(
             "path cleared"
         }
         this["show"] = {
-            remote?.paintVectors("path", path.get())
-            path.get().let { "path count = ${it.size}\n${it.joinToString("\n") { p -> "${p.x}\t${p.y}" }}" }
+            path.get().let { "path count = ${it.size}\n${it.joinToString("\n")}" }
         }
 
         this["save"] = { path.saveTo(file); "${path.size} nodes saved" }
         this["load"] = {
             mode = Idle
             path.loadFrom(file)
-            remote?.paintVectors("path", path.get())
             "${path.size} nodes loaded"
         }
         this["delete"] = { file.writeText(""); "path save deleted" }

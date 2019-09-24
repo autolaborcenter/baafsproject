@@ -8,9 +8,11 @@ import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.common.Odometry
 import org.mechdancer.geometry.angle.adjust
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toRad
+import org.mechdancer.geometry.angle.toVector
 import org.mechdancer.geometry.transformation.Transformation
 import kotlin.math.PI
 import kotlin.math.abs
@@ -31,14 +33,17 @@ class VirtualLightSensorPathFollower(
     private val pathMarked = mutableListOf<Pair<Vector2D, Double>>()
 
     /** 读写工作路径 */
-    var path = listOf<Vector2D>()
+    var path = listOf<Odometry>()
         set(value) {
             // 存储
             field = value
-            // 尖点检测
             pathMarked.clear()
-            value.mapTo(pathMarked) { it to 1.0 }
-            for (order in tipOrderRange) pathMarked.checkTip(order)
+            for (i in 0 until value.lastIndex) {
+                val v0 = value[i].d.toVector()
+                val v1 = value[i + 1].d.toVector()
+                pathMarked.add(value[i].p to (v0 dot v1))
+            }
+            pathMarked.add(value.last().p to 2.0)
             // 重置状态
             pass = 0
             controller.clear()
@@ -59,12 +64,11 @@ class VirtualLightSensorPathFollower(
     operator fun invoke(fromMap: Transformation): FollowCommand {
         // 第一次调用传感器
         val (passCount, value) =
-            sensor(fromMap, path.subList(pass, path.size))
+            sensor(fromMap, pathMarked.subList(pass, path.size).map(Pair<Vector2D, *>::first))
                 .takeUnless { (passCount, _) -> passCount < 0 }
             ?: return FollowCommand.Error
         // 判断路径终点
-        listOf(sensor.local.last(), path.last())
-            .asSequence()
+        listOf(sensor.local.last(), pathMarked.last().first)
             .map { fromMap(it).norm() }
             .all { it < destinationJudge }
             .let { if (it) return FollowCommand.Finish }
@@ -105,16 +109,16 @@ class VirtualLightSensorPathFollower(
 
     private companion object {
         // 检测尖点
-        fun MutableList<Pair<Vector2D, Double>>.checkTip(order: Int) {
-            if (size > 2 * order)
-                for (i in order until size - order) {
-                    val (p, value) = get(i)
-                    val (pf, _) = get(i - order)
-                    val (pb, _) = get(i + order)
-                    val v0 = p - pf
-                    val v1 = pb - p
-                    set(i, get(i).copy(second = min((v0 dot v1) / (v0.norm() * v1.norm()), value)))
-                }
-        }
+//        fun MutableList<Pair<Odometry, Double>>.checkTip(order: Int) {
+//            if (size > 2 * order)
+//                for (i in order until size - order) {
+//                    val (p, value) = get(i)
+//                    val (pf, _) = get(i - order)
+//                    val (pb, _) = get(i + order)
+//                    val v0 = p - pf
+//                    val v1 = pb - p
+//                    set(i, get(i).copy(second = min((v0 dot v1) / (v0.norm() * v1.norm()), value)))
+//                }
+//        }
     }
 }
