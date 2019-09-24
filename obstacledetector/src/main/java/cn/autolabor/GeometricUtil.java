@@ -3,6 +3,7 @@ package cn.autolabor;
 import cn.autolabor.message.navigation.Msg2DPoint;
 import cn.autolabor.message.navigation.MsgPolygon;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
@@ -48,7 +49,7 @@ public class GeometricUtil {
                 return checkPointInside(p2.get(0), p1);
             }
 
-            if (p1.stream().anyMatch(p -> checkPointInside(p, p2)) && p2.stream().anyMatch(p -> checkPointInside(p, p1))) {
+            if (p1.stream().anyMatch(p -> checkPointInside(p, p2)) || p2.stream().anyMatch(p -> checkPointInside(p, p1))) {
                 return true;
             } else {
                 for (int i = 0; i < p1.size() - 1; i++) {
@@ -153,5 +154,4 @@ public class GeometricUtil {
 
         return polygon;
     }
-
 }
