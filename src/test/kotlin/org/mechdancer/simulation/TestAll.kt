@@ -37,11 +37,17 @@ private const val SPEED = 1
 // 仿真运行频率
 private const val FREQUENCY = 50L
 // 定位频率
-private const val LOCATE_FREQUENCY = 7L
+private const val LOCATE_FREQUENCY = 7.0
+// 定位命中率
+private const val LOCATE_RATE = LOCATE_FREQUENCY / FREQUENCY
 // 定位标签
 private const val BEACON_TAG = "定位标签"
 // 标签位置
 private const val BEACON_OFFSET = -.31
+// 里程计采样率
+private const val ODOMETRY_FREQUENCY = 20L
+// 里程计周期
+private val ODOMETRY_PERIOD = (FREQUENCY / ODOMETRY_FREQUENCY).takeIf { it > 0 } ?: 1L
 // 机器人机械结构
 private val robot = struct(Chassis(Stamped(T0, Odometry()))) {
     Encoder(Left) asSub { pose(0, +0.2) }
@@ -82,13 +88,18 @@ private val random = newRandomDriving().let { if (SPEED > 0) it power SPEED else
 // 差动里程计仿真实验
 @ExperimentalCoroutinesApi
 fun main() = runBlocking {
-    var errorSum = .0
-    var errorMemory = .0
     var i = 0L
+
+    var errorSum = .0
+    var errorCount = 0L
+    var errorMemory = .0
+
     val format = DecimalFormat("0.000")
+
     speedSimulation(this, T0, 1000L / FREQUENCY, SPEED) { t ->
         if (t < 10000) velocity(0, .5) else random.next()
     }.consumeEach { (t, v) ->
+        ++i
         //  计算机器人位姿增量
         val actual = robot.what.drive(v, t).data
         val delta = differential.update(actual, t).data
@@ -97,21 +108,26 @@ fun main() = runBlocking {
         // 计算里程计
         val get = { key: DifferentialOdometry.Key -> encodersOnRobot.keys.single { (k, _) -> k == key }.value }
         val pose = odometry.update(get(Left) to get(Right), t).data
-        // 滤波
-        if (Random.nextDouble() * FREQUENCY < LOCATE_FREQUENCY)
+        // 显示 1
+        remote.paintPose("机器人", actual)
+        remote.paintPose("里程计", pose)
+        loggers.getLogger("机器人").log(actual.p.x, actual.p.y, actual.d.asRadian())
+        loggers.getLogger("里程计").log(pose.p.x, pose.p.y, pose.d.asRadian())
+        // 定位采样
+        if (Random.nextDouble() < LOCATE_RATE)
             actual.toTransformation()(beaconOnRobot).to2D()
                 .let(::locateError)
                 .also { beacon ->
                     remote.paint(BEACON_TAG, beacon.x, beacon.y)
                     particleFilter.measureHelper(Stamped(t, beacon))
                 }
-        // 显示 1
-        remote.paintPose("机器人", actual)
-        remote.paintPose("里程计", pose)
-        loggers.getLogger("机器人").log(actual.p.x, actual.p.y, actual.d.asRadian())
-        loggers.getLogger("里程计").log(pose.p.x, pose.p.y, pose.d.asRadian())
-        // 粒子滤波
-        val result = particleFilter.measureMaster(Stamped(t, pose))?.data ?: return@consumeEach
+        // 里程计采样
+        val result =
+            particleFilter
+                .takeIf { i % ODOMETRY_PERIOD == 0L }
+                ?.measureMaster(Stamped(t, pose))
+                ?.data
+            ?: return@consumeEach
         // 统计粒子滤波数据
         val error = (result.p - actual.p).norm()
         remote.paintPose("滤波", result)
@@ -122,7 +138,7 @@ fun main() = runBlocking {
 
             if (t > 10000) {
                 errorSum += error
-                append("平均误差 = ${format.format(errorSum / ++i)}, ")
+                append("平均误差 = ${format.format(errorSum / ++errorCount)}, ")
             }
 
             errorMemory = errorMemory * 0.9 + error * 0.1
