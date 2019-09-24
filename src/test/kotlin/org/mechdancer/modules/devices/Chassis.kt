@@ -73,6 +73,7 @@ sealed class Chassis {
     class PM1Chassis(scope: CoroutineScope) : Chassis() {
         init {
             PM1.initialize()
+            PM1.setCommandEnabled(false)
             PM1.locked = false
             scope.launch {
                 while (isActive) {
