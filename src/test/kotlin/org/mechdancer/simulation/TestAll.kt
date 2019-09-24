@@ -17,8 +17,11 @@ import org.mechdancer.common.extension.clamp
 import org.mechdancer.common.filters.Differential
 import org.mechdancer.common.toPose
 import org.mechdancer.common.toTransformation
-import org.mechdancer.modules.Default.paintWith
+import org.mechdancer.modules.Default.loggers
 import org.mechdancer.modules.Default.remote
+import org.mechdancer.modules.getLogger
+import org.mechdancer.modules.registerLogger
+import org.mechdancer.modules.registerPainter
 import org.mechdancer.paint
 import org.mechdancer.simulation.DifferentialOdometry.Key.Left
 import org.mechdancer.simulation.DifferentialOdometry.Key.Right
@@ -69,7 +72,10 @@ private val odometry = DifferentialOdometry(0.4, Stamped(T0, Odometry()))
 private val particleFilter = particleFilter {
     locatorOnRobot = vector2DOf(BEACON_OFFSET, 0)
     maxAge = 100
-}.apply { paintWith(remote) }
+}.apply {
+    registerPainter()
+    registerLogger()
+}
 // 仿真
 private val random = newRandomDriving().let { if (SPEED > 0) it power SPEED else it }
 
@@ -102,6 +108,8 @@ fun main() = runBlocking {
         // 显示 1
         remote.paintPose("机器人", actual)
         remote.paintPose("里程计", pose)
+        loggers.getLogger("机器人").log(actual.p.x, actual.p.y, actual.d.asRadian())
+        loggers.getLogger("里程计").log(pose.p.x, pose.p.y, pose.d.asRadian())
         // 粒子滤波
         val result = particleFilter.measureMaster(Stamped(t, pose))?.data ?: return@consumeEach
         // 统计粒子滤波数据

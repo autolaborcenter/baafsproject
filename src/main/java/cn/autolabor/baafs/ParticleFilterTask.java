@@ -56,7 +56,7 @@ public class ParticleFilterTask extends AbstractTask {
         filter = new ParticleFilter(
             particlesCount,
             new Vector2D(locationX, locationY), locatorWeight,
-            maxInterval, maxInconsistency, maxAge, sigma, null);
+            maxInterval, maxInconsistency, maxAge, sigma);
     }
 
     @TaskFunction

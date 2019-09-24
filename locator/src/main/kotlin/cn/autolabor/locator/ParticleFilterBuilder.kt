@@ -1,6 +1,5 @@
 package cn.autolabor.locator
 
-import cn.autolabor.locator.ParticleFilter.StepState
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import kotlin.math.PI
@@ -20,11 +19,6 @@ class ParticleFilterBuilder {
     var maxAge: Int = 10
 
     var sigma: Double = 0.1 * PI
-
-    private var stepFeedback: ((StepState) -> Unit)? = null
-    fun feedback(block: (StepState) -> Unit) {
-        stepFeedback = block
-    }
 
     companion object {
         /** 粒子滤波器 DSL */
@@ -46,7 +40,6 @@ class ParticleFilterBuilder {
                                    maxInterval = maxInterval,
                                    maxInconsistency = maxInconsistency,
                                    maxAge = maxAge,
-                                   stepFeedback = stepFeedback,
                                    sigma = sigma)
                 }
     }

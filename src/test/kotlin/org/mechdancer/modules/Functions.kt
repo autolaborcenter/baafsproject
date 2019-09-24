@@ -6,17 +6,18 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.SimpleLogger
 import org.mechdancer.modules.Default.loggers
+import org.mechdancer.modules.Default.remote
 import org.mechdancer.paint
 import org.mechdancer.paintFrame2
 import org.mechdancer.paintPoses
-import org.mechdancer.remote.presets.RemoteHub
 import java.util.concurrent.ConcurrentHashMap
 
 fun CoroutineScope.await() {
     runBlocking { this@await.coroutineContext[Job]?.join() }
 }
 
-fun ParticleFilter.paintWith(remote: RemoteHub) {
+/** 注册步骤画图回调 */
+fun ParticleFilter.registerPainter() {
     synchronized(stepFeedback) {
         stepFeedback += { (measureWeight, particleWeight, _, _, eLocator, _) ->
             with(remote) {
@@ -30,10 +31,11 @@ fun ParticleFilter.paintWith(remote: RemoteHub) {
     }
 }
 
-private fun ConcurrentHashMap<String, SimpleLogger>.getLogger(name: String) =
+fun ConcurrentHashMap<String, SimpleLogger>.getLogger(name: String) =
     getOrPut(name) { SimpleLogger(name) }
 
-fun ParticleFilter.log() {
+/** 注册步骤日志回调 */
+fun ParticleFilter.registerLogger() {
     synchronized(stepFeedback) {
         stepFeedback += { (measureWeight, particleWeight, _, _, eLocator, _) ->
             with(loggers) {

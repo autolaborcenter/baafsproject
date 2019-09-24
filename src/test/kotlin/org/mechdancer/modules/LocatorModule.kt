@@ -1,6 +1,7 @@
 package org.mechdancer.modules
 
 import cn.autolabor.locator.ParticleFilter
+import cn.autolabor.locator.ParticleFilterBuilder.Companion.particleFilter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
@@ -18,7 +19,7 @@ fun CoroutineScope.startLocationFilter(
     robotOnOdometry: ReceiveChannel<Stamped<Odometry>>,
     robotOnLocator: ReceiveChannel<Stamped<Vector2D>>,
     robotOnMap: SendChannel<Stamped<Odometry>>,
-    filter: ParticleFilter = Default.filter,
+    filter: ParticleFilter = particleFilter {},
     remote: RemoteHub? = Default.remote
 ) {
     // 使用里程计数据
