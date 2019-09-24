@@ -48,22 +48,21 @@ public class ObstacleDetectionTask extends AbstractTask {
     private Map<String, MsgLidar> lidarData = new HashMap<>(); // key -> topic
     private Map<String, Long> lastTimeMap = new HashMap<>(); // key -> topic
 
-    private List<MsgPolygon> obstacles = new ArrayList<>();
 
     public ObstacleDetectionTask(String... name) {
         super(name);
         clusterMaxDistance2 = clusterMaxDistance * clusterMaxDistance;
         //noinspection unchecked
         ((Map<String, Map>) ServerManager.me().getConfig("urdf", baseLinkFrame))
-            .forEach((key, value) -> {
-                LidarInfo lidarInfo = new LidarInfo(
-                    (Double) value.get("x"),
-                    (Double) value.get("y"),
-                    (Double) value.get("theta"),
-                    (Boolean) value.get("reverse")
-                );
-                lidarInfos.put(key, lidarInfo);
-            });
+                .forEach((key, value) -> {
+                    LidarInfo lidarInfo = new LidarInfo(
+                            (Double) value.get("x"),
+                            (Double) value.get("y"),
+                            (Double) value.get("theta"),
+                            (Boolean) value.get("reverse")
+                    );
+                    lidarInfos.put(key, lidarInfo);
+                });
 
         lidarTopics.forEach(topic -> ServerManager.me().getOrCreateMessageHandle(topic, new TypeNode(MsgLidar.class)).addCallback(this, "mergeLidarData", new MessageSourceType[]{}));
     }
@@ -89,25 +88,26 @@ public class ObstacleDetectionTask extends AbstractTask {
     public void updateObstaclePoints() {
         // 雷达数据转障碍物点
         List<Msg2DPoint> obstaclePoints =
-            lidarData
-                .values()
-                .stream()
-                .flatMap(value -> {
-                    LidarInfo info = lidarInfos.get(value.getHeader().getCoordinate());
-                    return IntStream
-                        .range(0, value.getAngles().size())
-                        .mapToObj(i ->
-                            info.transform(
-                                value.getAngles().get(i),
-                                value.getDistances().get(i)
-                            ));
-                })
-                .collect(Collectors.toList());
+                lidarData
+                        .values()
+                        .stream()
+                        .flatMap(value -> {
+                            LidarInfo info = lidarInfos.get(value.getHeader().getCoordinate());
+                            return IntStream
+                                    .range(0, value.getAngles().size())
+                                    .mapToObj(i ->
+                                            info.transform(
+                                                    value.getAngles().get(i),
+                                                    value.getDistances().get(i)
+                                            ));
+                        })
+                        .collect(Collectors.toList());
 
         obstaclePointsHandle.pushSubData(obstaclePoints);
 
         List<List<Msg2DPoint>> clusterPoints = cluster(obstaclePoints);
-        obstacles.clear();
+        
+        List<MsgPolygon> obstacles = new ArrayList<>();
         for (int i = 1; i < clusterPoints.size(); i++) {
             obstacles.add(new MsgPolygon(baseLinkFrame, convexHull(clusterPoints.get(i))));
         }
