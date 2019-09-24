@@ -24,12 +24,6 @@ import static cn.autolabor.GeometricUtil.convexHull;
 @TaskProperties(name = "ObstacleDetectionTask")
 public class ObstacleDetectionTask extends AbstractTask {
 
-    @InjectMessage(topic = "obstacle_points")
-    MessageHandle<List<Msg2DPoint>> obstaclePointsHandle;
-    @InjectMessage(topic = "obstacles")
-    MessageHandle<List<MsgPolygon>> obstaclesHandle;
-
-
     @TaskParameter(name = "clusterMinPoints", value = "2")
     private int clusterMinPoints;
     @TaskParameter(name = "clusterMaxPoints", value = "30")
@@ -43,6 +37,12 @@ public class ObstacleDetectionTask extends AbstractTask {
     private List<String> lidarTopics;
     @TaskParameter(name = "timeout", value = "50")
     private double timeout;
+    @InjectMessage(topic = "obstacle_points")
+    MessageHandle<List<Msg2DPoint>> obstaclePointsHandle;
+    @InjectMessage(topic = "${obstaclesTopic}")
+    MessageHandle<List<MsgPolygon>> obstaclesHandle;
+    @TaskParameter(name = "obstaclesTopic", value = "obstacles")
+    private String obstaclesTopic;
 
     private Map<String, LidarInfo> lidarInfos = new HashMap<>(); // key -> frame
     private Map<String, MsgLidar> lidarData = new HashMap<>(); // key -> topic
@@ -106,7 +106,7 @@ public class ObstacleDetectionTask extends AbstractTask {
         obstaclePointsHandle.pushSubData(obstaclePoints);
 
         List<List<Msg2DPoint>> clusterPoints = cluster(obstaclePoints);
-        
+
         List<MsgPolygon> obstacles = new ArrayList<>();
         for (int i = 1; i < clusterPoints.size(); i++) {
             obstacles.add(new MsgPolygon(baseLinkFrame, convexHull(clusterPoints.get(i))));

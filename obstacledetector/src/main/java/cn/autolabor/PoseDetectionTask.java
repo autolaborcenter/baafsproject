@@ -43,8 +43,10 @@ public class PoseDetectionTask extends AbstractTask {
     @TaskParameter(name = "fakeTestDeltaOmega", value = "0.1")
     private double fakeTestDeltaOmega;
 
+    @TaskParameter(name = "obstaclesTopic", value = "obstacles")
+    private String obstaclesTopic;
 
-    @InjectMessage(topic = "obstacles")
+    @InjectMessage(topic = "${obstaclesTopic}")
     private MessageHandle<List<MsgPolygon>> obstaclesHandle;
 
     public PoseDetectionTask(String... name) {
