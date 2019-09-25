@@ -31,7 +31,7 @@ fun main() {
             registerPainter()
         })
     scope.startPathFollower(
-        robotOnMap = chassis.robotPose,
+        robotOnMap = robotOnMap,
         twistCommand = obstacle.toObstacle)
     scope.await()
 }
