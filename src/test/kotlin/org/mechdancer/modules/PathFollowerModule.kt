@@ -27,6 +27,7 @@ import org.mechdancer.modules.Mode.Record
 import org.mechdancer.paintFrame2
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.RemoteHub
+import org.mechdancer.simulation.paintPose
 import java.io.File
 import kotlin.math.PI
 import kotlin.math.abs
@@ -70,7 +71,7 @@ fun CoroutineScope.startPathFollower(
                     launch {
                         while (isActive && mode == Record) {
                             val (_, current) = robotOnMap.receive()
-                            path.record(current)
+                            if (path.record(current)) remote?.paintPose("路径", current)
                         }
                     }
                     "Recording"
@@ -155,7 +156,7 @@ fun CoroutineScope.startPathFollower(
                                 }
                             remote?.run {
                                 val shape = follower.sensor.areaShape
-                                paintVectors("sensor", shape + shape.first())
+                                paintVectors("传感器", shape + shape.first())
                             }
                             if (mode != Mode.Follow) {
                                 enabled = false

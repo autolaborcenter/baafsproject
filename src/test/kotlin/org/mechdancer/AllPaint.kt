@@ -1,16 +1,15 @@
 package org.mechdancer
 
+import cn.autolabor.locator.ParticleFilterBuilder.Companion.particleFilter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
+import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
-import org.mechdancer.modules.Obstacle
-import org.mechdancer.modules.await
+import org.mechdancer.modules.*
 import org.mechdancer.modules.devices.Chassis.PM1Chassis
 import org.mechdancer.modules.devices.Locator.FrameworkRemoteLocator.MarvelmindLocator
-import org.mechdancer.modules.startLocationFilter
-import org.mechdancer.modules.startPathFollower
 
 fun main() {
     val scope = CoroutineScope(Dispatchers.Default)
@@ -24,10 +23,15 @@ fun main() {
     scope.startLocationFilter(
         robotOnLocator = locator.robotLocation,
         robotOnOdometry = chassis.robotPose,
-        robotOnMap = robotOnMap)
+        robotOnMap = robotOnMap,
+        filter = particleFilter {
+            locatorOnRobot = vector2DOf(-0.3, .0)
+        }.apply {
+            registerLogger()
+            registerPainter()
+        })
     scope.startPathFollower(
         robotOnMap = chassis.robotPose,
         twistCommand = obstacle.toObstacle)
     scope.await()
 }
-

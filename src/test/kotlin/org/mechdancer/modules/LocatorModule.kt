@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
+import org.mechdancer.modules.Default.loggers
 import org.mechdancer.paint
 import org.mechdancer.remote.presets.RemoteHub
 
@@ -25,17 +26,25 @@ fun CoroutineScope.startLocationFilter(
     // 使用里程计数据
     launch {
         for (item in robotOnOdometry) {
-            item.also { (_, data) -> remote?.paint("里程计", data.p.x, data.p.y, data.d.asRadian()) }
+            item.also { (_, data) ->
+                loggers.getLogger("里程计").log(data.p.x, data.p.y, data.d.asRadian())
+                remote?.paint("里程计", data.p.x, data.p.y, data.d.asRadian())
+            }
             filter.measureMaster(item)
                 ?.also { robotOnMap.send(it) }
-                ?.also { (_, data) -> remote?.paint("粒子滤波", data.p.x, data.p.y, data.d.value) }
+                ?.also { (_, data) ->
+                    loggers.getLogger("粒子滤波").log(data.p.x, data.p.y, data.d.asRadian())
+                    remote?.paint("粒子滤波", data.p.x, data.p.y, data.d.value)
+                }
         }
     }
     // 使用定位数据
     launch {
         for (item in robotOnLocator) {
             filter.measureHelper(item)
-            remote?.paint("定位", item.data.x, item.data.y)
+            val (_, data) = item
+            loggers.getLogger("定位").log(data.x, data.y)
+            remote?.paint("定位", data.x, data.y)
         }
     }
 }
