@@ -79,7 +79,7 @@ sealed class Chassis {
                 while (isActive) {
                     val (_, _, _, x, y, theta) = PM1.odometry
                     poseChannel.send(Stamped.stamp(Odometry(vector2DOf(x, y), theta.toRad())))
-                    delay(40L)
+                    delay(30L)
                 }
                 poseChannel.close()
             }

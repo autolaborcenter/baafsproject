@@ -8,6 +8,7 @@ import kotlinx.coroutines.runBlocking
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Odometry
+import org.mechdancer.common.Odometry.Companion.odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
@@ -19,8 +20,11 @@ import org.mechdancer.paintPoses
 import org.mechdancer.paintVectors
 import java.util.concurrent.atomic.AtomicReference
 
-fun shape(vararg vertex: Vector2D) =
+private fun shape(vararg vertex: Vector2D) =
     vertex.toList().let { it + it.first() }
+
+private fun Iterable<Vector2D>.put(pose: Odometry) =
+    map(pose.toTransformation()::invoke)
 
 @ExperimentalCoroutinesApi
 fun main() = runBlocking {
@@ -35,22 +39,17 @@ fun main() = runBlocking {
     val block = shape(vector2DOf(-.2, +.2),
                       vector2DOf(-.2, -.2),
                       vector2DOf(+.2, -.2),
-                      vector2DOf(+.2, +.2))
-        .let {
-            val blockToMap = Odometry.odometry(1, 1, 0).toTransformation()
-            it.map(blockToMap::invoke)
-        }
+                      vector2DOf(+.2, +.2)).put(odometry(1, 1, 0))
     val path = PathManager(0.05)
-    launch {
-        for (command in commands) buffer.set(velocity(0.1 * command.v, 0.5 * command.w))
-    }
+    launch { for (command in commands) buffer.set(velocity(0.1 * command.v, 0.5 * command.w)) }
     speedSimulation(this) { buffer.get() }
         .consumeEach { (_, v) ->
             val (_, pose) = robot.drive(v)
             val odometryToRobot = -pose.toTransformation()
             path.record(pose)
+
             remote.paintVectors("chassis", chassis)
             remote.paintVectors("block", block.map(odometryToRobot::invoke))
-            remote.paintPoses("path", path.get().takeLast(40).map { odometryToRobot.invoke(it) })
+            remote.paintPoses("path", path.get().takeLast(40).map { odometryToRobot(it) })
         }
 }
