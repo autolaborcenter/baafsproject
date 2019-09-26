@@ -74,14 +74,14 @@ class VirtualLightSensor(
         @Temporary(DELETE)
         areaShape = area.vertex.map(sensorToMap::invoke).map(Vector::to2D)
         // 计算误差
-        return passCount - 1 to 2 * (0.5 - area.size / lightRange.size)
+        return passCount to 2 * (0.5 - area.size / lightRange.size)
     }
 
     private companion object {
         // 查找与边缘交点
         fun List<Vector2D>.indexNear(pose: Odometry, reverse: Boolean): Int {
             val (p, d) = pose.copy(d = if (reverse) -pose.d else pose.d)
-            val references = mapIndexed { i, item -> i to p - item }
+            val references = mapIndexed { i, item -> i to item - p }
             return references
                        .asSequence()
                        .mapNotNull { (i, v) ->

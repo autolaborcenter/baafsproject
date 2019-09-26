@@ -25,6 +25,7 @@ import org.mechdancer.geometry.transformation.Transformation
 import org.mechdancer.modules.Mode.Idle
 import org.mechdancer.modules.Mode.Record
 import org.mechdancer.paintFrame2
+import org.mechdancer.paintPoses
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.simulation.paintPose
@@ -56,8 +57,8 @@ fun CoroutineScope.startPathFollower(
     val follower =
         VirtualLightSensorPathFollower(
             VirtualLightSensor(
-                -Transformation.fromPose(vector2DOf(0.28, 0.0), 0.toRad()),
-                Circle(radius = 0.3, vertexCount = 64)))
+                -Transformation.fromPose(vector2DOf(0.55, 0.0), 0.toRad()),
+                Circle(radius = 0.6, vertexCount = 64)))
 
     var mode = Idle
     var enabled = false
@@ -102,6 +103,7 @@ fun CoroutineScope.startPathFollower(
         this["load"] = {
             mode = Idle
             path.loadFrom(file)
+            remote?.paintPoses("路径", path.get())
             "${path.size} nodes loaded"
         }
         this["delete"] = { file.writeText(""); "path save deleted" }
