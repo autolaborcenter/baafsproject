@@ -5,7 +5,6 @@ import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.Tu
 import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
-import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Odometry
@@ -30,7 +29,7 @@ class VirtualLightSensorPathFollower(
     private val destinationJudge: Double = 0.1
 ) {
     private var pass = 0
-    private val pathMarked = mutableListOf<Pair<Vector2D, Double>>()
+    private val pathMarked = mutableListOf<Pair<Odometry, Double>>()
 
     /** 读写工作路径 */
     var path = listOf<Odometry>()
@@ -41,9 +40,9 @@ class VirtualLightSensorPathFollower(
             for (i in 0 until value.lastIndex) {
                 val v0 = value[i].d.toVector()
                 val v1 = value[i + 1].d.toVector()
-                pathMarked.add(value[i].p to (v0 dot v1))
+                pathMarked.add(value[i] to (v0 dot v1))
             }
-            pathMarked.add(value.last().p to 2.0)
+            pathMarked.add(value.last() to 2.0)
             // 重置状态
             pass = 0
             controller.clear()
@@ -64,12 +63,12 @@ class VirtualLightSensorPathFollower(
     operator fun invoke(fromMap: Transformation): FollowCommand {
         // 第一次调用传感器
         val (passCount, value) =
-            sensor(fromMap, pathMarked.subList(pass, path.size).map(Pair<Vector2D, *>::first))
+            sensor(fromMap, pathMarked.subList(pass, path.size).map(Pair<Odometry, *>::first))
                 .takeUnless { (passCount, _) -> passCount < 0 }
             ?: return FollowCommand.Error
         // 判断路径终点
         listOf(sensor.local.last(), pathMarked.last().first)
-            .map { fromMap(it).norm() }
+            .map { fromMap(it.p).norm() }
             .all { it < destinationJudge }
             .let { if (it) return FollowCommand.Finish }
         // 丢弃通过的路径
@@ -87,7 +86,7 @@ class VirtualLightSensorPathFollower(
                 else {
                     val target =
                         sensor.local
-                            .let { (it[min(i + 3, it.lastIndex)] - it[i]) }
+                            .let { (it[min(i + 3, it.lastIndex)].p - it[i].p) }
                             .toAngle().asRadian()
                     val current =
                         -fromMap
@@ -105,20 +104,5 @@ class VirtualLightSensorPathFollower(
             ?.let { sensor(fromMap, sensor.local.subList(0, it + 1)) }
             ?.second
             .let { Follow(0.1, controller(input = it ?: value)) }
-    }
-
-    private companion object {
-        // 检测尖点
-//        fun MutableList<Pair<Odometry, Double>>.checkTip(order: Int) {
-//            if (size > 2 * order)
-//                for (i in order until size - order) {
-//                    val (p, value) = get(i)
-//                    val (pf, _) = get(i - order)
-//                    val (pb, _) = get(i + order)
-//                    val v0 = p - pf
-//                    val v1 = pb - p
-//                    set(i, get(i).copy(second = min((v0 dot v1) / (v0.norm() * v1.norm()), value)))
-//                }
-//        }
     }
 }

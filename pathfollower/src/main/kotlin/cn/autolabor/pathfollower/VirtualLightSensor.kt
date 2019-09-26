@@ -10,6 +10,10 @@ import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.function.vector.normalize
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
+import org.mechdancer.common.Odometry
+import org.mechdancer.common.invoke
+import org.mechdancer.geometry.angle.toVector
+import org.mechdancer.geometry.angle.unaryMinus
 import org.mechdancer.geometry.transformation.Transformation
 
 /** 位于 [robotToSensor] 位置处具有 [lightRange] 形状的虚拟光感 */
@@ -22,63 +26,61 @@ class VirtualLightSensor(
 
     /** 局部路径（地图坐标系） */
     @Temporary(INLINE)
-    var local = listOf<Vector2D>()
+    var local = listOf<Odometry>()
         private set
 
     /** 虚拟光值计算 */
     operator fun invoke(
         mapToRobot: Transformation,
-        path: Iterable<Vector2D>
+        path: Iterable<Odometry>
     ): Pair<Int, Double> {
         // 地图到传感器坐标的变换
         val sensorFromMap =
             robotToSensor * mapToRobot
+        var passCount = 0
         // 转化路径到传感器坐标系并约束局部路径
         val local =
-            path.asSequence()
-                .map(sensorFromMap::invoke)
-                .map(Vector::to2D)
-                .dropWhile { it !in lightRange }
-                .toList()
+            path.map { sensorFromMap.invoke(it) }
+                .dropWhile {
+                    if (it.p !in lightRange) {
+                        ++passCount
+                        true
+                    } else
+                        false
+                }
                 .let { mapped ->
                     val end = (0 until mapped.size - 3)
                                   .firstOrNull { i ->
                                       mapped
                                           .subList(i, i + 3)
-                                          .all { it !in lightRange }
+                                          .all { it.p !in lightRange }
                                   }
                               ?: mapped.size
                     mapped.take(end)
                 }
 
         val sensorToMap = -sensorFromMap
-        this.local = local
-            .asSequence()
-            .map(sensorToMap::invoke)
-            .map(Vector::to2D)
-            .toList()
+        this.local = local.map { sensorToMap.invoke(it) }
         // 处理路径丢失情况
         if (local.size < 2) return -1 to .0
         // 传感器栅格化
         val shape = lightRange.vertex
-        // 起点终点方向
-        val vb = local[1] - local[0]
-        val ve = local.asReversed().let { it[1] - it[0] }
         // 离局部路径终点最近的点序号
-        val index0 = shape.indexNear(local.last(), ve)
-        val index1 = shape.indexNear(local.first(), vb)
+        val index0 = shape.indexNear(local.last(), false)
+        val index1 = shape.indexNear(local.first(), true)
             .let { if (it < index0) it + shape.size else it }
         // 确定填色区域
-        val area = Shape(local + List(index1 - index0) { i -> shape[(index0 + i) % shape.size] })
+        val area = Shape(local.map { it.p } + List(index1 - index0) { i -> shape[(index0 + i) % shape.size] })
         @Temporary(DELETE)
         areaShape = area.vertex.map(sensorToMap::invoke).map(Vector::to2D)
         // 计算误差
-        return path.indexOfFirst { (this.local.first() - it).norm() < 0.01 } to 2 * (0.5 - area.size / lightRange.size)
+        return passCount - 1 to 2 * (0.5 - area.size / lightRange.size)
     }
 
     private companion object {
         // 查找与边缘交点
-        fun List<Vector2D>.indexNear(p: Vector, d: Vector2D): Int {
+        fun List<Vector2D>.indexNear(pose: Odometry, reverse: Boolean): Int {
+            val (p, d) = pose.copy(d = if (reverse) -pose.d else pose.d)
             val references = mapIndexed { i, item -> i to p - item }
             return references
                        .asSequence()
@@ -90,7 +92,7 @@ class VirtualLightSensor(
                        .minBy { (_, distance) -> distance }
                        ?.first
                    ?: references
-                       .maxBy { (_, v) -> (v.normalize() dot d) }!!
+                       .maxBy { (_, v) -> (v.normalize() dot d.toVector()) }!!
                        .first
         }
     }

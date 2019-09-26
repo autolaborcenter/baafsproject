@@ -52,7 +52,7 @@ private val ODOMETRY_PERIOD = (FREQUENCY / ODOMETRY_FREQUENCY).takeIf { it > 0 }
 // 机器人机械结构
 private val robot = struct(Chassis(Stamped(T0, Odometry()))) {
     Encoder(Left) asSub { pose(0, +0.205) }
-    Encoder(Right) asSub { pose(0, -0.205) }
+    Encoder(Right) asSub { pose(0, -0.200) }
     BEACON_TAG asSub { pose(BEACON_OFFSET, 0) }
 }
 // 编码器在机器人上的位姿

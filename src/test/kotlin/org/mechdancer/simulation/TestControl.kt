@@ -1,10 +1,12 @@
 package org.mechdancer.simulation
 
-import cn.autolabor.pathmaneger.PathManager
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import org.mechdancer.Buffer
+import org.mechdancer.algebra.function.vector.minus
+import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Odometry
@@ -40,16 +42,16 @@ fun main() = runBlocking {
                       vector2DOf(-.2, -.2),
                       vector2DOf(+.2, -.2),
                       vector2DOf(+.2, +.2)).put(odometry(1, 1, 0))
-    val path = PathManager(0.05)
+    val path = Buffer<Odometry>(40)
     launch { for (command in commands) buffer.set(velocity(0.1 * command.v, 0.5 * command.w)) }
     speedSimulation(this) { buffer.get() }
         .consumeEach { (_, v) ->
             val (_, pose) = robot.drive(v)
             val odometryToRobot = -pose.toTransformation()
-            path.record(pose)
+            path.update { last -> pose.takeIf { last == null || (last.p - it.p).norm() > 0.05 } }
 
             remote.paintVectors("chassis", chassis)
             remote.paintVectors("block", block.map(odometryToRobot::invoke))
-            remote.paintPoses("path", path.get().takeLast(40).map { odometryToRobot(it) })
+            remote.paintPoses("path", path.get().map { odometryToRobot(it) })
         }
 }

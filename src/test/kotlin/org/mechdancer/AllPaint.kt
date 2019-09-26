@@ -3,22 +3,26 @@ package org.mechdancer
 import cn.autolabor.locator.ParticleFilterBuilder.Companion.particleFilter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
+import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.modules.*
 import org.mechdancer.modules.devices.Chassis.PM1Chassis
 import org.mechdancer.modules.devices.Locator.FrameworkRemoteLocator.MarvelmindLocator
 
+@ExperimentalCoroutinesApi
 fun main() {
-    val scope = CoroutineScope(Dispatchers.Default)
     // 话题
     val robotOnMap = Channel<Stamped<Odometry>>(Channel.CONFLATED)
+    val commandToObstacle = Channel<NonOmnidirectional>(Channel.CONFLATED)
+    // 启动协程
+    val scope = CoroutineScope(Dispatchers.Default)
     // 模块
     val locator = MarvelmindLocator(scope)
     val chassis = PM1Chassis(scope)
-    val obstacle = Obstacle(scope, chassis.twistCommand)
     // 任务
     scope.startLocationFilter(
         robotOnLocator = locator.robotLocation,
@@ -32,6 +36,9 @@ fun main() {
         })
     scope.startPathFollower(
         robotOnMap = robotOnMap,
-        twistCommand = obstacle.toObstacle)
+        commandOut = commandToObstacle)
+    scope.startObstacleAvoiding(
+        commandIn = commandToObstacle,
+        commandOut = chassis.twistCommand)
     scope.await()
 }

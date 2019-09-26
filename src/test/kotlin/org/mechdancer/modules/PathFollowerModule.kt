@@ -48,7 +48,7 @@ private enum class Mode {
  */
 fun CoroutineScope.startPathFollower(
     robotOnMap: ReceiveChannel<Stamped<Odometry>>,
-    twistCommand: SendChannel<NonOmnidirectional>,
+    commandOut: SendChannel<NonOmnidirectional>,
     remote: RemoteHub? = Default.remote
 ) {
     val file = File("path.txt")
@@ -122,7 +122,7 @@ fun CoroutineScope.startPathFollower(
                                     when (command) {
                                         is Follow -> {
                                             val (v, w) = command
-                                            twistCommand.send(velocity(v, w))
+                                            commandOut.send(velocity(v, w))
                                         }
                                         else      -> {
                                             println(command)
@@ -130,12 +130,12 @@ fun CoroutineScope.startPathFollower(
                                                 is Turn   -> {
                                                     val (angle) = command
                                                     println("turn $angle rad")
-                                                    twistCommand.send(velocity(.0, .0))
+                                                    commandOut.send(velocity(.0, .0))
                                                     delay(200L)
                                                     val (p0, d0) = robotOnMap.receive().data
                                                     // 前进 2.5cm 补不足
                                                     while (true) {
-                                                        twistCommand.send(velocity(.1, .0))
+                                                        commandOut.send(velocity(.1, .0))
                                                         val (p, _) = robotOnMap.receive().data
                                                         if ((p - p0).norm() > 0.025) break
                                                     }
@@ -143,7 +143,7 @@ fun CoroutineScope.startPathFollower(
                                                     val w = angle.sign * PI / 10
                                                     val delta = abs(angle)
                                                     while (true) {
-                                                        twistCommand.send(velocity(.0, w))
+                                                        commandOut.send(velocity(.0, w))
                                                         val (_, d) = robotOnMap.receive().data
                                                         if (abs(d.asRadian() - d0.asRadian()) > delta) break
                                                     }

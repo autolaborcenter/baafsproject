@@ -111,11 +111,11 @@ class ParticleFilter(private val count: Int,
                         2 to 1 - min(1.0, inconsistency / maxInconsistency)
                     ).run { toList().sumByDouble { (k, value) -> k * value } / keys.sum() }
                     // 更新粒子群
-                    particles = particles.map { (p, i) -> (p plusDelta deltaState) to min(i + 1, maxAge) }
+                    particles =
+                        particles.map { (p, age) -> (p plusDelta deltaState) to min(age + 1, maxAge) }
                     // 计算每个粒子对应的校准器坐标
-                    val locators = particles.map { (odometry, age) ->
-                        Odometry(odometry.toTransformation()(locatorOnRobot).to2D(), odometry.d) to age
-                    }
+                    val locators =
+                        particles.map { (p, age) -> Odometry(p.toTransformation()(locatorOnRobot).to2D(), p.d) to age }
                     // 计算粒子权重
                     val weights = locators
                         .map { (odometry, age) ->
@@ -142,10 +142,14 @@ class ParticleFilter(private val count: Int,
                     val angle = eAngle.asRadian()
                     // 计算方向标准差，对偏差较大的粒子进行随机方向的重采样
                     particles = particles.mapIndexed { i, item ->
+                        val age = item.second
                         if ((locators[i].first.p - measure).norm() > 0.05) {
-                            val d = Normal.next(angle, sigma).toRad()
-                            val p = Transformation.fromPose(measure, d)(-locatorOnRobot).to2D()
-                            Odometry(p, d) to 0
+                            val newAge = item.second - 2
+                            if (newAge < 0) {
+                                val d = Normal.next(angle, sigma).toRad()
+                                val p = Transformation.fromPose(measure, d)(-locatorOnRobot).to2D()
+                                Odometry(p, d) to 0
+                            } else item.copy(second = newAge)
                         } else item
                     }
                     // 猜测真实位姿
