@@ -43,21 +43,12 @@ public class FilterTwistTask extends AbstractTask {
     public void filterTwist(Msg2DOdometry msg) {
         if (poseDetectionTask != null) {
             Msg2DTwist twist = smartChoice ? poseDetectionTask.smartChoiceTwist(msg.getTwist()) : poseDetectionTask.choiceTwist(msg.getTwist(), true);
-            Msg2DOdometry out;
-            if (twist == null) {
-                count = 0;
-                out = new Msg2DOdometry(new Msg2DPose(0, 0, 0), new Msg2DTwist(0, 0, 0));
-            } else {
-                if (count < tryCount) {
-                    count += 1;
-                    out = new Msg2DOdometry(new Msg2DPose(0, 0, 0), new Msg2DTwist(0, 0, 0));
-                } else {
-                    out = new Msg2DOdometry(new Msg2DPose(0, 0, 0), twist);
-                }
-            }
-            twistOutHandle.pushSubData(out);
+            count = twist == null ? 0 : count + 1;
+            twistOutHandle.pushSubData(
+                new Msg2DOdometry(new Msg2DPose(0, 0, 0),
+                    count < tryCount
+                        ? new Msg2DTwist(0, 0, 0)
+                        : twist));
         }
     }
-
-
 }
