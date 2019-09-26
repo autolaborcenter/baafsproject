@@ -32,12 +32,18 @@ private fun Iterable<Vector2D>.put(pose: Odometry) =
 fun main() = runBlocking {
     val buffer = AtomicReference<NonOmnidirectional>(velocity(0, 0))
     val robot = Chassis(Stamped(0, Odometry()))
-    val chassis = shape(vector2DOf(+.2, +.2),
-                        vector2DOf(-.2, +.2),
-                        vector2DOf(-.4, +.1),
-                        vector2DOf(-.4, -.1),
-                        vector2DOf(-.2, -.2),
-                        vector2DOf(+.2, -.2))
+    val chassis = shape(vector2DOf(+.25, +.08),
+                        vector2DOf(+.10, +.20),
+                        vector2DOf(+.10, +.30),
+                        vector2DOf(-.10, +.30),
+                        vector2DOf(-.10, +.20),
+                        vector2DOf(-.40, +.15),
+                        vector2DOf(-.40, -.15),
+                        vector2DOf(-.10, -.20),
+                        vector2DOf(-.10, -.30),
+                        vector2DOf(+.10, -.30),
+                        vector2DOf(+.10, -.20),
+                        vector2DOf(+.25, -.08))
     val block = shape(vector2DOf(-.2, +.2),
                       vector2DOf(-.2, -.2),
                       vector2DOf(+.2, -.2),
