@@ -14,8 +14,12 @@ public class FilterTwistTask extends AbstractTask {
     private String cmdTopicInput;
     @TaskParameter(name = "cmdTopicOutput", value = "cmdvel")
     private String cmdTopicOutput;
+    @TaskParameter(name = "tryCount", value = "5")
+    private int tryCount;
     @TaskParameter(name = "smartChoice", value = "false")
     private boolean smartChoice;
+
+    private int count = 0;
 
     @InjectMessage(topic = "${cmdTopicOutput}")
     private MessageHandle<Msg2DOdometry> twistOutHandle;
@@ -39,10 +43,12 @@ public class FilterTwistTask extends AbstractTask {
     public void filterTwist(Msg2DOdometry msg) {
         if (poseDetectionTask != null) {
             Msg2DTwist twist = smartChoice ? poseDetectionTask.smartChoiceTwist(msg.getTwist()) : poseDetectionTask.choiceTwist(msg.getTwist(), true);
-            Msg2DOdometry out = new Msg2DOdometry(new Msg2DPose(0, 0, 0), null == twist ? new Msg2DTwist(0, 0, 0) : twist);
-            twistOutHandle.pushSubData(out);
+            count = twist == null ? 0 : count + 1;
+            twistOutHandle.pushSubData(
+                new Msg2DOdometry(new Msg2DPose(0, 0, 0),
+                    count < tryCount
+                        ? new Msg2DTwist(0, 0, 0)
+                        : twist));
         }
     }
-
-
 }
