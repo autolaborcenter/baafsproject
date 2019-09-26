@@ -18,7 +18,7 @@ import org.mechdancer.remote.presets.RemoteHub
  */
 fun CoroutineScope.startLocationFilter(
     robotOnOdometry: ReceiveChannel<Stamped<Odometry>>,
-    robotOnLocator: ReceiveChannel<Stamped<Vector2D>>,
+    beaconOnMap: ReceiveChannel<Stamped<Vector2D>>,
     robotOnMap: SendChannel<Stamped<Odometry>>,
     filter: ParticleFilter = particleFilter {},
     remote: RemoteHub? = Default.remote
@@ -40,7 +40,7 @@ fun CoroutineScope.startLocationFilter(
     }
     // 使用定位数据
     launch {
-        for (item in robotOnLocator) {
+        for (item in beaconOnMap) {
             filter.measureHelper(item)
             val (_, data) = item
             loggers.getLogger("定位").log(data.x, data.y)

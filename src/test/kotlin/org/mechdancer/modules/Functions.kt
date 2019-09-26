@@ -9,6 +9,7 @@ import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.ParticleFilter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.SimpleLogger
 import org.mechdancer.modules.Default.loggers
@@ -18,9 +19,13 @@ import org.mechdancer.paintFrame2
 import org.mechdancer.paintPoses
 import java.util.concurrent.ConcurrentHashMap
 
+/** 等待协程作用域中全部工作结束 */
 fun CoroutineScope.await() {
     runBlocking { this@await.coroutineContext[Job]?.join() }
 }
+
+/** 构造发送无阻塞的通道 */
+fun <T> channel() = Channel<T>(Channel.CONFLATED)
 
 /** 注册步骤画图回调 */
 fun ParticleFilter.registerPainter() {
@@ -37,7 +42,7 @@ fun ParticleFilter.registerPainter() {
     }
 }
 
-fun ConcurrentHashMap<String, SimpleLogger>.getLogger(name: String) =
+fun ConcurrentHashMap<String, SimpleLogger>.getLogger(name: String): SimpleLogger =
     getOrPut(name) { SimpleLogger(name) }
 
 /** 注册步骤日志回调 */

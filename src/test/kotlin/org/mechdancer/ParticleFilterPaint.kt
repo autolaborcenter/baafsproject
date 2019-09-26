@@ -1,34 +1,48 @@
 package org.mechdancer
 
+import cn.autolabor.locator.ParticleFilterBuilder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.Channel
+import org.mechdancer.algebra.implement.vector.Vector2D
+import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
-import org.mechdancer.modules.await
-import org.mechdancer.modules.devices.Chassis.FrameworkRemoteChassis
-import org.mechdancer.modules.devices.Locator.FrameworkRemoteLocator
-import org.mechdancer.modules.startLocationFilter
+import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.modules.*
+import org.mechdancer.modules.LinkMode.Direct
 
 fun main() {
     // 话题
-    val robotOnMap = Channel<Stamped<Odometry>>(Channel.CONFLATED)
-    // 启动协程
-    val scope = CoroutineScope(Dispatchers.Default)
-    // 模块
-    val locator = FrameworkRemoteLocator(scope)
-    val chassis = FrameworkRemoteChassis(scope)
-    // 启动任务
-    scope.startLocationFilter(
-        robotOnLocator = locator.robotLocation,
-        robotOnOdometry = chassis.robotPose,
-        robotOnMap = robotOnMap)
-//    scope.launch {
-//        val topic = ServerManager.me().getOrCreateMessageHandle("fusion", TypeNode(Msg2DOdometry::class.java))
-//        for ((_, data) in robotOnMap) {
-//            val (p, d) = data
-//            topic.pushSubData(Msg2DOdometry(Msg2DPose(p.x, p.y, d.asRadian()), Msg2DTwist()))
-//        }
-//    }
-    scope.await()
+    val robotOnOdometry = channel<Stamped<Odometry>>()
+    val beaconOnMap = channel<Stamped<Vector2D>>()
+    val robotOnMap = channel<Stamped<Odometry>>()
+    val commandToRobot = channel<NonOmnidirectional>()
+    // 任务
+    with(CoroutineScope(Dispatchers.Default)) {
+        startChassis(
+            mode = Direct,
+            odometry = robotOnOdometry,
+            command = commandToRobot)
+        startLocateSensor(
+            mode = Direct,
+            beaconOnMap = beaconOnMap)
+        startLocationFilter(
+            robotOnOdometry = robotOnOdometry,
+            beaconOnMap = beaconOnMap,
+            robotOnMap = robotOnMap,
+            filter = ParticleFilterBuilder.particleFilter {
+                locatorOnRobot = vector2DOf(-0.3, .0)
+            }.apply {
+                registerLogger()
+                registerPainter()
+            })
+        // launch {
+        //     val topic = ServerManager.me().getOrCreateMessageHandle("fusion", TypeNode(Msg2DOdometry::class.java))
+        //     for ((_, data) in robotOnMap) {
+        //         val (p, d) = data
+        //         topic.pushSubData(Msg2DOdometry(Msg2DPose(p.x, p.y, d.asRadian()), Msg2DTwist()))
+        //     }
+        // }
+        await()
+    }
 }

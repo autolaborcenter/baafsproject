@@ -5,21 +5,31 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.common.Stamped
+import org.mechdancer.modules.LinkMode.Direct
 import org.mechdancer.modules.await
-import org.mechdancer.modules.devices.Locator.FrameworkRemoteLocator.MarvelmindLocator
+import org.mechdancer.modules.channel
+import org.mechdancer.modules.startLocateSensor
 
 fun main() {
-    val scope = CoroutineScope(Dispatchers.Default)
-    val list = mutableListOf<Vector2D>()
-    scope.launch {
-        for ((_, v) in MarvelmindLocator(this).robotLocation) {
-            list += vector2DOf(v.x, v.y)
-            val sigmaX = list.asSequence().map { it.x - list.first().x }.sigma()
-            val sigmaY = list.asSequence().map { it.y - list.first().y }.sigma()
-            println("$sigmaX $sigmaY")
+    // 话题
+    val beaconOnMap = channel<Stamped<Vector2D>>()
+    // 任务
+    with(CoroutineScope(Dispatchers.Default)) {
+        startLocateSensor(
+            mode = Direct,
+            beaconOnMap = beaconOnMap)
+        val list = mutableListOf<Vector2D>()
+        launch {
+            for ((_, p) in beaconOnMap) {
+                list += vector2DOf(p.x, p.y)
+                val sigmaX = list.asSequence().map { it.x - list.first().x }.sigma()
+                val sigmaY = list.asSequence().map { it.y - list.first().y }.sigma()
+                println("$sigmaX $sigmaY")
+            }
         }
+        await()
     }
-    scope.await()
 }
 
 fun Sequence<Double>.sigma(): Double {
