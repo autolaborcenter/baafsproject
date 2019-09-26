@@ -17,7 +17,7 @@ import org.mechdancer.modules.LinkMode.Direct
 import org.mechdancer.modules.LinkMode.Framework
 
 /** 以 [mode] 模式启动底盘 */
-fun CoroutineScope.startLocateSensor(
+fun CoroutineScope.startBeacon(
     mode: LinkMode,
     beaconOnMap: SendChannel<Stamped<Vector2D>>
 ) {

@@ -23,7 +23,7 @@ fun main() {
             mode = Direct,
             odometry = robotOnOdometry,
             command = commandToRobot)
-        startLocateSensor(
+        startBeacon(
             mode = Direct,
             beaconOnMap = beaconOnMap)
         startLocationFilter(
@@ -31,18 +31,18 @@ fun main() {
             beaconOnMap = beaconOnMap,
             robotOnMap = robotOnMap,
             filter = ParticleFilterBuilder.particleFilter {
-                locatorOnRobot = vector2DOf(-0.3, .0)
+                beaconOnRobot = vector2DOf(-0.3, .0)
             }.apply {
                 registerLogger()
                 registerPainter()
             })
-        // launch {
-        //     val topic = ServerManager.me().getOrCreateMessageHandle("fusion", TypeNode(Msg2DOdometry::class.java))
-        //     for ((_, data) in robotOnMap) {
-        //         val (p, d) = data
-        //         topic.pushSubData(Msg2DOdometry(Msg2DPose(p.x, p.y, d.asRadian()), Msg2DTwist()))
-        //     }
-        // }
+//        launch {
+//            val topic = ServerManager.me().getOrCreateMessageHandle("fusion", TypeNode(Msg2DOdometry::class.java))
+//            for ((_, data) in robotOnMap) {
+//                val (p, d) = data
+//                topic.pushSubData(Msg2DOdometry(Msg2DPose(p.x, p.y, d.asRadian()), Msg2DTwist()))
+//            }
+//        }
         await()
     }
 }

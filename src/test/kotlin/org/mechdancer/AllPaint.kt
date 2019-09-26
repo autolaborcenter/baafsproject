@@ -26,7 +26,7 @@ fun main() {
             mode = Direct,
             odometry = robotOnOdometry,
             command = commandToRobot)
-        startLocateSensor(
+        startBeacon(
             mode = Direct,
             beaconOnMap = beaconOnMap)
         startLocationFilter(
@@ -34,7 +34,7 @@ fun main() {
             beaconOnMap = beaconOnMap,
             robotOnMap = robotOnMap,
             filter = particleFilter {
-                locatorOnRobot = vector2DOf(-0.3, .0)
+                beaconOnRobot = vector2DOf(-0.3, .0)
             }.apply {
                 registerLogger()
                 registerPainter()

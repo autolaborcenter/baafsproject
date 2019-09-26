@@ -9,14 +9,14 @@ import org.mechdancer.common.Stamped
 import org.mechdancer.modules.LinkMode.Direct
 import org.mechdancer.modules.await
 import org.mechdancer.modules.channel
-import org.mechdancer.modules.startLocateSensor
+import org.mechdancer.modules.startBeacon
 
 fun main() {
     // 话题
     val beaconOnMap = channel<Stamped<Vector2D>>()
     // 任务
     with(CoroutineScope(Dispatchers.Default)) {
-        startLocateSensor(
+        startBeacon(
             mode = Direct,
             beaconOnMap = beaconOnMap)
         val list = mutableListOf<Vector2D>()

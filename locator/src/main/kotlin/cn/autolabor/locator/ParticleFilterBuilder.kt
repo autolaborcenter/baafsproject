@@ -10,13 +10,13 @@ import kotlin.math.PI
 class ParticleFilterBuilder {
     var count: Int = 128
 
-    var locatorOnRobot: Vector2D = vector2DOfZero()
-    var locatorWeight: Double? = null
+    var beaconOnRobot: Vector2D = vector2DOfZero()
+    var beaconWeight: Double? = null
         get() = field ?: 0.5 * count
 
     var maxInterval: Long = 500L
     var maxInconsistency: Double = 0.2
-    var maxAge: Int = 10
+    var maxAge: Int = 50
 
     var sigma: Double = 0.1 * PI
 
@@ -27,7 +27,7 @@ class ParticleFilterBuilder {
                 .apply(block)
                 .apply {
                     require(count > 1)
-                    require(locatorWeight!! >= 0)
+                    require(beaconWeight!! >= 0)
                     require(maxInterval > 0)
                     require(maxInconsistency > 0)
                     require(maxAge > 0)
@@ -35,8 +35,8 @@ class ParticleFilterBuilder {
                 }
                 .run {
                     ParticleFilter(count = count,
-                                   locatorOnRobot = locatorOnRobot,
-                                   locatorWeight = locatorWeight!!,
+                                   locatorOnRobot = beaconOnRobot,
+                                   locatorWeight = beaconWeight!!,
                                    maxInterval = maxInterval,
                                    maxInconsistency = maxInconsistency,
                                    maxAge = maxAge,

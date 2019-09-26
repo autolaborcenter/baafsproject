@@ -11,18 +11,6 @@ import org.mechdancer.remote.protocol.writeEnd
 import org.mechdancer.remote.resources.Command
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
-import kotlin.concurrent.thread
-
-fun launchBlocking(interval: Long = 0L, block: () -> Any?) =
-    if (interval > 0)
-        thread {
-            while (true) {
-                block()
-                Thread.sleep(interval)
-            }
-        }
-    else
-        thread { while (true) block() }
 
 private object PaintCommand : Command {
     override val id = 6.toByte()

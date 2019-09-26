@@ -3,6 +3,7 @@ package org.mechdancer.simulation
 import cn.autolabor.locator.ParticleFilterBuilder.Companion.particleFilter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
@@ -16,16 +17,16 @@ import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.filters.Differential
 import org.mechdancer.common.toPose
 import org.mechdancer.common.toTransformation
-import org.mechdancer.modules.Default.loggers
 import org.mechdancer.modules.Default.remote
-import org.mechdancer.modules.getLogger
-import org.mechdancer.modules.registerLogger
+import org.mechdancer.modules.channel
 import org.mechdancer.modules.registerPainter
+import org.mechdancer.modules.startLocationFilter
 import org.mechdancer.paint
 import org.mechdancer.simulation.DifferentialOdometry.Key.Left
 import org.mechdancer.simulation.DifferentialOdometry.Key.Right
 import org.mechdancer.simulation.random.Normal
 import org.mechdancer.struct.StructBuilderDSL.Companion.struct
+import java.math.BigDecimal
 import java.text.DecimalFormat
 import kotlin.random.Random
 
@@ -48,7 +49,7 @@ private const val BEACON_OFFSET = -.31
 // 里程计采样率
 private const val ODOMETRY_FREQUENCY = 20L
 // 里程计周期
-private val ODOMETRY_PERIOD = (FREQUENCY / ODOMETRY_FREQUENCY).takeIf { it > 0 } ?: 1L
+private val ODOMETRY_PERIOD = 1000L / ODOMETRY_FREQUENCY
 // 机器人机械结构
 private val robot = struct(Chassis(Stamped(T0, Odometry()))) {
     Encoder(Left) asSub { pose(0, +0.205) }
@@ -69,79 +70,79 @@ private fun locateError(p: Vector2D) =
     p + vector2DOf(Normal.next(.0, LOCATE_SIGMA),
                    Normal.next(.0, LOCATE_SIGMA))
 
-// 位姿增量计算
-private val differential = Differential(robot.what.get(), T0) { _, old, new -> new minusState old }
 // 差动里程计
 private val odometry = DifferentialOdometry(0.4, Stamped(T0, Odometry()))
-// 粒子滤波
-private val particleFilter = particleFilter {
-    locatorOnRobot = vector2DOf(BEACON_OFFSET, 0)
-    maxAge = 100
-}.apply {
-    registerPainter()
-    registerLogger()
-}
 // 仿真
 private val random = newRandomDriving().let { if (SPEED > 0) it power SPEED else it }
+
+// 显示格式
+private val format = DecimalFormat("0.000")
+
+private fun displayOnConsole(vararg entry: Pair<String, Number>) =
+    entry.joinToString(" | ") { (key, value) ->
+        when (value) {
+            is Float, is Double, is BigDecimal -> "$key = ${format.format(value)}"
+            else                               -> "$key = $value"
+        }
+    }.let(::println)
 
 // 差动里程计仿真实验
 @ExperimentalCoroutinesApi
 fun main() = runBlocking {
-    var i = 0L
-
-    var errorSum = .0
-    var errorCount = 0L
-    var errorMemory = .0
-
-    val format = DecimalFormat("0.000")
-
+    // 里程计采样计数
+    var odometryTimes = 0L
+    // 位姿增量计算
+    val differential = Differential(robot.what.get(), T0) { _, old, new -> new minusState old }
+    // 话题
+    val robotOnOdometry = channel<Stamped<Odometry>>()
+    val beaconOnMap = channel<Stamped<Vector2D>>()
+    val robotOnMap = channel<Stamped<Odometry>>()
+    // 任务
+    startLocationFilter(
+        robotOnOdometry = robotOnOdometry,
+        beaconOnMap = beaconOnMap,
+        robotOnMap = robotOnMap,
+        filter = particleFilter {
+            beaconOnRobot = vector2DOf(BEACON_OFFSET, 0)
+        }.apply { registerPainter() })
+    var actual = robot.what.odometry
+    launch {
+        for ((t, pose) in robotOnMap) {
+            remote.paintPose("滤波", pose)
+            if (t == actual.time)
+                displayOnConsole(
+                    "时间" to t / 1000.0,
+                    "误差" to (actual.data.p - pose.p).norm())
+        }
+    }
+    // 运行仿真
     speedSimulation(this, T0, 1000L / FREQUENCY, SPEED) { t ->
         if (t < 10000) velocity(0, .5) else random.next()
     }.consumeEach { (t, v) ->
-        ++i
         //  计算机器人位姿增量
-        val actual = robot.what.drive(v, t).data
-        val delta = differential.update(actual, t).data
+        actual = robot.what.drive(v, t)
+        val delta = differential.update(actual.data, t).data
         // 计算编码器增量
         for ((encoder, p) in encodersOnRobot) encoder.update(p, delta)
         // 计算里程计
         val get = { key: DifferentialOdometry.Key -> encodersOnRobot.keys.single { (k, _) -> k == key }.value }
         val pose = odometry.update(get(Left) to get(Right), t).data
-        // 显示 1
-        remote.paintPose("机器人", actual)
-        remote.paintPose("里程计", pose)
-        loggers.getLogger("机器人").log(actual.p.x, actual.p.y, actual.d.asRadian())
-        loggers.getLogger("里程计").log(pose.p.x, pose.p.y, pose.d.asRadian())
         // 定位采样
         if (Random.nextDouble() < LOCATE_RATE)
-            actual.toTransformation()(beaconOnRobot).to2D()
+            actual.data
+                .toTransformation()(beaconOnRobot)
+                .to2D()
                 .let(::locateError)
                 .also { beacon ->
                     remote.paint(BEACON_TAG, beacon.x, beacon.y)
-                    particleFilter.measureHelper(Stamped(t, beacon))
+                    beaconOnMap.send(Stamped(t, beacon))
                 }
         // 里程计采样
-        val result =
-            particleFilter
-                .takeIf { i % ODOMETRY_PERIOD == 0L }
-                ?.measureMaster(Stamped(t, pose))
-                ?.data
-            ?: return@consumeEach
-        // 统计粒子滤波数据
-        val error = (result.p - actual.p).norm()
-        remote.paintPose("滤波", result)
-        buildString {
-            append("时刻 = ${format.format(t / 1000.0)}, ")
-
-            append("误差 = ${format.format(error)}, ")
-
-            if (t > 10000) {
-                errorSum += error
-                append("平均误差 = ${format.format(errorSum / ++errorCount)}, ")
-            }
-
-            errorMemory = errorMemory * 0.9 + error * 0.1
-            append("近期平均误差 = ${format.format(errorMemory)}")
-        }.let(::println)
+        if (t > odometryTimes * ODOMETRY_PERIOD) {
+            ++odometryTimes
+            robotOnOdometry.send(Stamped(t, pose))
+        }
+        // 显示
+        remote.paintPose("实际", actual.data)
     }
 }
