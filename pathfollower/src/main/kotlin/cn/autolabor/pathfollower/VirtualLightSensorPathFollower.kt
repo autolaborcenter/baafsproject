@@ -10,10 +10,7 @@ import org.mechdancer.geometry.angle.adjust
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.geometry.angle.toVector
 import org.mechdancer.geometry.transformation.Transformation
-import kotlin.math.PI
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.min
+import kotlin.math.*
 
 /**
  * 使用 [sensor] 从路径生成误差信号的循径控制器
@@ -34,9 +31,9 @@ class VirtualLightSensorPathFollower(
             // 存储
             field = value
             pathMarked.clear()
-            for (i in 0 until value.lastIndex) {
-                val v0 = value[i].d.toVector()
-                val v1 = value[i + 1].d.toVector()
+            for (i in 1 until value.size) {
+                val v0 = value[i - 1].d.toVector()
+                val v1 = value[i].d.toVector()
                 pathMarked.add(value[i] to (v0 dot v1))
             }
             pathMarked.add(value.last() to 2.0)
@@ -62,7 +59,7 @@ class VirtualLightSensorPathFollower(
         val (passCount, value) =
             sensor(fromMap, pathMarked.subList(pass, path.size).map(Pair<Odometry, *>::first))
                 .takeUnless { (passCount, _) -> passCount < 0 }
-            ?: return FollowCommand.Error
+                ?: return FollowCommand.Error
         // 判断路径终点
         listOf(sensor.local.last(), pathMarked.last().first)
             .map { fromMap(it.p).norm() }
@@ -70,28 +67,24 @@ class VirtualLightSensorPathFollower(
             .let { if (it) return FollowCommand.Finish }
         // 丢弃通过的路径
         pass += passCount
-        return pathMarked
-            // 利用缓存识别尖点
-            .subList(pass, pass + sensor.local.size)
-            .mapIndexed { i, (_, it) -> it to i }
-            .filter { (it, _) -> it < cos(tipJudge) }
-            .minBy { (it, _) -> it }
-            ?.second
+        val next = pathMarked.subList(pass, min(pass + max(4, sensor.local.size), pathMarked.size))
+        // 利用缓存识别尖点
+        return next.asSequence()
+            .mapIndexed { i, item -> item to i }
+            .minBy { (it, _) -> it.second }
+            ?.takeIf { (it, _) -> it.second < cos(tipJudge) }
             // 处理尖点
-            ?.let { i ->
-                if (i > 0) i
+            ?.let { (item, i) ->
+                if (i < sensor.local.size) i
                 else {
-                    val target = sensor.local.let { it[min(3, it.lastIndex)] }.d.asRadian()
-                    val current = -fromMap.toPose().d.asRadian()
+                    val target = item.first.d.asRadian()
+                    val current = (-fromMap).toPose().d.asRadian()
                     val delta = (target - current).toRad().adjust().asRadian()
-                    if (abs(delta) > tipJudge / 2) {
-                        pass += 1
-                        return Turn(delta)
-                    }
+                    if (abs(delta) > tipJudge / 2) return Turn(delta)
                     null
                 }
             }
-            ?.let { sensor(fromMap, sensor.local.subList(0, it + 1)) }
+            ?.let { sensor(fromMap, sensor.local.subList(0, it)) }
             ?.second
             .let { Follow(0.1, controller(input = it ?: value)) }
     }

@@ -60,7 +60,7 @@ class VirtualLightSensor(
         val sensorToMap = -sensorFromMap
         this.local = local.map { sensorToMap.invoke(it) }
         // 处理路径丢失情况
-        if (local.size < 2) return -1 to .0
+        if (local.isEmpty()) return -1 to .0
         // 传感器栅格化
         val shape = lightRange.vertex
         // 离局部路径终点最近的点序号
