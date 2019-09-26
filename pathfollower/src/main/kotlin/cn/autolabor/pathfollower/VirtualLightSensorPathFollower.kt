@@ -3,13 +3,10 @@ package cn.autolabor.pathfollower
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.Follow
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.Turn
 import org.mechdancer.algebra.function.vector.dot
-import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
-import org.mechdancer.algebra.implement.vector.to2D
-import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Odometry
+import org.mechdancer.common.toPose
 import org.mechdancer.geometry.angle.adjust
-import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.geometry.angle.toVector
 import org.mechdancer.geometry.transformation.Transformation
@@ -82,20 +79,13 @@ class VirtualLightSensorPathFollower(
             ?.second
             // 处理尖点
             ?.let { i ->
-                if (i >= 2) i
+                if (i > 0) i
                 else {
-                    val target =
-                        sensor.local
-                            .let { (it[min(i + 3, it.lastIndex)].p - it[i].p) }
-                            .toAngle().asRadian()
-                    val current =
-                        -fromMap
-                            .invokeLinear(vector2DOf(1, 0))
-                            .to2D()
-                            .toAngle().asRadian()
+                    val target = sensor.local.let { it[min(3, it.lastIndex)] }.d.asRadian()
+                    val current = -fromMap.toPose().d.asRadian()
                     val delta = (target - current).toRad().adjust().asRadian()
                     if (abs(delta) > tipJudge / 2) {
-                        pass += i
+                        pass += 1
                         return Turn(delta)
                     }
                     null

@@ -6,14 +6,12 @@ import org.mechdancer.Temporary.Operation.INLINE
 import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.minus
-import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.function.vector.normalize
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.invoke
 import org.mechdancer.geometry.angle.toVector
-import org.mechdancer.geometry.angle.unaryMinus
 import org.mechdancer.geometry.transformation.Transformation
 
 /** 位于 [robotToSensor] 位置处具有 [lightRange] 形状的虚拟光感 */
@@ -80,20 +78,10 @@ class VirtualLightSensor(
     private companion object {
         // 查找与边缘交点
         fun List<Vector2D>.indexNear(pose: Odometry, reverse: Boolean): Int {
-            val (p, d) = pose.copy(d = if (reverse) -pose.d else pose.d)
+            val (p, d) = pose
             val references = mapIndexed { i, item -> i to item - p }
-            return references
-                       .asSequence()
-                       .mapNotNull { (i, v) ->
-                           v.norm()
-                               .takeIf { it < 0.1 }
-                               ?.let { i to it }
-                       }
-                       .minBy { (_, distance) -> distance }
-                       ?.first
-                   ?: references
-                       .maxBy { (_, v) -> (v.normalize() dot d.toVector()) }!!
-                       .first
+            return if (reverse) references.minBy { (_, v) -> v.normalize() dot d.toVector() }!!.first
+            else references.maxBy { (_, v) -> v.normalize() dot d.toVector() }!!.first
         }
     }
 }

@@ -7,7 +7,6 @@ import kotlinx.coroutines.channels.Channel
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.modules.await
 import org.mechdancer.modules.devices.Chassis.PM1Chassis
-import org.mechdancer.modules.startObstacleAvoiding
 import org.mechdancer.modules.startPathFollower
 
 @ExperimentalCoroutinesApi
@@ -21,9 +20,9 @@ fun main() {
     // 任务
     scope.startPathFollower(
         robotOnMap = chassis.robotPose,
-        commandOut = commandToObstacle)
-    scope.startObstacleAvoiding(
-        commandIn = commandToObstacle,
         commandOut = chassis.twistCommand)
+//    scope.startObstacleAvoiding(
+//        commandIn = commandToObstacle,
+//        commandOut = chassis.twistCommand)
     scope.await()
 }
