@@ -55,9 +55,10 @@ class VirtualLightSensorPathFollower(
     }
 
     operator fun invoke(fromMap: Transformation): FollowCommand {
+        val limit = if (pass == 0) path.size else min(pass + 40, path.size)
         // 第一次调用传感器
         val (passCount, value) =
-            sensor(fromMap, pathMarked.subList(pass, path.size).map(Pair<Odometry, *>::first))
+            sensor(fromMap, pathMarked.subList(pass, limit).map(Pair<Odometry, *>::first))
                 .takeUnless { (passCount, _) -> passCount < 0 }
                 ?: return FollowCommand.Error
         // 判断路径终点
@@ -75,7 +76,7 @@ class VirtualLightSensorPathFollower(
             ?.takeIf { (it, _) -> it.second < cos(tipJudge) }
             // 处理尖点
             ?.let { (item, i) ->
-                if (i < sensor.local.size) i
+                if (i < sensor.local.lastIndex) i
                 else {
                     val target = item.first.d.asRadian()
                     val current = (-fromMap).toPose().d.asRadian()
