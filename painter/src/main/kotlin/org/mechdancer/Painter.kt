@@ -86,6 +86,19 @@ fun RemoteHub.paint(
     }
 }
 
+/** 画位姿信号 */
+fun RemoteHub.paintPose(
+    topic: String,
+    pose: Odometry
+) = paint(topic) {
+    DataOutputStream(this).apply {
+        writeByte(3)
+        writeDouble(pose.p.x)
+        writeDouble(pose.p.y)
+        writeDouble(pose.d.asRadian())
+    }
+}
+
 /**
  * 画单帧一维信号
  */

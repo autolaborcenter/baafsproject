@@ -68,7 +68,7 @@ class VirtualLightSensor(
         val index1 = shape.indexNear(local.first(), true)
             .let { if (it < index0) it + shape.size else it }
         // 确定填色区域
-        val area = Shape(local.map { it.p } + List(index1 - index0) { i -> shape[(index0 + i) % shape.size] })
+        val area = Shape(local.map { it.p } + List(index1 - index0 + 1) { i -> shape[(index0 + i) % shape.size] })
         @Temporary(DELETE)
         areaShape = area.vertex.map(sensorToMap::invoke).map(Vector::to2D)
         // 计算误差

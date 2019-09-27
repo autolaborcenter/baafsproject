@@ -22,12 +22,11 @@ import org.mechdancer.modules.channel
 import org.mechdancer.modules.registerPainter
 import org.mechdancer.modules.startLocationFilter
 import org.mechdancer.paint
+import org.mechdancer.paintPose
 import org.mechdancer.simulation.DifferentialOdometry.Key.Left
 import org.mechdancer.simulation.DifferentialOdometry.Key.Right
 import org.mechdancer.simulation.random.Normal
 import org.mechdancer.struct.StructBuilderDSL.Companion.struct
-import java.math.BigDecimal
-import java.text.DecimalFormat
 import kotlin.random.Random
 
 // 起始时刻
@@ -74,17 +73,6 @@ private fun locateError(p: Vector2D) =
 private val odometry = DifferentialOdometry(0.4, Stamped(T0, Odometry()))
 // 仿真
 private val random = newRandomDriving().let { if (SPEED > 0) it power SPEED else it }
-
-// 显示格式
-private val format = DecimalFormat("0.000")
-
-private fun displayOnConsole(vararg entry: Pair<String, Number>) =
-    entry.joinToString(" | ") { (key, value) ->
-        when (value) {
-            is Float, is Double, is BigDecimal -> "$key = ${format.format(value)}"
-            else                               -> "$key = $value"
-        }
-    }.let(::println)
 
 // 差动里程计仿真实验
 @ExperimentalCoroutinesApi

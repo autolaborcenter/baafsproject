@@ -5,12 +5,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.delay
-import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
-import org.mechdancer.paint
-import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.simulation.prefabs.OneStepTransferRandomDrivingBuilderDSL.Companion.oneStepTransferRandomDriving
-import java.io.DataOutputStream
+import java.math.BigDecimal
+import java.text.DecimalFormat
 import kotlin.system.measureTimeMillis
 
 /** 构造新随机行驶驱动器 */
@@ -58,15 +56,13 @@ fun <T> speedSimulation(
         }
     }
 
-/** 画位姿信号 */
-fun RemoteHub.paintPose(
-    topic: String,
-    pose: Odometry
-) = paint(topic) {
-    DataOutputStream(this).apply {
-        writeByte(3)
-        writeDouble(pose.p.x)
-        writeDouble(pose.p.y)
-        writeDouble(pose.d.asRadian())
-    }
-}
+// 显示格式
+private val format = DecimalFormat("0.000")
+
+fun displayOnConsole(vararg entry: Pair<String, Number>) =
+    entry.joinToString(" | ") { (key, value) ->
+        when (value) {
+            is Float, is Double, is BigDecimal -> "$key = ${format.format(value)}"
+            else                               -> "$key = $value"
+        }
+    }.let(::println)

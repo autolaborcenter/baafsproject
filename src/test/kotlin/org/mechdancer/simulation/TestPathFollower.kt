@@ -14,9 +14,8 @@ import org.mechdancer.modules.Default.remote
 import org.mechdancer.modules.await
 import org.mechdancer.modules.channel
 import org.mechdancer.modules.startPathFollower
+import org.mechdancer.paintPose
 import org.mechdancer.struct.StructBuilderDSL.Companion.struct
-import java.math.BigDecimal
-import java.text.DecimalFormat
 import java.util.concurrent.atomic.AtomicReference
 
 // 起始时刻
@@ -31,17 +30,6 @@ private const val ODOMETRY_FREQUENCY = 20L
 private const val ODOMETRY_PERIOD = 1000L / ODOMETRY_FREQUENCY
 // 机器人机械结构
 private val robot = struct(Chassis(Stamped(T0, Odometry())))
-
-// 显示格式
-private val format = DecimalFormat("0.000")
-
-private fun displayOnConsole(vararg entry: Pair<String, Number>) =
-    entry.joinToString(" | ") { (key, value) ->
-        when (value) {
-            is Float, is Double, is BigDecimal -> "$key = ${format.format(value)}"
-            else                               -> "$key = $value"
-        }
-    }.let(::println)
 
 // 差动里程计仿真实验
 @ExperimentalCoroutinesApi
