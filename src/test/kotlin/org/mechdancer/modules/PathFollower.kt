@@ -92,8 +92,10 @@ fun CoroutineScope.startPathFollower(
             "path cleared"
         }
         this["show"] = {
-            path.get().let { "path count = ${it.size}\n${it.joinToString("\n")}" }
-            remote?.paintPoses("路径", path.get())
+            with(path.get()) {
+                remote?.paintPoses("路径", this)
+                "path count = ${size}\n${joinToString("\n")}"
+            }
         }
 
         this["save"] = { path.saveTo(file); "${path.size} nodes saved" }
