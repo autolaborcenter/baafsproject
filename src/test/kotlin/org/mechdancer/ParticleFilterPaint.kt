@@ -3,6 +3,7 @@ package org.mechdancer
 import cn.autolabor.locator.ParticleFilterBuilder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Odometry
@@ -11,6 +12,7 @@ import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.modules.*
 import org.mechdancer.modules.LinkMode.Direct
 
+@ExperimentalCoroutinesApi
 fun main() {
     // 话题
     val robotOnOdometry = channel<Stamped<Odometry>>()

@@ -29,12 +29,12 @@ fun CoroutineScope.startChassis(
     command: ReceiveChannel<NonOmnidirectional>
 ) {
     when (mode) {
-        Direct -> {
+        Direct    -> {
             PM1.initialize()
             PM1.locked = false
             launch {
                 while (isActive) {
-                    val (_, _, _, x, y, theta) = PM1.odometry
+                    val (x, y, theta) = PM1.odometry
                     odometry.send(stamp(Odometry.odometry(x, y, theta)))
                     delay(30L)
                 }
@@ -45,6 +45,7 @@ fun CoroutineScope.startChassis(
                 val i = AtomicLong()
                 for ((v, w) in command) {
                     PM1.drive(v, w)
+                    // 取得底盘控制权，但 1 秒无指令则交出控制权
                     launch {
                         PM1.setCommandEnabled(true)
                         val mark = i.incrementAndGet()
@@ -59,24 +60,20 @@ fun CoroutineScope.startChassis(
                 getOrCreateMessageHandle(
                     getConfig("PM1Task", "odometryTopic") as? String ?: "odometry",
                     TypeNode(Msg2DOdometry::class.java)
-                )
-                    .addCallback(
-                        LambdaFunWithName(
-                            "odometry_handel",
-                            object : TaskLambdaFun01<Msg2DOdometry> {
-                                override fun run(p0: Msg2DOdometry?) {
-                                    val data = p0?.pose ?: return
-                                    launch {
-                                        odometry.send(
-                                            Stamped(
-                                                p0.header.stamp,
-                                                Odometry.odometry(data.x, data.y, data.yaw)
-                                            )
-                                        )
-                                    }
+                ).addCallback(
+                    LambdaFunWithName(
+                        "odometry_handel",
+                        object : TaskLambdaFun01<Msg2DOdometry> {
+                            override fun run(p0: Msg2DOdometry?) {
+                                val data = p0?.pose ?: return
+                                launch {
+                                    odometry.send(
+                                        Stamped(p0.header.stamp,
+                                                Odometry.odometry(data.x, data.y, data.yaw)))
                                 }
-                            })
-                    )
+                            }
+                        })
+                )
                 launch {
                     val cmdvel = getOrCreateMessageHandle(
                         getConfig("PM1Task", "cmdvelTopic") as? String ?: "cmdvel",

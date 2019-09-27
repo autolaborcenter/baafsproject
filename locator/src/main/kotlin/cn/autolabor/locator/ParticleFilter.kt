@@ -142,7 +142,6 @@ class ParticleFilter(private val count: Int,
                     val angle = eAngle.asRadian()
                     // 计算方向标准差，对偏差较大的粒子进行随机方向的重采样
                     particles = particles.mapIndexed { i, item ->
-                        val age = item.second
                         if ((locators[i].first.p - measure).norm() > 0.05) {
                             val newAge = item.second - 2
                             if (newAge < 0) {
