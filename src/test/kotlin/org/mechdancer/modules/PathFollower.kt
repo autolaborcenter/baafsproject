@@ -107,28 +107,19 @@ fun CoroutineScope.startPathFollower(
         }
         this["delete"] = { file.writeText(""); "path save deleted" }
 
-        // 旋转
-        val rotate: suspend (Double) -> Unit = { angle: Double ->
-            val w = angle.sign * PI / 10
-            val delta = abs(angle)
-            launch {
-                val d0 = robotOnMap.receive().data.d
-                while (true) {
-                    if (enabled) commandOut.send(velocity(.0, w))
-                    val (_, d) = robotOnMap.receive().data
-                    if (abs(d.asRadian() - d0.asRadian()) > delta) break
-                }
-            }
-        }
         this["init"] = {
             when (mode) {
                 Record      -> "Is Recording now."
                 Mode.Follow -> "Is Following now."
                 Idle        -> {
                     launch {
-                        rotate(-PI / 2)
-                        rotate(+PI)
-                        rotate(-PI / 2)
+                        val t0 = System.currentTimeMillis()
+                        while (System.currentTimeMillis() - t0 < 5)
+                            if (enabled) commandOut.send(velocity(.0, +PI / 10))
+                        while (System.currentTimeMillis() - t0 < 15)
+                            if (enabled) commandOut.send(velocity(.0, -PI / 10))
+                        while (System.currentTimeMillis() - t0 < 20)
+                            if (enabled) commandOut.send(velocity(.0, +PI / 10))
                     }
                     "Ok."
                 }
@@ -159,7 +150,14 @@ fun CoroutineScope.startPathFollower(
                                                     val (angle) = command
                                                     if (enabled) commandOut.send(velocity(.0, .0))
                                                     delay(200L)
-                                                    rotate(angle)
+                                                    val w = angle.sign * PI / 10
+                                                    val delta = abs(angle)
+                                                    val d0 = robotOnMap.receive().data.d
+                                                    while (true) {
+                                                        if (enabled) commandOut.send(velocity(.0, w))
+                                                        val (_, d) = robotOnMap.receive().data
+                                                        if (abs(d.asRadian() - d0.asRadian()) > delta) break
+                                                    }
                                                 }
                                                 is Error  -> Unit
                                                 is Finish -> mode = Idle
