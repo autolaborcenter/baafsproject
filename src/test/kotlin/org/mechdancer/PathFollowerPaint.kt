@@ -7,11 +7,10 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.modules.*
-import org.mechdancer.modules.LinkMode.Direct
 
 @ExperimentalCoroutinesApi
 fun main() {
-    val mode = Direct
+    val mode = LinkMode.Framework
     // 话题
     val robotOnMap = channel<Stamped<Odometry>>()
     val commandToObstacle = channel<NonOmnidirectional>()

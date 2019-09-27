@@ -26,11 +26,11 @@ fun CoroutineScope.startObstacleAvoiding(
     commandIn: ReceiveChannel<NonOmnidirectional>,
     commandOut: SendChannel<NonOmnidirectional>
 ) {
+    ServerManager.me().loadConfig("conf/obstacle.conf")
     if (mode == Direct) {
-        ServerManager.me().loadConfig("conf/obstacle.conf")
         ServerManager.me().register(FaselaseTask("FaselaseTaskFront"))
+        ServerManager.me().register(LaserFilterTask("LaserFilterFront"))
     }
-    ServerManager.me().register(LaserFilterTask("LaserFilterFront"))
     ServerManager.me().register(ObstacleDetectionTask("ObstacleDetectionTask"))
     ServerManager.me().register(PoseDetectionTask("PoseDetectionTask"))
     ServerManager.me().register(FilterTwistTask("FilterTwistTask"))

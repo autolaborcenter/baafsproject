@@ -6,6 +6,7 @@ import cn.autolabor.core.server.message.MessageHandle;
 import cn.autolabor.message.navigation.Msg2DOdometry;
 import cn.autolabor.message.navigation.Msg2DPose;
 import cn.autolabor.message.navigation.Msg2DTwist;
+import org.mechdancer.SimpleLogger;
 
 @TaskProperties
 public class FilterTwistTask extends AbstractTask {
@@ -20,6 +21,7 @@ public class FilterTwistTask extends AbstractTask {
     private boolean smartChoice;
 
     private int count = 0;
+    private SimpleLogger logger = new SimpleLogger("速度过滤日志");
 
     @InjectMessage(topic = "${cmdTopicOutput}")
     private MessageHandle<Msg2DOdometry> twistOutHandle;
@@ -44,11 +46,16 @@ public class FilterTwistTask extends AbstractTask {
         if (poseDetectionTask != null) {
             Msg2DTwist twist = smartChoice ? poseDetectionTask.smartChoiceTwist(msg.getTwist()) : poseDetectionTask.choiceTwist(msg.getTwist(), true);
             count = twist == null ? 0 : count + 1;
-            twistOutHandle.pushSubData(
-                new Msg2DOdometry(new Msg2DPose(0, 0, 0),
+            Msg2DOdometry out = new Msg2DOdometry(new Msg2DPose(0, 0, 0),
                     count < tryCount
-                        ? new Msg2DTwist(0, 0, 0)
-                        : twist));
+                            ? new Msg2DTwist(0, 0, 0)
+                            : twist);
+            logger.log(String.format("count : %2d  result : %-5s | in -> v : %-5.4f, w : %-5.4f | out -> v : %-5.4f, w : %-5.4f |",
+                    count,
+                    count < tryCount ? "stop" : "run ",
+                    msg.getTwist().getX(), msg.getTwist().getYaw(),
+                    out.getTwist().getX(), out.getTwist().getYaw()));
+            twistOutHandle.pushSubData(out);
         }
     }
 }
