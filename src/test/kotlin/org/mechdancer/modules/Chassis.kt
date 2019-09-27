@@ -20,6 +20,7 @@ import org.mechdancer.common.Stamped.Companion.stamp
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.modules.LinkMode.Direct
 import org.mechdancer.modules.LinkMode.Framework
+import java.util.concurrent.atomic.AtomicLong
 
 /** 以 [mode] 模式启动底盘 */
 fun CoroutineScope.startChassis(
@@ -28,9 +29,8 @@ fun CoroutineScope.startChassis(
     command: ReceiveChannel<NonOmnidirectional>
 ) {
     when (mode) {
-        Direct    -> {
+        Direct -> {
             PM1.initialize()
-            PM1.setCommandEnabled(false)
             PM1.locked = false
             launch {
                 while (isActive) {
@@ -40,27 +40,48 @@ fun CoroutineScope.startChassis(
                 }
                 odometry.close()
             }
-            launch { for ((v, w) in command) PM1.drive(v, w) }
+            launch {
+                PM1.setCommandEnabled(false)
+                val i = AtomicLong()
+                for ((v, w) in command) {
+                    PM1.drive(v, w)
+                    launch {
+                        PM1.setCommandEnabled(true)
+                        val mark = i.incrementAndGet()
+                        delay(1000L)
+                        if (i.get() == mark) PM1.setCommandEnabled(false)
+                    }
+                }
+            }
         }
         Framework -> {
             with(ServerManager.me()) {
                 getOrCreateMessageHandle(
                     getConfig("PM1Task", "odometryTopic") as? String ?: "odometry",
-                    TypeNode(Msg2DOdometry::class.java))
-                    .addCallback(LambdaFunWithName(
-                        "odometry_handel",
-                        object : TaskLambdaFun01<Msg2DOdometry> {
-                            override fun run(p0: Msg2DOdometry?) {
-                                val data = p0?.pose ?: return
-                                launch {
-                                    odometry.send(Stamped(p0.header.stamp, Odometry.odometry(data.x, data.y, data.yaw)))
+                    TypeNode(Msg2DOdometry::class.java)
+                )
+                    .addCallback(
+                        LambdaFunWithName(
+                            "odometry_handel",
+                            object : TaskLambdaFun01<Msg2DOdometry> {
+                                override fun run(p0: Msg2DOdometry?) {
+                                    val data = p0?.pose ?: return
+                                    launch {
+                                        odometry.send(
+                                            Stamped(
+                                                p0.header.stamp,
+                                                Odometry.odometry(data.x, data.y, data.yaw)
+                                            )
+                                        )
+                                    }
                                 }
-                            }
-                        }))
+                            })
+                    )
                 launch {
                     val cmdvel = getOrCreateMessageHandle(
                         getConfig("PM1Task", "cmdvelTopic") as? String ?: "cmdvel",
-                        TypeNode(Msg2DOdometry::class.java))
+                        TypeNode(Msg2DOdometry::class.java)
+                    )
                     for ((v, w) in command) cmdvel.pushSubData(Msg2DOdometry(Msg2DPose(), Msg2DTwist(v, .0, w)))
                 }
             }
