@@ -5,6 +5,7 @@ import cn.autolabor.message.navigation.Msg2DOdometry
 import cn.autolabor.message.navigation.Msg2DPose
 import cn.autolabor.message.navigation.Msg2DTwist
 import cn.autolabor.pm1.sdk.PM1
+import cn.autolabor.pm1.sdk.PM1.ParameterId.*
 import cn.autolabor.util.lambda.LambdaFunWithName
 import cn.autolabor.util.lambda.function.TaskLambdaFun01
 import cn.autolabor.util.reflect.TypeNode
@@ -32,6 +33,10 @@ fun CoroutineScope.startChassis(
         Direct    -> {
             PM1.initialize()
             PM1.locked = false
+            PM1[LeftRadius] = 0.1
+            PM1[RightRadius] = 0.1
+            PM1[Width] = 0.444
+            PM1[Length] = 0.34
             launch {
                 while (isActive) {
                     val (x, y, theta) = PM1.odometry
