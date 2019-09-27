@@ -76,7 +76,6 @@ class VirtualLightSensorPathFollower(
             .firstOrNull { (it, _) -> it.second < cos(tipJudge) }
             // 处理尖点
             ?.let { (item, i) ->
-                println(i)
                 when {
                     i in 1..4 -> {
                         val target = item.first.d.asRadian()

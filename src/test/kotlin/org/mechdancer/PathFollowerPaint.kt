@@ -11,6 +11,7 @@ import org.mechdancer.modules.LinkMode.Direct
 
 @ExperimentalCoroutinesApi
 fun main() {
+    val mode = Direct
     // 话题
     val robotOnMap = channel<Stamped<Odometry>>()
     val commandToObstacle = channel<NonOmnidirectional>()
@@ -18,13 +19,14 @@ fun main() {
     // 任务
     with(CoroutineScope(Dispatchers.Default)) {
         startChassis(
-            mode = Direct,
+            mode = mode,
             odometry = robotOnMap,
             command = commandToRobot)
         startPathFollower(
             robotOnMap = robotOnMap,
             commandOut = commandToObstacle)
         startObstacleAvoiding(
+            mode = mode,
             commandIn = commandToObstacle,
             commandOut = commandToRobot)
         await()

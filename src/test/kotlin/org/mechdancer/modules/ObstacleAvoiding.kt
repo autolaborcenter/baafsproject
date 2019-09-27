@@ -1,5 +1,10 @@
 package org.mechdancer.modules
 
+import cn.autolabor.FilterTwistTask
+import cn.autolabor.ObstacleDetectionTask
+import cn.autolabor.PoseDetectionTask
+import cn.autolabor.baafs.FaselaseTask
+import cn.autolabor.baafs.LaserFilterTask
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.message.navigation.Msg2DOdometry
 import cn.autolabor.message.navigation.Msg2DTwist
@@ -13,13 +18,23 @@ import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
 import org.mechdancer.common.Velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.modules.LinkMode.Direct
 
 @ExperimentalCoroutinesApi
 fun CoroutineScope.startObstacleAvoiding(
+    mode: LinkMode,
     commandIn: ReceiveChannel<NonOmnidirectional>,
     commandOut: SendChannel<NonOmnidirectional>
 ) {
-    obstacleDetecting()
+    if (mode == Direct) {
+        ServerManager.me().loadConfig("conf/obstacle.conf")
+        ServerManager.me().register(FaselaseTask("FaselaseTaskFront"))
+    }
+    ServerManager.me().register(LaserFilterTask("LaserFilterFront"))
+    ServerManager.me().register(ObstacleDetectionTask("ObstacleDetectionTask"))
+    ServerManager.me().register(PoseDetectionTask("PoseDetectionTask"))
+    ServerManager.me().register(FilterTwistTask("FilterTwistTask"))
+    ServerManager.me().dump()
     launch {
         val toObstacleTopic =
             ServerManager.me().getOrCreateMessageHandle("cmdvel_in", TypeNode(Msg2DOdometry::class.java))
