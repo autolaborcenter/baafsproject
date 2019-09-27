@@ -5,12 +5,9 @@ import cn.autolabor.pathfollower.VirtualLightSensor
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.*
 import cn.autolabor.pathmaneger.PathManager
-import cn.autolabor.pm1.sdk.PM1
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
-import org.mechdancer.algebra.function.vector.minus
-import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
@@ -24,11 +21,10 @@ import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.geometry.transformation.Transformation
 import org.mechdancer.modules.Mode.Idle
 import org.mechdancer.modules.Mode.Record
-import org.mechdancer.paintFrame2
+import org.mechdancer.paintFrame3
 import org.mechdancer.paintPoses
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.RemoteHub
-import org.mechdancer.simulation.paintPose
 import java.io.File
 import kotlin.math.PI
 import kotlin.math.abs
@@ -45,8 +41,8 @@ private enum class Mode {
  * 循径模块
  *
  * 包含任务控制、路径管理、控制台解析、循径任务；
- * PM1 驱动启动后才能正常运行；
  */
+@ExperimentalCoroutinesApi
 fun CoroutineScope.startPathFollower(
     robotOnMap: ReceiveChannel<Stamped<Odometry>>,
     commandOut: SendChannel<NonOmnidirectional>,
@@ -70,9 +66,9 @@ fun CoroutineScope.startPathFollower(
                 Idle        -> {
                     mode = Record
                     launch {
-                        while (isActive && mode == Record) {
-                            val (_, current) = robotOnMap.receive()
-                            if (path.record(current)) remote?.paintPose("路径", current)
+                        for ((_, current) in robotOnMap) {
+                            if (mode != Record) break
+                            path.record(current)
                         }
                     }
                     "Recording"
@@ -92,11 +88,12 @@ fun CoroutineScope.startPathFollower(
         this["clear"] = {
             mode = Idle
             path.clear()
-            remote?.paintFrame2("path", emptyList())
+            remote?.paintFrame3("path", emptyList())
             "path cleared"
         }
         this["show"] = {
             path.get().let { "path count = ${it.size}\n${it.joinToString("\n")}" }
+            remote?.paintPoses("路径", path.get())
         }
 
         this["save"] = { path.saveTo(file); "${path.size} nodes saved" }
@@ -124,7 +121,7 @@ fun CoroutineScope.startPathFollower(
                                     when (command) {
                                         is Follow -> {
                                             val (v, w) = command
-                                            commandOut.send(velocity(v, w))
+                                            if (enabled) commandOut.send(velocity(v, w))
                                         }
                                         else      -> {
                                             println(command)
@@ -132,20 +129,14 @@ fun CoroutineScope.startPathFollower(
                                                 is Turn   -> {
                                                     val (angle) = command
                                                     println("turn $angle rad")
-                                                    commandOut.send(velocity(.0, .0))
+                                                    if (enabled) commandOut.send(velocity(.0, .0))
                                                     delay(200L)
-                                                    val (p0, d0) = robotOnMap.receive().data
-                                                    // 前进 2.5cm 补不足
-                                                    while (true) {
-                                                        commandOut.send(velocity(.1, .0))
-                                                        val (p, _) = robotOnMap.receive().data
-                                                        if ((p - p0).norm() > 0.025) break
-                                                    }
+                                                    val d0 = robotOnMap.receive().data.d
                                                     // 旋转
                                                     val w = angle.sign * PI / 10
                                                     val delta = abs(angle)
                                                     while (true) {
-                                                        commandOut.send(velocity(.0, w))
+                                                        if (enabled) commandOut.send(velocity(.0, w))
                                                         val (_, d) = robotOnMap.receive().data
                                                         if (abs(d.asRadian() - d0.asRadian()) > delta) break
                                                     }
@@ -156,13 +147,11 @@ fun CoroutineScope.startPathFollower(
                                         }
                                     }
                                 }
+                            enabled = mode == Mode.Follow
+                            if (!enabled) commandOut.send(velocity(.0, .0))
                             remote?.run {
                                 val shape = follower.sensor.areaShape
                                 paintVectors("传感器", shape + shape.first())
-                            }
-                            if (mode != Mode.Follow) {
-                                enabled = false
-                                PM1.runCatching { setCommandEnabled(false) }
                             }
                         }
                     }
@@ -172,7 +161,6 @@ fun CoroutineScope.startPathFollower(
         }
         this["\'"] = {
             enabled = !enabled
-            PM1.runCatching { setCommandEnabled(enabled) }
             if (enabled) "!" else "?"
         }
 
@@ -181,9 +169,8 @@ fun CoroutineScope.startPathFollower(
     }
 
     /** 从控制台阻塞解析 */
-
     launch {
-        while (isActive)
+        while (!robotOnMap.isClosedForReceive)
             withContext(coroutineContext) { readLine() }
                 ?.let(parser::invoke)
                 ?.map(::feedback)

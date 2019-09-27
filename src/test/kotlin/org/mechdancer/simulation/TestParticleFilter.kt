@@ -49,7 +49,7 @@ private const val BEACON_OFFSET = -.31
 // 里程计采样率
 private const val ODOMETRY_FREQUENCY = 20L
 // 里程计周期
-private val ODOMETRY_PERIOD = 1000L / ODOMETRY_FREQUENCY
+private const val ODOMETRY_PERIOD = 1000L / ODOMETRY_FREQUENCY
 // 机器人机械结构
 private val robot = struct(Chassis(Stamped(T0, Odometry()))) {
     Encoder(Left) asSub { pose(0, +0.205) }
