@@ -24,6 +24,7 @@ class VirtualLightSensorPathFollower(
 ) {
     private var pass = 0
     private val pathMarked = mutableListOf<Pair<Odometry, Double>>()
+    private var pre = .0
 
     /** 读写工作路径 */
     var path = listOf<Odometry>()
@@ -60,7 +61,7 @@ class VirtualLightSensorPathFollower(
         val (passCount, value) =
             sensor(fromMap, pathMarked.subList(pass, limit).map(Pair<Odometry, *>::first))
                 .takeUnless { (passCount, _) -> passCount < 0 }
-                ?: return FollowCommand.Error
+            ?: return if (abs(pre) > tipJudge / 2) Turn(pre) else FollowCommand.Error
         // 判断路径终点
         listOf(sensor.local.last(), pathMarked.last().first)
             .map { fromMap(it.p).norm() }
@@ -72,17 +73,31 @@ class VirtualLightSensorPathFollower(
         // 利用缓存识别尖点
         return next.asSequence()
             .mapIndexed { i, item -> item to i }
-            .minBy { (it, _) -> it.second }
-            ?.takeIf { (it, _) -> it.second < cos(tipJudge) }
+            .firstOrNull { (it, _) -> it.second < cos(tipJudge) }
             // 处理尖点
             ?.let { (item, i) ->
-                if (i < sensor.local.lastIndex) i
-                else {
-                    val target = item.first.d.asRadian()
-                    val current = (-fromMap).toPose().d.asRadian()
-                    val delta = (target - current).toRad().adjust().asRadian()
-                    if (abs(delta) > tipJudge / 2) return Turn(delta)
-                    null
+                println(i)
+                when {
+                    i in 1..4 -> {
+                        val target = item.first.d.asRadian()
+                        val current = (-fromMap).toPose().d.asRadian()
+                        pre = (target - current).toRad().adjust().asRadian()
+                        i
+                    }
+                    i > 4     -> {
+                        pre = .0
+                        i
+                    }
+                    else      -> {
+                        val target = item.first.d.asRadian()
+                        val current = (-fromMap).toPose().d.asRadian()
+                        val delta = (target - current).toRad().adjust().asRadian()
+                        if (abs(delta) > tipJudge / 2) {
+                            pass += i
+                            return Turn(delta)
+                        }
+                        null
+                    }
                 }
             }
             ?.let { sensor(fromMap, sensor.local.subList(0, it)) }

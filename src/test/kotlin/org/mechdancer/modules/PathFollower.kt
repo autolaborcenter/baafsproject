@@ -53,8 +53,8 @@ fun CoroutineScope.startPathFollower(
     val follower =
         VirtualLightSensorPathFollower(
             VirtualLightSensor(
-                -Transformation.fromPose(vector2DOf(0.55, 0.0), 0.toRad()),
-                Circle(radius = 0.6, vertexCount = 64)))
+                -Transformation.fromPose(vector2DOf(0.28, 0.0), 0.toRad()),
+                Circle(radius = 0.3, vertexCount = 64)))
 
     var mode = Idle
     var enabled = false
@@ -128,7 +128,6 @@ fun CoroutineScope.startPathFollower(
                                             when (command) {
                                                 is Turn   -> {
                                                     val (angle) = command
-                                                    println("turn $angle rad")
                                                     if (enabled) commandOut.send(velocity(.0, .0))
                                                     delay(200L)
                                                     val d0 = robotOnMap.receive().data.d
@@ -147,7 +146,7 @@ fun CoroutineScope.startPathFollower(
                                         }
                                     }
                                 }
-                            enabled = mode == Mode.Follow
+                            if (mode != Mode.Follow) enabled = false
                             if (!enabled) commandOut.send(velocity(.0, .0))
                             remote?.run {
                                 val shape = follower.sensor.areaShape
