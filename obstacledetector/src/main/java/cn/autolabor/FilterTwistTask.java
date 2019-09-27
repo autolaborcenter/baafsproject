@@ -6,6 +6,7 @@ import cn.autolabor.core.server.message.MessageHandle;
 import cn.autolabor.message.navigation.Msg2DOdometry;
 import cn.autolabor.message.navigation.Msg2DPose;
 import cn.autolabor.message.navigation.Msg2DTwist;
+import cn.autolabor.message.sensor.MsgLidar;
 import org.mechdancer.SimpleLogger;
 
 @TaskProperties
@@ -19,12 +20,19 @@ public class FilterTwistTask extends AbstractTask {
     private int tryCount;
     @TaskParameter(name = "smartChoice", value = "false")
     private boolean smartChoice;
+    @TaskParameter(name = "lidarTimeout", value = "1000")
+    private int lidarTimeout;
+    @TaskParameter(name = "lidarTopic", value = "scan_out")
+    private String lidarTopic;
 
     private int count = 0;
-    private SimpleLogger logger = new SimpleLogger("速度过滤日志");
+    private SimpleLogger logger = new SimpleLogger("Filter_Twist_logger");
 
     @InjectMessage(topic = "${cmdTopicOutput}")
     private MessageHandle<Msg2DOdometry> twistOutHandle;
+
+    @InjectMessage(topic = "${lidarTopic}")
+    private MessageHandle<MsgLidar> lidarMessageHandle;
 
     private PoseDetectionTask poseDetectionTask;
 
@@ -44,6 +52,12 @@ public class FilterTwistTask extends AbstractTask {
     @TaskFunction(name = "filterTwist")
     public void filterTwist(Msg2DOdometry msg) {
         if (poseDetectionTask != null) {
+            long timeDiff = System.currentTimeMillis() - lidarMessageHandle.getLastMessageReceiveTime();
+            if (timeDiff >= lidarTimeout) {
+                logger.log(String.format("Lidar timeout : %d", timeDiff));
+                twistOutHandle.pushSubData(new Msg2DOdometry(new Msg2DPose(0, 0, 0), new Msg2DTwist(0, 0, 0)));
+                return;
+            }
             Msg2DTwist twist = smartChoice ? poseDetectionTask.smartChoiceTwist(msg.getTwist()) : poseDetectionTask.choiceTwist(msg.getTwist(), true);
             count = twist == null ? 0 : count + 1;
             Msg2DOdometry out = new Msg2DOdometry(new Msg2DPose(0, 0, 0),
