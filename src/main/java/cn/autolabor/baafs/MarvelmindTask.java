@@ -30,7 +30,7 @@ public class MarvelmindTask extends AbstractTask {
     @SuppressWarnings("unchecked")
     public MarvelmindTask(String... name) {
         super(name);
-        resource = new Resource((stamp, x, y) -> {
+        resource = new Resource(null, (stamp, x, y) -> {
             Msg2DOdometry temp = new Msg2DOdometry();
             temp.getHeader().setStamp(stamp);
             temp.getHeader().setCoordinate(frameId);

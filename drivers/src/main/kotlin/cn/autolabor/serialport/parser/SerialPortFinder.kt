@@ -44,14 +44,13 @@ class SerialPortFinder<T> private constructor() {
          * @param block  DSL
          */
         fun <T> findSerialPort(
+            name: String?,
             engine: ParseEngine<Byte, T>,
             block: SerialPortFinder<T>.() -> Unit) =
             SerialPortFinder<T>()
                 .apply(block)
                 .run {
-                    SerialPort
-                        .getCommPorts()
-                        .also { println(it) }
+                    (name?.let { arrayOf(SerialPort.getCommPort(it)) } ?: SerialPort.getCommPorts())
                         .find { port ->
                             // 设置串口
                             port.baudRate = baudRate

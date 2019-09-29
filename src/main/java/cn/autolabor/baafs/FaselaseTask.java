@@ -29,6 +29,9 @@ public class FaselaseTask extends AbstractTask {
     @TaskParameter(name = "frameId", value = "lidar")
     private String frameId;
 
+    @TaskParameter(name = "comName", value = "null")
+    private String comName;
+
     @InjectMessage(topic = "${topic}")
     private MessageHandle<MsgLidar> topicSender;
 
@@ -38,7 +41,7 @@ public class FaselaseTask extends AbstractTask {
 
     public FaselaseTask(String... name) {
         super(name);
-        resource = new Resource(list -> {
+        resource = new Resource(comName, list -> {
             long now = System.currentTimeMillis();
             if (now - time < 100) return Unit.INSTANCE;
             time = now;

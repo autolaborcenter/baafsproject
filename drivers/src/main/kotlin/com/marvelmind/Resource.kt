@@ -8,11 +8,12 @@ import cn.autolabor.serialport.parser.SerialPortFinder.Companion.findSerialPort
  * 用户可自选调度器，反复调用 [invoke] 方法以运行
  */
 class Resource(
+    name: String? = null,
     private val callback: (Long, Double, Double) -> Unit
 ) : Resource {
     private val engine = engine()
     private val port =
-        findSerialPort(engine) {
+        findSerialPort(name, engine) {
             baudRate = 115200
             timeoutMs = 1000
             bufferSize = 32

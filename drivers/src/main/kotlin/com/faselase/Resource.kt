@@ -12,13 +12,14 @@ import kotlin.math.PI
  * 用户可自选调度器，反复调用 [invoke] 方法以运行
  */
 class Resource(
+    name: String? = null,
     private val callback: (List<Stamped<Polar>>) -> Unit
 ) : Resource {
 
     private val engine = engine(filter = true)
     private val port =
         //  启动时发送开始旋转指令
-        SerialPortFinder.findSerialPort(engine) {
+        SerialPortFinder.findSerialPort(name, engine) {
             baudRate = 460800
             timeoutMs = 5000
             bufferSize = 32
