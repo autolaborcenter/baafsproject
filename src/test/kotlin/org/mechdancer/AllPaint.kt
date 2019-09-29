@@ -35,7 +35,7 @@ fun main() {
             beaconOnMap = beaconOnMap,
             robotOnMap = robotOnMap,
             filter = particleFilter {
-                beaconOnRobot = vector2DOf(-0.3, .0)
+                beaconOnRobot = vector2DOf(-0.037, .0)
             }.apply {
                 registerLogger()
                 registerPainter()

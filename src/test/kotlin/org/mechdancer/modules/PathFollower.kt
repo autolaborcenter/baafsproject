@@ -8,12 +8,13 @@ import cn.autolabor.pathmaneger.PathManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
+import org.mechdancer.algebra.function.vector.minus
+import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
-import org.mechdancer.common.toTransformation
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.console.parser.display
 import org.mechdancer.console.parser.feedback
@@ -134,9 +135,7 @@ fun CoroutineScope.startPathFollower(
                     follower.path = path.get()
                     launch {
                         while (isActive && mode == Mode.Follow) {
-                            robotOnMap.receive().data
-                                .toTransformation()
-                                .let { follower(-it) }
+                            follower(robotOnMap.receive().data)
                                 .let { command ->
                                     when (command) {
                                         is Follow -> {
@@ -152,7 +151,12 @@ fun CoroutineScope.startPathFollower(
                                                     delay(200L)
                                                     val w = angle.sign * PI / 10
                                                     val delta = abs(angle)
-                                                    val d0 = robotOnMap.receive().data.d
+                                                    val (p0, d0) = robotOnMap.receive().data
+                                                    while (true) {
+                                                        if (enabled) commandOut.send(velocity(.1, 0))
+                                                        val (p, _) = robotOnMap.receive().data
+                                                        if ((p - p0).norm() > .03) break
+                                                    }
                                                     while (true) {
                                                         if (enabled) commandOut.send(velocity(.0, w))
                                                         val (_, d) = robotOnMap.receive().data

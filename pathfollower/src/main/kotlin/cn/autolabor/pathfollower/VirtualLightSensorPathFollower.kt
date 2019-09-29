@@ -3,14 +3,16 @@ package cn.autolabor.pathfollower
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.Follow
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.Turn
 import org.mechdancer.algebra.function.vector.dot
+import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.common.Odometry
-import org.mechdancer.common.toPose
 import org.mechdancer.geometry.angle.adjust
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.geometry.angle.toVector
-import org.mechdancer.geometry.transformation.Transformation
-import kotlin.math.*
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.min
 
 /**
  * 使用 [sensor] 从路径生成误差信号的循径控制器
@@ -55,52 +57,40 @@ class VirtualLightSensorPathFollower(
         }
     }
 
-    operator fun invoke(fromMap: Transformation): FollowCommand {
+    operator fun invoke(pose: Odometry): FollowCommand {
         val limit = if (pass == 0) path.size else min(pass + 40, path.size)
-        // 第一次调用传感器
-        val (passCount, value) =
-            sensor(fromMap, pathMarked.subList(pass, limit).map(Pair<Odometry, *>::first))
-                .takeUnless { (passCount, _) -> passCount < 0 }
-            ?: return if (abs(pre) > tipJudge / 2) Turn(pre) else FollowCommand.Error
+        val localRange = sensor.findLocal(pose, path.subList(pass, limit))
+        if (localRange.isEmpty()) return if (abs(pre) > tipJudge / 2) Turn(pre) else FollowCommand.Error
         // 判断路径终点
-        listOf(sensor.local.last(), pathMarked.last().first)
-            .map { fromMap(it.p).norm() }
-            .all { it < destinationJudge }
-            .let { if (it) return FollowCommand.Finish }
+        if (pass + localRange.last == path.lastIndex && (pose.p - path.last().p).norm() < destinationJudge)
+            return FollowCommand.Finish
         // 丢弃通过的路径
-        pass += passCount
-        val next = pathMarked.subList(pass, min(pass + max(4, sensor.local.size), pathMarked.size))
+        val next = pathMarked.subList(pass + localRange.first, pass + localRange.last + 1)
+        pass += localRange.first
         // 利用缓存识别尖点
-        return next.asSequence()
-            .mapIndexed { i, item -> item to i }
-            .firstOrNull { (it, _) -> it.second < cos(tipJudge) }
+        return (next.asSequence()
+                    .mapIndexed { i, item -> item to i }
+                    .firstOrNull { (it, _) -> it.second < cos(tipJudge) }
+                ?: next.last() to next.lastIndex)
             // 处理尖点
-            ?.let { (item, i) ->
+            .also { (item, i) ->
                 when {
                     i in 1..4 -> {
                         val target = item.first.d.asRadian()
-                        val current = (-fromMap).toPose().d.asRadian()
+                        val current = pose.d.asRadian()
                         pre = (target - current).toRad().adjust().asRadian()
-                        i
                     }
-                    i > 4     -> {
-                        pre = .0
-                        i
-                    }
+                    i > 4     -> pre = .0
                     else      -> {
+                        ++pass
                         val target = item.first.d.asRadian()
-                        val current = (-fromMap).toPose().d.asRadian()
+                        val current = pose.d.asRadian()
                         val delta = (target - current).toRad().adjust().asRadian()
-                        if (abs(delta) > tipJudge / 2) {
-                            pass += i
-                            return Turn(delta)
-                        }
-                        null
+                        if (abs(delta) > tipJudge / 2) return Turn(delta)
                     }
                 }
-            }
-            ?.let { sensor(fromMap, sensor.local.subList(0, it)) }
-            ?.second
-            .let { Follow(0.1, controller(input = it ?: value)) }
+            }.second
+            .let { sensor(pose, path.subList(pass, pass + it + 1)) }
+            .let { Follow(0.1, controller(input = it)) }
     }
 }
