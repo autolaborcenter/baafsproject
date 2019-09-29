@@ -42,11 +42,12 @@ fun main() {
             })
         startPathFollower(
             robotOnMap = robotOnMap,
-            commandOut = commandToObstacle)
-        startObstacleAvoiding(
-            mode = mode,
-            commandIn = commandToObstacle,
-            commandOut = commandToRobot)
+            commandOut = commandToRobot
+        )
+//        startObstacleAvoiding(
+//            mode = mode,
+//            commandIn = commandToObstacle,
+//            commandOut = commandToRobot)
         await()
     }
 }

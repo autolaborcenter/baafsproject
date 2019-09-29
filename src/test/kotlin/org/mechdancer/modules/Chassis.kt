@@ -31,10 +31,10 @@ fun CoroutineScope.startChassis(
             PM1.initialize()
             PM1.locked = false
             // 配置参数
-//            PM1[LeftRadius] = 0.1
-//            PM1[RightRadius] = 0.1
-//            PM1[Width] = 0.444
-//            PM1[Length] = 0.34
+            PM1[PM1.ParameterId.LeftRadius] = 0.1026
+            PM1[PM1.ParameterId.RightRadius] = 0.1026
+            PM1[PM1.ParameterId.Width] = 0.484
+            PM1[PM1.ParameterId.Length] = 0.35
             launch {
                 while (isActive) {
                     val (x, y, theta) = PM1.odometry
