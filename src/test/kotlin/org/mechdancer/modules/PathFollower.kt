@@ -54,7 +54,7 @@ fun CoroutineScope.startPathFollower(
     val follower =
         VirtualLightSensorPathFollower(
             VirtualLightSensor(
-                -Transformation.fromPose(vector2DOf(0.28, 0.0), 0.toRad()),
+                -Transformation.fromPose(vector2DOf(0.27, 0.0), 0.toRad()),
                 Circle(radius = 0.3, vertexCount = 64)))
 
     var mode = Idle

@@ -4,9 +4,11 @@ import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.Fo
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.Turn
 import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.minus
-import org.mechdancer.algebra.function.vector.norm
+import org.mechdancer.algebra.function.vector.plus
+import org.mechdancer.algebra.function.vector.times
 import org.mechdancer.common.Odometry
 import org.mechdancer.geometry.angle.adjust
+import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.geometry.angle.toVector
 import kotlin.math.PI
@@ -20,9 +22,7 @@ import kotlin.math.min
 class VirtualLightSensorPathFollower(
     val sensor: VirtualLightSensor,
     private val controller: Controller = Controller.unit,
-    private val tipOrderRange: IntRange = 3..3,
-    private val tipJudge: Double = PI / 3,
-    private val destinationJudge: Double = 0.1
+    private val tipJudge: Double = PI / 3
 ) {
     private var pass = 0
     private val pathMarked = mutableListOf<Pair<Odometry, Double>>()
@@ -62,7 +62,7 @@ class VirtualLightSensorPathFollower(
         val localRange = sensor.findLocal(pose, path.subList(pass, limit))
         if (localRange.isEmpty()) return if (abs(pre) > tipJudge / 2) Turn(pre) else FollowCommand.Error
         // 判断路径终点
-        if (pass + localRange.last == path.lastIndex && (pose.p - path.last().p).norm() < destinationJudge)
+        if (pass + localRange.last == path.lastIndex && localRange.last - localRange.first == 0)
             return FollowCommand.Finish
         // 丢弃通过的路径
         val next = pathMarked.subList(pass + localRange.first, pass + localRange.last + 1)
@@ -83,7 +83,7 @@ class VirtualLightSensorPathFollower(
                     i > 4     -> pre = .0
                     else      -> {
                         ++pass
-                        val target = item.first.d.asRadian()
+                        val target = (item.first.p + item.first.d.toVector() * 0.2 - pose.p).toAngle().asRadian()
                         val current = pose.d.asRadian()
                         val delta = (target - current).toRad().adjust().asRadian()
                         if (abs(delta) > tipJudge / 2) return Turn(delta)
