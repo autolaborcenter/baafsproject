@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicReference
 // 起始时刻
 private const val T0 = 0L
 // 仿真速度
-private const val SPEED = 1
+private const val SPEED = 10
 // 仿真运行频率
 private const val FREQUENCY = 50L
 // 里程计采样率
@@ -47,7 +47,7 @@ fun main() {
             robotOnMap = robotOnMap,
             commandOut = commandToRobot
         )
-        launch { for ((v, w) in commands) command.set(velocity(0.2 * v, 0.5 * w)) }
+        launch { for ((v, w) in commands) command.set(velocity(0.2 * v, 0.8 * w)) }
         launch { for (v in commandToRobot) command.set(v) }
         // 运行仿真
         launch {

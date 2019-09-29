@@ -2,6 +2,8 @@ package cn.autolabor.pathfollower
 
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.Follow
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.Turn
+import org.mechdancer.Temporary
+import org.mechdancer.Temporary.Operation.DELETE
 import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.plus
@@ -28,17 +30,21 @@ class VirtualLightSensorPathFollower(
     private var pathMarked = listOf<Pair<Odometry, Double>>()
     private var pre = .0
 
+    @Temporary(DELETE)
+    var tip = Odometry()
+        private set
+
     /** 读写工作路径 */
     var path = listOf<Odometry>()
         set(value) {
             // 存储
             field = value
             pathMarked = listOf(value.first() to 2.0) +
-                    (1 until value.size).map { i ->
-                        val v0 = value[i - 1].d.toVector()
-                        val v1 = value[i].d.toVector()
-                        value[i] to (v0 dot v1)
-                    }
+                         (1 until value.size).map { i ->
+                             val v0 = value[i - 1].d.toVector()
+                             val v1 = value[i].d.toVector()
+                             value[i] to (v0 dot v1)
+                         }
             // 重置状态
             pass = 0
             controller.clear()
@@ -64,25 +70,25 @@ class VirtualLightSensorPathFollower(
         if (pass + localRange.last == path.lastIndex && localRange.last - localRange.first == 0)
             return FollowCommand.Finish
         // 丢弃通过的路径
-        val next = pathMarked.subList(pass + localRange.first, pass + localRange.last + 1)
+        val next = pathMarked.subList(pass + localRange.first, min(pathMarked.size, pass + localRange.last + 2))
         pass += localRange.first
         // 利用缓存识别尖点
         return (next.asSequence()
-            .mapIndexed { i, item -> item to i }
-            .firstOrNull { (it, _) -> it.second < cos(tipJudge) }
-            ?.also { (it, i) -> if (i < 5) println("size = ${next.size}, i = $i, value = ${it.second}") }
-            ?: next.last() to next.lastIndex)
+                    .mapIndexed { i, item -> item to i }
+                    .firstOrNull { (it, _) -> it.second < cos(tipJudge) }
+                ?: next.last() to next.lastIndex)
             // 处理尖点
             .also { (item, i) ->
                 val (tip, _) = item
+                this.tip = tip
                 when {
-                    i in 1..4 -> {
+                    i in 2..5 -> {
                         val target = tip.d.asRadian()
                         val current = pose.d.asRadian()
                         pre = (target - current).toRad().adjust().asRadian()
                     }
-                    i > 4 -> pre = .0
-                    else -> {
+                    i > 5     -> pre = .0
+                    else      -> {
                         ++pass
                         val target = (tip.p + tip.d.toVector() * 0.2 - pose.p).toAngle().asRadian()
                         val current = pose.d.asRadian()

@@ -8,8 +8,6 @@ import cn.autolabor.pathmaneger.PathManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
-import org.mechdancer.algebra.function.vector.minus
-import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
@@ -64,9 +62,9 @@ fun CoroutineScope.startPathFollower(
     val parser = buildParser {
         this["record"] = {
             when (mode) {
-                Record -> "Recording"
+                Record      -> "Recording"
                 Mode.Follow -> "Is following now"
-                Idle -> {
+                Idle        -> {
                     mode = Record
                     launch {
                         for ((_, current) in robotOnMap) {
@@ -80,12 +78,12 @@ fun CoroutineScope.startPathFollower(
         }
         this["pause"] = {
             when (mode) {
-                Record -> {
+                Record      -> {
                     mode = Idle
                     "Paused"
                 }
                 Mode.Follow -> "Is following now"
-                Idle -> "..."
+                Idle        -> "..."
             }
         }
         this["clear"] = {
@@ -112,9 +110,9 @@ fun CoroutineScope.startPathFollower(
 
         this["init"] = {
             when (mode) {
-                Record -> "Is Recording now."
+                Record      -> "Is Recording now."
                 Mode.Follow -> "Is Following now."
-                Idle -> {
+                Idle        -> {
                     launch {
                         val t0 = System.currentTimeMillis()
                         while (System.currentTimeMillis() - t0 < 5)
@@ -128,11 +126,12 @@ fun CoroutineScope.startPathFollower(
                 }
             }
         }
-        this["go"] = {
+        this["go"] = f@{
             when (mode) {
-                Record -> "Is Recording now."
+                Record      -> "Is Recording now."
                 Mode.Follow -> "Ok."
-                Idle -> {
+                Idle        -> {
+                    if (path.size < 2) return@f "No path."
                     mode = Mode.Follow
                     follower.path = path.get()
                     launch {
@@ -144,28 +143,29 @@ fun CoroutineScope.startPathFollower(
                                             val (v, w) = command
                                             if (enabled) commandOut.send(velocity(v, w))
                                         }
-                                        else -> {
+                                        else      -> {
                                             println(command)
                                             when (command) {
-                                                is Turn -> {
+                                                is Turn   -> {
                                                     val (angle) = command
                                                     if (enabled) commandOut.send(velocity(.0, .0))
                                                     delay(200L)
-                                                    val w = PI / 10
-                                                    val delta = if (angle < 0) angle + 2 * PI else angle
-                                                    val (p0, d0) = robotOnMap.receive().data
-                                                    while (true) {
-                                                        if (enabled) commandOut.send(velocity(.1, 0))
-                                                        val (p, _) = robotOnMap.receive().data
-                                                        if ((p - p0).norm() > .03) break
-                                                    }
+                                                    val temp = if (angle < -2 * PI / 3) angle + 2 * PI else angle
+                                                    val delta = abs(temp)
+                                                    val w = temp.sign * PI / 10
+                                                    val (_, d0) = robotOnMap.receive().data
+//                                                  while (true) {
+//                                                      if (enabled) commandOut.send(velocity(.1, 0))
+//                                                      val (p, _) = robotOnMap.receive().data
+//                                                      if ((p - p0).norm() > .03) break
+//                                                  }
                                                     while (true) {
                                                         if (enabled) commandOut.send(velocity(.0, w))
                                                         val (_, d) = robotOnMap.receive().data
                                                         if (abs(d.asRadian() - d0.asRadian()) > delta) break
                                                     }
                                                 }
-                                                is Error -> Unit
+                                                is Error  -> Unit
                                                 is Finish -> mode = Idle
                                             }
                                         }
@@ -175,7 +175,8 @@ fun CoroutineScope.startPathFollower(
                             if (!enabled) commandOut.send(velocity(.0, .0))
                             remote?.run {
                                 val shape = follower.sensor.areaShape
-                                paintVectors("传感器", shape + shape.first())
+                                shape.firstOrNull()?.let { paintVectors("传感器", shape + it) }
+                                paintPoses("尖点", listOf(follower.tip))
                             }
                         }
                     }
