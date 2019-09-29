@@ -29,7 +29,7 @@ private const val ODOMETRY_FREQUENCY = 20L
 // 里程计周期
 private const val ODOMETRY_PERIOD = 1000L / ODOMETRY_FREQUENCY
 // 机器人机械结构
-private val robot = struct(Chassis(Stamped(T0, Odometry())))
+private val robot = struct(Chassis(Stamped(T0, Odometry()))) {}
 
 // 差动里程计仿真实验
 @ExperimentalCoroutinesApi
@@ -45,7 +45,8 @@ fun main() {
         // 任务
         startPathFollower(
             robotOnMap = robotOnMap,
-            commandOut = commandToRobot)
+            commandOut = commandToRobot
+        )
         launch { for ((v, w) in commands) command.set(velocity(0.2 * v, 0.5 * w)) }
         launch { for (v in commandToRobot) command.set(v) }
         // 运行仿真

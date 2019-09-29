@@ -25,7 +25,7 @@ class VirtualLightSensorPathFollower(
     private val tipJudge: Double = PI / 3
 ) {
     private var pass = 0
-    private val pathMarked = mutableListOf<Pair<Odometry, Double>>()
+    private var pathMarked = listOf<Pair<Odometry, Double>>()
     private var pre = .0
 
     /** 读写工作路径 */
@@ -33,13 +33,12 @@ class VirtualLightSensorPathFollower(
         set(value) {
             // 存储
             field = value
-            pathMarked.clear()
-            for (i in 1 until value.size) {
-                val v0 = value[i - 1].d.toVector()
-                val v1 = value[i].d.toVector()
-                pathMarked.add(value[i] to (v0 dot v1))
-            }
-            pathMarked.add(value.last() to 2.0)
+            pathMarked = listOf(value.first() to 2.0) +
+                    (1 until value.size).map { i ->
+                        val v0 = value[i - 1].d.toVector()
+                        val v1 = value[i].d.toVector()
+                        value[i] to (v0 dot v1)
+                    }
             // 重置状态
             pass = 0
             controller.clear()
@@ -69,28 +68,30 @@ class VirtualLightSensorPathFollower(
         pass += localRange.first
         // 利用缓存识别尖点
         return (next.asSequence()
-                    .mapIndexed { i, item -> item to i }
-                    .firstOrNull { (it, _) -> it.second < cos(tipJudge) }
-                ?: next.last() to next.lastIndex)
+            .mapIndexed { i, item -> item to i }
+            .firstOrNull { (it, _) -> it.second < cos(tipJudge) }
+            ?.also { (it, i) -> if (i < 5) println("size = ${next.size}, i = $i, value = ${it.second}") }
+            ?: next.last() to next.lastIndex)
             // 处理尖点
             .also { (item, i) ->
+                val (tip, _) = item
                 when {
                     i in 1..4 -> {
-                        val target = item.first.d.asRadian()
+                        val target = tip.d.asRadian()
                         val current = pose.d.asRadian()
                         pre = (target - current).toRad().adjust().asRadian()
                     }
-                    i > 4     -> pre = .0
-                    else      -> {
+                    i > 4 -> pre = .0
+                    else -> {
                         ++pass
-                        val target = (item.first.p + item.first.d.toVector() * 0.2 - pose.p).toAngle().asRadian()
+                        val target = (tip.p + tip.d.toVector() * 0.2 - pose.p).toAngle().asRadian()
                         val current = pose.d.asRadian()
                         val delta = (target - current).toRad().adjust().asRadian()
                         if (abs(delta) > tipJudge / 2) return Turn(delta)
                     }
                 }
             }.second
-            .let { sensor(pose, path.subList(pass, pass + it + 1)) }
+            .let { sensor(pose, path.subList(pass, pass + it)) }
             .let { Follow(0.1, controller(input = it)) }
     }
 }

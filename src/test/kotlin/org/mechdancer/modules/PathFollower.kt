@@ -55,16 +55,18 @@ fun CoroutineScope.startPathFollower(
         VirtualLightSensorPathFollower(
             VirtualLightSensor(
                 -Transformation.fromPose(vector2DOf(0.27, 0.0), 0.toRad()),
-                Circle(radius = 0.3, vertexCount = 64)))
+                Circle(radius = 0.3, vertexCount = 64)
+            )
+        )
 
     var mode = Idle
     var enabled = false
     val parser = buildParser {
         this["record"] = {
             when (mode) {
-                Record      -> "Recording"
+                Record -> "Recording"
                 Mode.Follow -> "Is following now"
-                Idle        -> {
+                Idle -> {
                     mode = Record
                     launch {
                         for ((_, current) in robotOnMap) {
@@ -78,12 +80,12 @@ fun CoroutineScope.startPathFollower(
         }
         this["pause"] = {
             when (mode) {
-                Record      -> {
+                Record -> {
                     mode = Idle
                     "Paused"
                 }
                 Mode.Follow -> "Is following now"
-                Idle        -> "..."
+                Idle -> "..."
             }
         }
         this["clear"] = {
@@ -110,9 +112,9 @@ fun CoroutineScope.startPathFollower(
 
         this["init"] = {
             when (mode) {
-                Record      -> "Is Recording now."
+                Record -> "Is Recording now."
                 Mode.Follow -> "Is Following now."
-                Idle        -> {
+                Idle -> {
                     launch {
                         val t0 = System.currentTimeMillis()
                         while (System.currentTimeMillis() - t0 < 5)
@@ -128,9 +130,9 @@ fun CoroutineScope.startPathFollower(
         }
         this["go"] = {
             when (mode) {
-                Record      -> "Is Recording now."
+                Record -> "Is Recording now."
                 Mode.Follow -> "Ok."
-                Idle        -> {
+                Idle -> {
                     mode = Mode.Follow
                     follower.path = path.get()
                     launch {
@@ -142,15 +144,15 @@ fun CoroutineScope.startPathFollower(
                                             val (v, w) = command
                                             if (enabled) commandOut.send(velocity(v, w))
                                         }
-                                        else      -> {
+                                        else -> {
                                             println(command)
                                             when (command) {
-                                                is Turn   -> {
+                                                is Turn -> {
                                                     val (angle) = command
                                                     if (enabled) commandOut.send(velocity(.0, .0))
                                                     delay(200L)
-                                                    val w = angle.sign * PI / 10
-                                                    val delta = abs(angle)
+                                                    val w = PI / 10
+                                                    val delta = if (angle < 0) angle + 2 * PI else angle
                                                     val (p0, d0) = robotOnMap.receive().data
                                                     while (true) {
                                                         if (enabled) commandOut.send(velocity(.1, 0))
@@ -163,7 +165,7 @@ fun CoroutineScope.startPathFollower(
                                                         if (abs(d.asRadian() - d0.asRadian()) > delta) break
                                                     }
                                                 }
-                                                is Error  -> Unit
+                                                is Error -> Unit
                                                 is Finish -> mode = Idle
                                             }
                                         }

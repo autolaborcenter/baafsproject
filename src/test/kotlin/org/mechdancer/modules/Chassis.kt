@@ -15,6 +15,7 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Stamped.Companion.stamp
 import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.modules.Default.loggers
 import org.mechdancer.modules.LinkMode.Direct
 import org.mechdancer.modules.LinkMode.Framework
 import java.util.concurrent.atomic.AtomicLong
@@ -27,7 +28,7 @@ fun CoroutineScope.startChassis(
     command: ReceiveChannel<NonOmnidirectional>
 ) {
     when (mode) {
-        Direct    -> {
+        Direct -> {
             PM1.initialize()
             PM1.locked = false
             // 配置参数
@@ -46,14 +47,19 @@ fun CoroutineScope.startChassis(
             launch {
                 PM1.setCommandEnabled(false)
                 val i = AtomicLong()
+                val logger = loggers.getLogger("控制量")
                 for ((v, w) in command) {
                     PM1.drive(v, w)
+                    logger.log(v, w)
                     // 取得底盘控制权，但 1 秒无指令则交出控制权
                     launch {
                         PM1.setCommandEnabled(true)
                         val mark = i.incrementAndGet()
                         delay(1000L)
-                        if (i.get() == mark) PM1.setCommandEnabled(false)
+                        if (i.get() == mark) {
+                            PM1.setCommandEnabled(false)
+                            logger.log("放弃控制权")
+                        }
                     }
                 }
             }
@@ -72,11 +78,15 @@ fun CoroutineScope.startChassis(
                                 val data = p0?.pose ?: return
                                 launch {
                                     odometry.send(
-                                        Stamped(p0.header.stamp,
-                                                Odometry.odometry(data.x, data.y, data.yaw)))
+                                        Stamped(
+                                            p0.header.stamp,
+                                            Odometry.odometry(data.x, data.y, data.yaw)
+                                        )
+                                    )
                                 }
                             }
-                        }))
+                        })
+                )
                 getOrCreateMessageHandle(
                     getConfig("PM1Task", "cmdvelTopic") as? String ?: "cmdvel",
                     TypeNode(Msg2DOdometry::class.java)
