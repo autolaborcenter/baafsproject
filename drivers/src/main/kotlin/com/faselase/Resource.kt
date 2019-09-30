@@ -40,14 +40,20 @@ class Resource(
             ?.let { buffer.asList().subList(0, it) }
             ?.let { buffer ->
                 engine(buffer) { (rho, theta) ->
-                    if (theta < last) offset += 2 * PI
-                    last = theta
-                    val t = theta + offset
+                    if (!theta.isNaN()){
+                        if (theta < last) offset += 2 * PI
+                        last = theta
+                        val t = theta + offset
 
-                    if (rho > 0) list.offer(Stamped.stamp(Polar(rho, t)))
+                        if (rho > 0){
+                            list.offer(Stamped.stamp(Polar(rho, t)))
+                        }
 
-                    val head = t - 2 * PI
-                    while (list.first().data.angle < head) list.poll()
+                        val head = t - 2 * PI
+                        while (list.first().data.angle < head) {
+                            list.poll()
+                        }
+                    }
                 }
             }
             ?.also { callback(list) }

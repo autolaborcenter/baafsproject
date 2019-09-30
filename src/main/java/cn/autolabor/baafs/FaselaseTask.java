@@ -7,6 +7,7 @@ import cn.autolabor.core.annotation.TaskProperties;
 import cn.autolabor.core.server.executor.AbstractTask;
 import cn.autolabor.core.server.message.MessageHandle;
 import cn.autolabor.message.sensor.MsgLidar;
+import cn.autolabor.util.Strings;
 import com.faselase.Resource;
 import kotlin.Unit;
 
@@ -29,7 +30,7 @@ public class FaselaseTask extends AbstractTask {
     @TaskParameter(name = "frameId", value = "lidar")
     private String frameId;
 
-    @TaskParameter(name = "comName", value = "null")
+    @TaskParameter(name = "comName", value = "")
     private String comName;
 
     @InjectMessage(topic = "${topic}")
@@ -41,7 +42,7 @@ public class FaselaseTask extends AbstractTask {
 
     public FaselaseTask(String... name) {
         super(name);
-        resource = new Resource(comName, list -> {
+        resource = new Resource(Strings.isBlank(comName) ? null : comName, list -> {
             long now = System.currentTimeMillis();
             if (now - time < 100) return Unit.INSTANCE;
             time = now;

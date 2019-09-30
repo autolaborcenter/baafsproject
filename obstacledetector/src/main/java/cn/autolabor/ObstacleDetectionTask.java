@@ -63,7 +63,6 @@ public class ObstacleDetectionTask extends AbstractTask {
                     );
                     lidarInfos.put(key, lidarInfo);
                 });
-
         lidarTopics.forEach(topic -> ServerManager.me().getOrCreateMessageHandle(topic, new TypeNode(MsgLidar.class)).addCallback(this, "mergeLidarData", new MessageSourceType[]{}));
     }
 
@@ -204,6 +203,16 @@ public class ObstacleDetectionTask extends AbstractTask {
             msg2DPoint.setX(this.x + x * Math.cos(this.theta) - y * Math.sin(this.theta));
             msg2DPoint.setY(this.y + x * Math.sin(this.theta) + y * Math.cos(this.theta));
             return msg2DPoint;
+        }
+
+        @Override
+        public String toString() {
+            return "LidarInfo{" +
+                    "x=" + x +
+                    ", y=" + y +
+                    ", theta=" + theta +
+                    ", reverse=" + reverse +
+                    '}';
         }
     }
 }
