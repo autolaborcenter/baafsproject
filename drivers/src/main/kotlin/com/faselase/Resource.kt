@@ -58,7 +58,7 @@ class Resource(
         last = theta
         val t = theta + offset
         val head = t - 2 * PI
-        while (list.first().data.angle < head) list.poll()
+        while (list.firstOrNull()?.data?.angle?.let { it < head } == true) list.poll()
         return t
     }
 
