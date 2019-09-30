@@ -6,8 +6,10 @@ import cn.autolabor.core.server.message.MessageHandle;
 import cn.autolabor.message.navigation.Msg2DOdometry;
 import cn.autolabor.message.navigation.Msg2DPose;
 import cn.autolabor.message.navigation.Msg2DTwist;
-import cn.autolabor.message.sensor.MsgLidar;
+import cn.autolabor.message.navigation.MsgPolygon;
 import org.mechdancer.SimpleLogger;
+
+import java.util.List;
 
 @TaskProperties
 public class FilterTwistTask extends AbstractTask {
@@ -32,7 +34,7 @@ public class FilterTwistTask extends AbstractTask {
     private MessageHandle<Msg2DOdometry> twistOutHandle;
 
     @InjectMessage(topic = "${lidarTopic}")
-    private MessageHandle<MsgLidar> lidarMessageHandle;
+    private MessageHandle<List<MsgPolygon>> lidarMessageHandle;
 
     private PoseDetectionTask poseDetectionTask;
 
