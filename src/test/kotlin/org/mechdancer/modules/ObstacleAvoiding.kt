@@ -29,10 +29,10 @@ fun CoroutineScope.startObstacleAvoiding(
     loadConfig("conf/obstacle.conf")
     if (mode == Direct) {
         register(FaselaseTask("FaselaseTaskFront"))
-        register(LaserFilterTask("LaserFilterFront"))
         register(FaselaseTask("FaselaseTaskBack"))
-        register(LaserFilterTask("LaserFilterBack"))
     }
+    register(LaserFilterTask("LaserFilterFront"))
+    register(LaserFilterTask("LaserFilterBack"))
     register(ObstacleDetectionTask("ObstacleDetectionTask"))
     register(PoseDetectionTask("PoseDetectionTask"))
     register(FilterTwistTask("FilterTwistTask"))
