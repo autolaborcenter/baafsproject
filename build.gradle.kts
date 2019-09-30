@@ -74,6 +74,8 @@ dependencies {
     testImplementation("com.1stleg", "jnativehook", "+")
 
     testImplementation("net.java.dev.jna", "jna", "+")
+    testImplementation("com.google.protobuf", "protobuf-java", "2.6.1")
+    testImplementation("org.zeromq", "jeromq", "0.5.1")
     testImplementation(project(":painter"))
     testImplementation(fileTree("libs-test"))
 }

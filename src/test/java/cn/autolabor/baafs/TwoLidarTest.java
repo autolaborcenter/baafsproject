@@ -7,6 +7,7 @@ import cn.autolabor.core.server.ServerManager;
 import cn.autolabor.core.server.executor.AbstractTask;
 import cn.autolabor.core.server.message.MessageHandle;
 import cn.autolabor.message.sensor.MsgLidar;
+import cn.autolabor.plugin.gazebo.task.GazeboMarkerServerTask;
 
 @TaskProperties
 public class TwoLidarTest extends AbstractTask {
@@ -44,7 +45,9 @@ public class TwoLidarTest extends AbstractTask {
         ServerManager.me().register(new FaselaseTask("FaselaseTaskBack"));
         ServerManager.me().register(new LaserFilterTask("LaserFilterBack"));
         ServerManager.me().register(new ObstacleDetectionTask("ObstacleDetectionTask"));
-        ServerManager.me().register(new TwoLidarTest());
+        ServerManager.me().register(new GazeboMarkerServerTask());
+        ServerManager.me().register(new DrawLidarTask());
+//        ServerManager.me().register();
 //        ServerManager.me().dump();
     }
 }
