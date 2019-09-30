@@ -27,7 +27,8 @@ private val crcBits = intArrayOf(
     2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
     3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
     3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-    4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8)
+    4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8
+)
 
 private fun crcCheck(`package`: List<Byte>): Boolean {
     val value0 = (1..3).sumBy { crcBits[`package`[it].toIntUnsigned()] }.toByte() and 7
@@ -38,51 +39,51 @@ private fun crcCheck(`package`: List<Byte>): Boolean {
 private fun Byte.takeBits(mask: Int, p: Int) =
     (toIntUnsigned() and mask).let { if (p >= 0) it shl p else it ushr -p }
 
-data class Package(val rho: Double, val theta: Double) {
-    companion object {
-        val nothing = Package(-1.0, Double.NaN)
-        val failed = Package(-2.0, Double.NaN)
-    }
+sealed class LidarPack {
+    object Failed : LidarPack()
+    data class Nothing(val theta: Double) : LidarPack()
+    data class Data(val rho: Double, val theta: Double) : LidarPack()
 }
 
-fun parser(filter: Boolean, buffer: List<Byte>): ParseInfo<Package> {
+fun parser(buffer: List<Byte>): ParseInfo<LidarPack> {
     val size = buffer.size
     var begin =
         buffer
             .indexOfFirst { it >= 0 }
             .takeIf { it >= 0 }
-        ?: return ParseInfo(size, size, Package.nothing)
+            ?: return ParseInfo(size, size, LidarPack.Failed)
 
     val `package` =
         (begin + 4)
             .takeIf { it < size }
             ?.let { buffer.subList(begin, it) }
-        ?: return ParseInfo(begin, size, Package.nothing)
+            ?: return ParseInfo(begin, size, LidarPack.Failed)
 
     val result =
         if (crcCheck(`package`)) {
             begin += 4
 
             val rho = k_rho * (`package`[0].takeBits(0b00001111, 8)
-                or `package`[1].takeBits(0b01111111, 1)
-                or `package`[2].takeBits(0b01000000, -6))
+                    or `package`[1].takeBits(0b01111111, 1)
+                    or `package`[2].takeBits(0b01000000, -6))
             val theta = k_theta * (`package`[2].takeBits(0b00111111, 7)
-                or `package`[3].takeBits(0b01111111, 0))
+                    or `package`[3].takeBits(0b01111111, 0))
 
-            if (rho !in 0.15..10.0 || theta !in 0.0..2 * PI)
-                if (filter) Package.failed
-                else Package(.0, theta)
-            else Package(rho, theta)
+            when {
+                theta !in 0.0..2 * PI -> LidarPack.Failed
+                rho !in 0.15..10.0    -> LidarPack.Nothing(theta)
+                else                  -> LidarPack.Data(rho, theta)
+            }
         } else {
             begin += 1
-            Package.failed
+            LidarPack.Failed
         }
     val (nextBegin, passed) =
         (begin until size)
             .find { buffer[it] >= 0 }
             ?.let { it to it + 1 }
-        ?: size to size
+            ?: size to size
     return ParseInfo(nextBegin, passed, result)
 }
 
-fun engine(filter: Boolean) = ParseEngine<Byte, Package> { parser(filter, it) }
+fun engine() = ParseEngine<Byte, LidarPack> { parser(it) }
