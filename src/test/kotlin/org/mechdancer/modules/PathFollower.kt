@@ -8,6 +8,7 @@ import cn.autolabor.pathmaneger.PathManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
+import org.mechdancer.SimpleLogger
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
@@ -59,6 +60,7 @@ fun CoroutineScope.startPathFollower(
 
     var mode = Idle
     var enabled = false
+    var tempIndex = 0
     val parser = buildParser {
         this["record"] = {
             when (mode) {
@@ -67,9 +69,12 @@ fun CoroutineScope.startPathFollower(
                 Idle        -> {
                     mode = Record
                     launch {
+                        val temporary = SimpleLogger("临时路径存储${tempIndex++}")
                         for ((_, current) in robotOnMap) {
                             if (mode != Record) break
                             path.record(current)
+                            temporary.logWithoutStamp("${current.p.x}, ${current.p.y}, ${current.d.asRadian()}")
+                            temporary.flush()
                         }
                     }
                     "Recording"

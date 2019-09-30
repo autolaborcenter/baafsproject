@@ -1,6 +1,4 @@
-package org.mechdancer
-
-import cn.autolabor.locator.ParticleFilterBuilder
+import cn.autolabor.locator.ParticleFilterBuilder.Companion.particleFilter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -14,34 +12,33 @@ import org.mechdancer.modules.LinkMode.Direct
 
 @ExperimentalCoroutinesApi
 fun main() {
+    val mode = Direct
     // 话题
     val robotOnOdometry = channel<Stamped<Odometry>>()
-    val beaconOnMap = channel<Stamped<Vector2D>>()
     val robotOnMap = channel<Stamped<Odometry>>()
+    val beaconOnMap = channel<Stamped<Vector2D>>()
     val commandToRobot = channel<NonOmnidirectional>()
     // 任务
     with(CoroutineScope(Dispatchers.Default)) {
         startChassis(
-            mode = Direct,
+            mode = mode,
             odometry = robotOnOdometry,
             command = commandToRobot)
         startBeacon(
-            mode = Direct,
+            mode = mode,
             beaconOnMap = beaconOnMap)
         startLocationFilter(
             robotOnOdometry = robotOnOdometry,
             beaconOnMap = beaconOnMap,
             robotOnMap = robotOnMap,
-            filter = ParticleFilterBuilder.particleFilter {
-                beaconOnRobot = vector2DOf(-0.3, .0)
-            })
-//        launch {
-//            val topic = ServerManager.me().getOrCreateMessageHandle("fusion", TypeNode(Msg2DOdometry::class.java))
-//            for ((_, data) in robotOnMap) {
-//                val (p, d) = data
-//                topic.pushSubData(Msg2DOdometry(Msg2DPose(p.x, p.y, d.asRadian()), Msg2DTwist()))
-//            }
-//        }
+            filter = particleFilter {
+                beaconOnRobot = vector2DOf(-0.037, .0)
+            },
+            remote = null)
+        startPathFollower(
+            robotOnMap = robotOnMap,
+            commandOut = commandToRobot,
+            remote = null)
         await()
     }
 }

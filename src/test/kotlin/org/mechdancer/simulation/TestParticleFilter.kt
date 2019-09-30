@@ -19,7 +19,6 @@ import org.mechdancer.common.toPose
 import org.mechdancer.common.toTransformation
 import org.mechdancer.modules.Default.remote
 import org.mechdancer.modules.channel
-import org.mechdancer.modules.registerPainter
 import org.mechdancer.modules.startLocationFilter
 import org.mechdancer.paint
 import org.mechdancer.paintPose
@@ -66,8 +65,9 @@ private val beaconOnRobot =
 
 // 定位误差
 private fun locateError(p: Vector2D) =
-    p + vector2DOf(Normal.next(.0, LOCATE_SIGMA),
-                   Normal.next(.0, LOCATE_SIGMA))
+    p + vector2DOf(
+        Normal.next(.0, LOCATE_SIGMA),
+        Normal.next(.0, LOCATE_SIGMA))
 
 // 差动里程计
 private val odometry = DifferentialOdometry(0.4, Stamped(T0, Odometry()))
@@ -92,7 +92,7 @@ fun main() = runBlocking {
         robotOnMap = robotOnMap,
         filter = particleFilter {
             beaconOnRobot = vector2DOf(BEACON_OFFSET, 0)
-        }.apply { registerPainter() })
+        })
     var actual = robot.what.odometry
     launch {
         for ((t, pose) in robotOnMap) {

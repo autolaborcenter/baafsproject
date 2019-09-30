@@ -36,13 +36,12 @@ fun main() {
             robotOnMap = robotOnMap,
             filter = particleFilter {
                 beaconOnRobot = vector2DOf(-0.037, .0)
-            }.apply {
-                registerLogger()
-                registerPainter()
-            })
+            },
+            remote = null)
         startPathFollower(
             robotOnMap = robotOnMap,
-            commandOut = commandToObstacle)
+            commandOut = commandToObstacle,
+            remote = null)
         startObstacleAvoiding(
             mode = mode,
             commandIn = commandToObstacle,

@@ -7,10 +7,10 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.SimpleLogger
 import org.mechdancer.modules.Default.loggers
-import org.mechdancer.modules.Default.remote
 import org.mechdancer.paint
 import org.mechdancer.paintFrame2
 import org.mechdancer.paintPoses
+import org.mechdancer.remote.presets.RemoteHub
 import java.util.concurrent.ConcurrentHashMap
 
 /** 等待协程作用域中全部工作结束 */
@@ -22,7 +22,7 @@ fun CoroutineScope.await() {
 fun <T> channel() = Channel<T>(Channel.CONFLATED)
 
 /** 注册步骤画图回调 */
-fun ParticleFilter.registerPainter() {
+fun ParticleFilter.registerPainter(remote: RemoteHub) {
     synchronized(stepFeedback) {
         stepFeedback += { (measureWeight, particleWeight, _, _, eLocator, _) ->
             with(remote) {
