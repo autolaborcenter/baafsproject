@@ -70,6 +70,9 @@ class ParticleFilter(private val count: Int,
             update()
         }
 
+    override operator fun get(item: Stamped<Odometry>) =
+        stateSave?.let { (_, pose) -> Stamped(item.time, expectation plusDelta (item.data minusState pose)) }
+
     private var stateSave: Pair<Vector2D, Odometry>? = null
     private var expectation = Odometry()
 
@@ -179,10 +182,6 @@ class ParticleFilter(private val count: Int,
             Odometry(p, d) to 0
         }
     }
-
-    override operator fun get(item: Stamped<Odometry>) =
-        stateSave?.second
-            ?.let { Stamped(item.time, expectation plusDelta (item.data minusState it)) }
 
     private companion object {
         // 里程计线性可加性（用于加权平均）
