@@ -24,7 +24,8 @@ import kotlin.math.min
 class VirtualLightSensorPathFollower(
     val sensor: VirtualLightSensor,
     private val controller: Controller = Controller.unit,
-    private val tipJudge: Double = PI / 3
+    private val tipJudge: Double = PI / 3,
+    private val maxJumpCount: Int = 20
 ) {
     private var pass = 0
     private var pathMarked = listOf<Pair<Odometry, Double>>()
@@ -63,15 +64,27 @@ class VirtualLightSensorPathFollower(
     }
 
     operator fun invoke(pose: Odometry): FollowCommand {
-        val limit = if (pass == 0) path.size else min(pass + 40, path.size)
-        val localRange = sensor.findLocal(pose, path.subList(pass, limit))
-        if (localRange.isEmpty()) return if (abs(pre) > tipJudge / 2) Turn(pre) else FollowCommand.Error
-        // 判断路径终点
-        if (pass + localRange.last == path.lastIndex && localRange.last - localRange.first == 0)
-            return FollowCommand.Finish
+        val (begin, end) =
+            when (pass) {
+                0    -> path.size
+                else -> min(pass + maxJumpCount, path.size)
+            }.let { limit ->
+                val range = sensor.findLocal(pose, path.subList(pass, limit))
+                (pass + range.first) to (pass + range.last)
+            }
+        // 特殊情况提前退出
+        when {
+            begin > end                           ->
+                return when {
+                    abs(pre) > tipJudge / 2 -> Turn(pre)
+                    else                    -> FollowCommand.Error
+                }
+            begin == end && end == path.lastIndex ->
+                return FollowCommand.Finish
+        }
         // 丢弃通过的路径
-        val next = pathMarked.subList(pass + localRange.first, min(pathMarked.size, pass + localRange.last + 2))
-        pass += localRange.first
+        val next = pathMarked.subList(begin, min(path.size, end + 2))
+        pass = begin
         // 利用缓存识别尖点
         return (next.asSequence()
                     .mapIndexed { i, item -> item to i }

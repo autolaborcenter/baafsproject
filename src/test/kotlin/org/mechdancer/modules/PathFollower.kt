@@ -1,9 +1,9 @@
 package org.mechdancer.modules
 
-import cn.autolabor.pathfollower.Circle
 import cn.autolabor.pathfollower.VirtualLightSensor
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.*
+import cn.autolabor.pathfollower.shape.Circle
 import cn.autolabor.pathmaneger.PathManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
