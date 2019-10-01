@@ -1,6 +1,6 @@
 package org.mechdancer.baafs
 
-import cn.autolabor.locator.ParticleFilterBuilder
+import cn.autolabor.locator.ParticleFilterBuilderDsl
 import cn.autolabor.locator.startLocationFusion
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,7 +36,7 @@ fun main() {
             robotOnOdometry = robotOnOdometry,
             beaconOnMap = beaconOnMap,
             robotOnMap = robotOnMap,
-            filter = ParticleFilterBuilder.particleFilter {
+            filter = ParticleFilterBuilderDsl.particleFilter {
                 beaconOnRobot = vector2DOf(-0.3, .0)
             })
 //        launch {

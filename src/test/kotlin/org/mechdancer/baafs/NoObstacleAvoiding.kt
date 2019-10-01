@@ -1,6 +1,6 @@
 package org.mechdancer.baafs
 
-import cn.autolabor.locator.ParticleFilterBuilder.Companion.particleFilter
+import cn.autolabor.locator.ParticleFilterBuilderDsl.Companion.particleFilter
 import cn.autolabor.locator.startLocationFusion
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

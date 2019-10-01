@@ -1,6 +1,6 @@
 package org.mechdancer.baafs.simulation
 
-import cn.autolabor.locator.ParticleFilterBuilder
+import cn.autolabor.locator.ParticleFilterBuilderDsl
 import cn.autolabor.locator.startLocationFusion
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.consumeEach
@@ -44,9 +44,9 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
     var rightWheel = vector2DOf(0, -.2)
     var wheelsWidthMeasure = 0.4
     // 滤波器配置
-    private var filterConfig: ParticleFilterBuilder.() -> Unit = {}
+    private var filterConfig: ParticleFilterBuilderDsl.() -> Unit = {}
 
-    fun particleFilter(block: ParticleFilterBuilder.() -> Unit) {
+    fun particleFilter(block: ParticleFilterBuilderDsl.() -> Unit) {
         filterConfig = block
     }
 
@@ -111,7 +111,7 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                             robotOnOdometry = robotOnOdometry,
                             beaconOnMap = beaconOnMap,
                             robotOnMap = robotOnMap,
-                            filter = ParticleFilterBuilder.particleFilter(filterConfig))
+                            filter = ParticleFilterBuilderDsl.particleFilter(filterConfig))
                         var actual = robot.what.odometry
                         launch {
                             // 在控制台打印误差

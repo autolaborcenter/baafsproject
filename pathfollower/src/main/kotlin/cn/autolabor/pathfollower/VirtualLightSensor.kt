@@ -1,5 +1,6 @@
 package cn.autolabor.pathfollower
 
+import cn.autolabor.pathfollower.shape.Shape
 import org.mechdancer.Temporary
 import org.mechdancer.Temporary.Operation.DELETE
 import org.mechdancer.Temporary.Operation.INLINE
@@ -28,14 +29,13 @@ class VirtualLightSensor(
     var local = listOf<Odometry>()
         private set
 
-    fun findLocal(pose: Odometry,
-                  path: Iterable<Odometry>
-    ): IntRange {
+    /** 从全局路径 [path] 中找出相对于当前位姿 [robotOnMap] 的局部路径 */
+    fun findLocal(robotOnMap: Odometry, path: Iterable<Odometry>): IntRange {
         // 地图到传感器坐标的变换
-        val mapToSensor = robotToSensor * (-pose.toTransformation())
+        val mapToSensor = robotToSensor * (-robotOnMap.toTransformation())
+        // 循环状态
         var pass = 0
         var take = -1
-        // 转化路径到传感器坐标系并约束局部路径
         loop@ for (item in path)
             when {
                 mapToSensor(item).p in lightRange -> take = if (take < 0) pass else take + 1

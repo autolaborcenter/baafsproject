@@ -1,9 +1,9 @@
 package org.mechdancer.baafs.modules
 
-import cn.autolabor.pathfollower.Circle
+import cn.autolabor.pathfollower.FollowCommand.*
 import cn.autolabor.pathfollower.VirtualLightSensor
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower
-import cn.autolabor.pathfollower.VirtualLightSensorPathFollower.FollowCommand.*
+import cn.autolabor.pathfollower.shape.Circle
 import cn.autolabor.pathmaneger.PathManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -138,7 +138,7 @@ fun CoroutineScope.startPathFollower(
                 Idle        -> {
                     if (path.size < 2) return@f "No path."
                     mode = Mode.Follow
-                    follower.path = path.get()
+                    follower.setPath(path.get())
                     launch {
                         while (isActive && mode == Mode.Follow) {
                             follower(robotOnMap.receive().data)
