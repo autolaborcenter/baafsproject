@@ -3,7 +3,6 @@ package cn.autolabor;
 import cn.autolabor.message.navigation.Msg2DPoint;
 import cn.autolabor.message.navigation.MsgPolygon;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;

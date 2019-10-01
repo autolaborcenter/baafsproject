@@ -4,7 +4,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import org.mechdancer.Buffer
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -25,6 +24,15 @@ import java.util.concurrent.atomic.AtomicReference
 /*
 这个示例主要展示如何使用第一人称视角画图。
 */
+
+private class Buffer<T>(private val size: Long) {
+    private val core = mutableListOf<T>()
+    fun get(): List<T> = core
+    fun update(block: (T?) -> T?) {
+        block(core.lastOrNull())?.also { core += it }
+        if (core.size > size) core.removeAt(0)
+    }
+}
 
 private fun shape(vararg vertex: Vector2D) =
     vertex.toList().let { it + it.first() }

@@ -19,8 +19,6 @@ class TransformSystem<Key : Any> {
     private val lock = ReentrantReadWriteLock()
 
     companion object {
-        val default = TransformSystem<String>()
-
         const val Constant = -1L
 
         // 更新
