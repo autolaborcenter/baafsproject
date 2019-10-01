@@ -1,7 +1,8 @@
-package org.mechdancer
+package org.mechdancer.baafs
 
 import com.faselase.Resource
-import org.mechdancer.modules.Default.remote
+import org.mechdancer.baafs.modules.Default.remote
+import org.mechdancer.paintVectors
 
 fun main() {
     var time = System.currentTimeMillis()

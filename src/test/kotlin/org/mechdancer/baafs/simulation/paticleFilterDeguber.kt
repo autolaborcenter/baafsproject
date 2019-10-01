@@ -1,11 +1,11 @@
-package org.mechdancer.simulation
+package org.mechdancer.baafs.simulation
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
-import org.mechdancer.simulation.ParticleFilterDebugerBuilderDsl.Companion.debugParticleFilter
+import org.mechdancer.baafs.simulation.ParticleFilterDebugerBuilderDsl.Companion.debugParticleFilter
 
 @ExperimentalCoroutinesApi
 fun main() = debugParticleFilter {

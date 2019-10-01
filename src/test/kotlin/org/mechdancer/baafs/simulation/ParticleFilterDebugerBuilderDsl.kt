@@ -1,4 +1,4 @@
-package org.mechdancer.simulation
+package org.mechdancer.baafs.simulation
 
 import cn.autolabor.locator.ParticleFilterBuilder
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -12,15 +12,19 @@ import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
+import org.mechdancer.baafs.modules.Default
+import org.mechdancer.baafs.modules.channel
+import org.mechdancer.baafs.modules.startLocationFilter
 import org.mechdancer.common.*
 import org.mechdancer.common.filters.Differential
-import org.mechdancer.modules.Default
-import org.mechdancer.modules.channel
-import org.mechdancer.modules.startLocationFilter
 import org.mechdancer.paint
 import org.mechdancer.paintPose
+import org.mechdancer.simulation.Chassis
+import org.mechdancer.simulation.DifferentialOdometry
+import org.mechdancer.simulation.DifferentialOdometry.Key
 import org.mechdancer.simulation.DifferentialOdometry.Key.Left
 import org.mechdancer.simulation.DifferentialOdometry.Key.Right
+import org.mechdancer.simulation.Encoder
 import org.mechdancer.simulation.random.Normal
 import org.mechdancer.struct.StructBuilderDSL
 import kotlin.random.Random
@@ -71,7 +75,8 @@ private constructor() {
                     // 里程计周期
                     val odometryPeriod = 1000L / odometryFrequency
                     // 机器人机械结构
-                    val robot = StructBuilderDSL.struct(Chassis(Stamped(T0, Odometry()))) {
+                    val robot = StructBuilderDSL.struct(Chassis(Stamped(T0,
+                                                                        Odometry()))) {
                         Encoder(Left) asSub { pose = Odometry(leftWheel) }
                         Encoder(Right) asSub { pose = Odometry(rightWheel) }
                         BEACON_TAG asSub { pose = Odometry(beacon) }
@@ -85,13 +90,16 @@ private constructor() {
                     val beaconOnRobot =
                         robot.devices[BEACON_TAG]!!.toPose().p
                     // 差动里程计
-                    val odometry = DifferentialOdometry(wheelsWidthMeasure, Stamped(T0, Odometry()))
+                    val odometry = DifferentialOdometry(wheelsWidthMeasure,
+                                                        Stamped(T0,
+                                                                Odometry()))
                     // 仿真
                     val random = newRandomDriving().let { if (speed > 0) it power speed else it }
                     // 里程计采样计数
                     var odometryTimes = 0L
                     // 位姿增量计算
-                    val differential = Differential(robot.what.get(), T0) { _, old, new -> new minusState old }
+                    val differential = Differential(robot.what.get(),
+                                                    T0) { _, old, new -> new minusState old }
                     // 话题
                     val robotOnOdometry = channel<Stamped<Odometry>>()
                     val beaconOnMap = channel<Stamped<Vector2D>>()
@@ -112,7 +120,10 @@ private constructor() {
                             }
                         }
                         // 运行仿真
-                        speedSimulation(this, T0, 1000L / frequency, speed) { t ->
+                        speedSimulation(this,
+                                        T0,
+                                        1000L / frequency,
+                                        speed) { t ->
                             if (t < 10000) Velocity.velocity(0, .5) else random.next()
                         }.consumeEach { (t, v) ->
                             //  计算机器人位姿增量
@@ -121,7 +132,7 @@ private constructor() {
                             // 计算编码器增量
                             for ((encoder, p) in encodersOnRobot) encoder.update(p, delta)
                             // 计算里程计
-                            val get = { key: DifferentialOdometry.Key ->
+                            val get = { key: Key ->
                                 encodersOnRobot.keys.single { (k, _) -> k == key }.value
                             }
                             val pose = odometry.update(get(Left) to get(Right), t).data
@@ -135,7 +146,8 @@ private constructor() {
                                                         Normal.next(.0, beaconSigma))
                                     }
                                     .also { beacon ->
-                                        Default.remote.paint(BEACON_TAG, beacon.x, beacon.y)
+                                        Default
+                                            .remote.paint(BEACON_TAG, beacon.x, beacon.y)
                                         beaconOnMap.send(Stamped(t, beacon))
                                     }
                             // 里程计采样

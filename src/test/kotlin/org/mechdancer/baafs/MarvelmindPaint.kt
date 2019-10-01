@@ -1,15 +1,15 @@
-package org.mechdancer
+package org.mechdancer.baafs
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.baafs.modules.LinkMode.Direct
+import org.mechdancer.baafs.modules.await
+import org.mechdancer.baafs.modules.channel
+import org.mechdancer.baafs.modules.startBeacon
 import org.mechdancer.common.Stamped
-import org.mechdancer.modules.LinkMode.Direct
-import org.mechdancer.modules.await
-import org.mechdancer.modules.channel
-import org.mechdancer.modules.startBeacon
 import kotlin.math.sqrt
 
 fun main() {

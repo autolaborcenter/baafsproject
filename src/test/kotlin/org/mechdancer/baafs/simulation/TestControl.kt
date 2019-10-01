@@ -1,4 +1,4 @@
-package org.mechdancer.simulation
+package org.mechdancer.baafs.simulation
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.consumeEach
@@ -8,6 +8,8 @@ import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.baafs.modules.Default.commands
+import org.mechdancer.baafs.modules.Default.remote
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Odometry.Companion.odometry
 import org.mechdancer.common.Stamped
@@ -15,10 +17,9 @@ import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.invoke
 import org.mechdancer.common.toTransformation
-import org.mechdancer.modules.Default.commands
-import org.mechdancer.modules.Default.remote
 import org.mechdancer.paintPoses
 import org.mechdancer.paintVectors
+import org.mechdancer.simulation.Chassis
 import java.util.concurrent.atomic.AtomicReference
 
 /*

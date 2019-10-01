@@ -1,4 +1,4 @@
-package org.mechdancer.modules
+package org.mechdancer.baafs.modules
 
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.message.navigation.Msg2DOdometry
@@ -9,13 +9,13 @@ import cn.autolabor.util.reflect.TypeNode
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
+import org.mechdancer.baafs.modules.Default.loggers
+import org.mechdancer.baafs.modules.LinkMode.Direct
+import org.mechdancer.baafs.modules.LinkMode.Framework
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Stamped.Companion.stamp
 import org.mechdancer.common.Velocity.NonOmnidirectional
-import org.mechdancer.modules.Default.loggers
-import org.mechdancer.modules.LinkMode.Direct
-import org.mechdancer.modules.LinkMode.Framework
 import java.util.concurrent.atomic.AtomicLong
 
 /** 以 [mode] 模式启动底盘 */

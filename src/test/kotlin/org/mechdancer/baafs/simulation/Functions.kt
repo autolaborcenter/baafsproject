@@ -1,4 +1,4 @@
-package org.mechdancer.simulation
+package org.mechdancer.baafs.simulation
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi

@@ -1,4 +1,4 @@
-package org.mechdancer.modules
+package org.mechdancer.baafs.modules
 
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel

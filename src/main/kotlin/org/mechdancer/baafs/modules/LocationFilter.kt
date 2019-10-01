@@ -1,4 +1,4 @@
-package org.mechdancer.modules
+package org.mechdancer.baafs.modules
 
 import cn.autolabor.locator.ParticleFilter
 import kotlinx.coroutines.CoroutineScope
@@ -7,9 +7,9 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
 import org.mechdancer.algebra.implement.vector.Vector2D
+import org.mechdancer.baafs.modules.Default.loggers
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
-import org.mechdancer.modules.Default.loggers
 import org.mechdancer.paint
 import org.mechdancer.remote.presets.RemoteHub
 

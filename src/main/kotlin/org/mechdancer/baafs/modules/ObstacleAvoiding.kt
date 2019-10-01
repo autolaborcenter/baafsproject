@@ -1,4 +1,4 @@
-package org.mechdancer.modules
+package org.mechdancer.baafs.modules
 
 import cn.autolabor.FilterTwistTask
 import cn.autolabor.ObstacleDetectionTask
@@ -16,9 +16,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
+import org.mechdancer.baafs.modules.LinkMode.Direct
 import org.mechdancer.common.Velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
-import org.mechdancer.modules.LinkMode.Direct
 
 @ExperimentalCoroutinesApi
 fun CoroutineScope.startObstacleAvoiding(

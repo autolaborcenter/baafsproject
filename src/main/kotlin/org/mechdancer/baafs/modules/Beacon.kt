@@ -1,4 +1,4 @@
-package org.mechdancer.modules
+package org.mechdancer.baafs.modules
 
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.message.navigation.Msg2DOdometry
@@ -13,9 +13,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.baafs.modules.LinkMode.Direct
+import org.mechdancer.baafs.modules.LinkMode.Framework
 import org.mechdancer.common.Stamped
-import org.mechdancer.modules.LinkMode.Direct
-import org.mechdancer.modules.LinkMode.Framework
 import java.util.concurrent.atomic.AtomicLong
 
 /** 以 [mode] 模式启动底盘 */

@@ -1,20 +1,21 @@
-package org.mechdancer.simulation
+package org.mechdancer.baafs.simulation
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
+import org.mechdancer.baafs.modules.Default.commands
+import org.mechdancer.baafs.modules.Default.remote
+import org.mechdancer.baafs.modules.await
+import org.mechdancer.baafs.modules.channel
+import org.mechdancer.baafs.modules.startPathFollower
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
-import org.mechdancer.modules.Default.commands
-import org.mechdancer.modules.Default.remote
-import org.mechdancer.modules.await
-import org.mechdancer.modules.channel
-import org.mechdancer.modules.startPathFollower
 import org.mechdancer.paintPose
+import org.mechdancer.simulation.Chassis
 import org.mechdancer.struct.StructBuilderDSL.Companion.struct
 import java.util.concurrent.atomic.AtomicReference
 
@@ -50,7 +51,10 @@ fun main() {
         launch { for (v in commandToRobot) command.set(v) }
         // 运行仿真
         launch {
-            speedSimulation(this, T0, 1000L / FREQUENCY, SPEED) {
+            speedSimulation(this,
+                            T0,
+                            1000L / FREQUENCY,
+                            SPEED) {
                 command.get()
             }.consumeEach { (t, v) ->
                 //  计算机器人位姿增量

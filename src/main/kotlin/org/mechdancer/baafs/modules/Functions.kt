@@ -1,4 +1,4 @@
-package org.mechdancer.modules
+package org.mechdancer.baafs.modules
 
 import cn.autolabor.locator.ParticleFilter
 import kotlinx.coroutines.CoroutineScope
@@ -6,7 +6,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.SimpleLogger
-import org.mechdancer.modules.Default.loggers
+import org.mechdancer.baafs.modules.Default.loggers
 import org.mechdancer.paint
 import org.mechdancer.paintFrame2
 import org.mechdancer.paintPoses

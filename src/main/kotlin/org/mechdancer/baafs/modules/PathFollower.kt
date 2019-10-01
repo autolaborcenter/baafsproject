@@ -1,4 +1,4 @@
-package org.mechdancer.modules
+package org.mechdancer.baafs.modules
 
 import cn.autolabor.pathfollower.Circle
 import cn.autolabor.pathfollower.VirtualLightSensor
@@ -10,6 +10,8 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.SimpleLogger
 import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.baafs.modules.Mode.Idle
+import org.mechdancer.baafs.modules.Mode.Record
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.Companion.velocity
@@ -19,8 +21,6 @@ import org.mechdancer.console.parser.display
 import org.mechdancer.console.parser.feedback
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.geometry.transformation.Transformation
-import org.mechdancer.modules.Mode.Idle
-import org.mechdancer.modules.Mode.Record
 import org.mechdancer.paintFrame3
 import org.mechdancer.paintPoses
 import org.mechdancer.paintVectors
