@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Stamped
+import org.mechdancer.modules.Default.beaconComName
 import org.mechdancer.modules.LinkMode.Direct
 import org.mechdancer.modules.LinkMode.Framework
 import java.util.concurrent.atomic.AtomicLong
@@ -27,7 +28,7 @@ fun CoroutineScope.startBeacon(
         Direct    -> {
             launch {
                 val i = AtomicLong(0)
-                Resource { time, x, y ->
+                Resource(beaconComName) { time, x, y ->
                     launch { beaconOnMap.send(Stamped(time, vector2DOf(x, y))) }
                     launch {
                         val mark = i.incrementAndGet()

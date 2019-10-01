@@ -10,10 +10,12 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.modules.*
+import org.mechdancer.modules.Default.beaconComName
 import org.mechdancer.modules.LinkMode.Direct
 
 @ExperimentalCoroutinesApi
 fun main() {
+    beaconComName = TODO("替换成串口名字")
     val mode = Direct
     // 话题
     val robotOnOdometry = channel<Stamped<Odometry>>()

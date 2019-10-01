@@ -21,6 +21,8 @@ object Default {
     private val commands_ = Channel<NonOmnidirectional>(Channel.CONFLATED)
     val commands: ReceiveChannel<NonOmnidirectional> get() = commands_
 
+    var beaconComName: String? = null
+
     val remote by lazy {
         remoteHub("simulator") {
             inAddition {
