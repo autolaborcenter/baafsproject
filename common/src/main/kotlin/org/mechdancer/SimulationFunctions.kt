@@ -1,4 +1,4 @@
-package org.mechdancer.baafs.simulation
+package org.mechdancer
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -59,6 +59,7 @@ fun <T> speedSimulation(
 // 显示格式
 private val format = DecimalFormat("0.000")
 
+/** 显示格式化信息到控制台 */
 fun displayOnConsole(vararg entry: Pair<String, Number>) =
     entry.joinToString(" | ") { (key, value) ->
         when (value) {

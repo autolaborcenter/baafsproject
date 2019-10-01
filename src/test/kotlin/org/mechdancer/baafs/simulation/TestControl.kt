@@ -20,6 +20,7 @@ import org.mechdancer.common.toTransformation
 import org.mechdancer.paintPoses
 import org.mechdancer.paintVectors
 import org.mechdancer.simulation.Chassis
+import org.mechdancer.speedSimulation
 import java.util.concurrent.atomic.AtomicReference
 
 /*

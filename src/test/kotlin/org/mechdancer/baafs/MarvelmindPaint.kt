@@ -7,8 +7,8 @@ import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.baafs.modules.LinkMode.Direct
 import org.mechdancer.baafs.modules.await
-import org.mechdancer.baafs.modules.channel
 import org.mechdancer.baafs.modules.startBeacon
+import org.mechdancer.channel
 import org.mechdancer.common.Stamped
 import kotlin.math.sqrt
 

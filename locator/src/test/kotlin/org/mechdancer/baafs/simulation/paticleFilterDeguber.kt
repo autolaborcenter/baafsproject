@@ -6,6 +6,7 @@ import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.baafs.simulation.ParticleFilterDebugerBuilderDsl.Companion.debugParticleFilter
+import org.mechdancer.displayOnConsole
 
 @ExperimentalCoroutinesApi
 fun main() = debugParticleFilter {

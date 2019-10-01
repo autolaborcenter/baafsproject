@@ -8,14 +8,15 @@ import kotlinx.coroutines.launch
 import org.mechdancer.baafs.modules.Default.commands
 import org.mechdancer.baafs.modules.Default.remote
 import org.mechdancer.baafs.modules.await
-import org.mechdancer.baafs.modules.channel
 import org.mechdancer.baafs.modules.startPathFollower
+import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.paintPose
 import org.mechdancer.simulation.Chassis
+import org.mechdancer.speedSimulation
 import org.mechdancer.struct.StructBuilderDSL.Companion.struct
 import java.util.concurrent.atomic.AtomicReference
 

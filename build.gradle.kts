@@ -28,6 +28,11 @@ allprojects {
         sourceCompatibility = "1.8"
         targetCompatibility = "1.8"
     }
+    dependencies {
+        // 单元测试
+        testImplementation("junit", "junit", "+")
+        testImplementation(kotlin("test-junit"))
+    }
     // 源码导出任务
     val sourceTaskName = "sourcesJar"
     task<Jar>(sourceTaskName) {
@@ -45,11 +50,8 @@ subprojects {
         // 子项目自动依赖 kotlin 标准库
         implementation(kotlin("stdlib-jdk8"))
         // 子项目自动依赖重要数学和定义库
-        implementation(files("../libs/simulator-0.0.1.jar"))
         implementation("org.mechdancer", "linearalgebra", "+")
-        // 单元测试
-        testImplementation("junit", "junit", "+")
-        testImplementation(kotlin("test-junit"))
+        implementation(files("../libs/simulator-0.0.1.jar"))
     }
 }
 
@@ -69,9 +71,6 @@ dependencies {
     api("org.mechdancer", "linearalgebra", "+")
     api("org.jetbrains.kotlinx", "kotlinx-coroutines-core", "+")
     api("net.java.dev.jna", "jna", "+")
-    // 单元测试
-    testImplementation("junit", "junit", "+")
-    testImplementation(kotlin("test-junit"))
     // 其他测试
     testImplementation("com.google.protobuf", "protobuf-java", "2.6.1")
     testImplementation("org.zeromq", "jeromq", "0.5.1")
