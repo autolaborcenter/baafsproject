@@ -22,6 +22,10 @@ import org.mechdancer.paintPoses
 import org.mechdancer.paintVectors
 import java.util.concurrent.atomic.AtomicReference
 
+/*
+这个示例主要展示如何使用第一人称视角画图。
+*/
+
 private fun shape(vararg vertex: Vector2D) =
     vertex.toList().let { it + it.first() }
 

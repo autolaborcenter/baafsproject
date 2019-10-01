@@ -10,6 +10,7 @@ import org.mechdancer.modules.LinkMode.Direct
 import org.mechdancer.modules.await
 import org.mechdancer.modules.channel
 import org.mechdancer.modules.startBeacon
+import kotlin.math.sqrt
 
 fun main() {
     // 话题
@@ -32,6 +33,7 @@ fun main() {
     }
 }
 
+// 求标准差
 fun Sequence<Double>.sigma(): Double {
     var ex = .0
     var ex2 = .0
@@ -43,5 +45,5 @@ fun Sequence<Double>.sigma(): Double {
     }
     ex /= i
     ex2 /= i
-    return ex2 - ex * ex
+    return sqrt(ex2 - ex * ex)
 }

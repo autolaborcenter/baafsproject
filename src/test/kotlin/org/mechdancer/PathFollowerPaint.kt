@@ -23,7 +23,8 @@ fun main() {
             command = commandToRobot)
         startPathFollower(
             robotOnMap = robotOnMap,
-            commandOut = commandToObstacle)
+            commandOut = commandToObstacle,
+            remote = null)
         startObstacleAvoiding(
             mode = mode,
             commandIn = commandToObstacle,

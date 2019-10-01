@@ -2,8 +2,6 @@ package org.mechdancer.modules
 
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.message.navigation.Msg2DOdometry
-import cn.autolabor.message.navigation.Msg2DPose
-import cn.autolabor.message.navigation.Msg2DTwist
 import cn.autolabor.pm1.sdk.PM1
 import cn.autolabor.util.lambda.LambdaFunWithName
 import cn.autolabor.util.lambda.function.TaskLambdaFun01
@@ -87,16 +85,6 @@ fun CoroutineScope.startChassis(
                             }
                         })
                 )
-                getOrCreateMessageHandle(
-                    getConfig("PM1Task", "cmdvelTopic") as? String ?: "cmdvel",
-                    TypeNode(Msg2DOdometry::class.java)
-                ).let { topic ->
-                    launch {
-                        for ((v, w) in command)
-                            topic.pushSubData(Msg2DOdometry(Msg2DPose(), Msg2DTwist(v, .0, w)))
-                        odometry.close()
-                    }
-                }
             }
     }
 }
