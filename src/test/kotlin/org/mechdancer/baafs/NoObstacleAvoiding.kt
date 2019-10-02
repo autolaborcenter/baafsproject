@@ -1,7 +1,6 @@
 package org.mechdancer.baafs
 
-import cn.autolabor.locator.ParticleFilterBuilderDsl.Companion.particleFilter
-import cn.autolabor.locator.startLocationFusion
+import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,10 +36,11 @@ fun main() {
         startLocationFusion(
             robotOnOdometry = robotOnOdometry,
             beaconOnMap = beaconOnMap,
-            robotOnMap = robotOnMap,
-            filter = particleFilter {
-                beaconOnRobot = vector2DOf(-0.037, .0)
-            })
+            robotOnMap = robotOnMap) {
+            filter {
+                beaconOnRobot = vector2DOf(-0.37, 0)
+            }
+        }
         startPathFollower(
             robotOnMap = robotOnMap,
             commandOut = commandToRobot)

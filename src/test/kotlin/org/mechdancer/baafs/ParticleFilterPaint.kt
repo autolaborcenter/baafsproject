@@ -1,7 +1,6 @@
 package org.mechdancer.baafs
 
-import cn.autolabor.locator.ParticleFilterBuilderDsl
-import cn.autolabor.locator.startLocationFusion
+import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -35,17 +34,18 @@ fun main() {
         startLocationFusion(
             robotOnOdometry = robotOnOdometry,
             beaconOnMap = beaconOnMap,
-            robotOnMap = robotOnMap,
-            filter = ParticleFilterBuilderDsl.particleFilter {
-                beaconOnRobot = vector2DOf(-0.3, .0)
-            })
-//        launch {
-//            val topic = ServerManager.me().getOrCreateMessageHandle("fusion", TypeNode(Msg2DOdometry::class.java))
-//            for ((_, data) in robotOnMap) {
-//                val (p, d) = data
-//                topic.pushSubData(Msg2DOdometry(Msg2DPose(p.x, p.y, d.asRadian()), Msg2DTwist()))
-//            }
-//        }
+            robotOnMap = robotOnMap) {
+            filter {
+                beaconOnRobot = vector2DOf(-0.37, 0)
+            }
+        }
+//      launch {
+//          val topic = ServerManager.me().getOrCreateMessageHandle("fusion", TypeNode(Msg2DOdometry::class.java))
+//          for ((_, data) in robotOnMap) {
+//              val (p, d) = data
+//              topic.pushSubData(Msg2DOdometry(Msg2DPose(p.x, p.y, d.asRadian()), Msg2DTwist()))
+//          }
+//      }
         await()
     }
 }

@@ -1,5 +1,6 @@
 package cn.autolabor.locator
 
+import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
@@ -61,7 +62,7 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
     }
 
     // 绘图
-    var remote: RemoteHub? = null
+    var painter: RemoteHub? = null
 
     companion object {
         private const val T0 = 0L
@@ -108,13 +109,15 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                         startLocationFusion(
                             robotOnOdometry = robotOnOdometry,
                             beaconOnMap = beaconOnMap,
-                            robotOnMap = robotOnMap,
-                            filter = ParticleFilterBuilderDsl.particleFilter(filterConfig))
+                            robotOnMap = robotOnMap) {
+                            filter(this@run.filterConfig)
+                            painter = this@run.painter
+                        }
                         var actual = robot.what.odometry
                         launch {
                             // 在控制台打印误差
                             for ((t, pose) in robotOnMap) {
-                                remote?.paintPose("滤波", pose)
+                                painter?.paintPose("滤波", pose)
                                 if (t == actual.time) analyzer(t, actual.data, pose)
                             }
                         }
@@ -140,7 +143,7 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                                                             Normal.next(.0, beaconSigma))
                                         }
                                         .also { beacon ->
-                                            remote?.paint(BEACON_TAG, beacon.x, beacon.y)
+                                            painter?.paint(BEACON_TAG, beacon.x, beacon.y)
                                             beaconOnMap.send(Stamped(t, beacon))
                                         }
                                 // 里程计采样
@@ -149,7 +152,7 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                                     robotOnOdometry.send(Stamped(t, pose))
                                 }
                                 // 显示
-                                remote?.paintPose("实际", actual.data)
+                                painter?.paintPose("实际", actual.data)
                             }
                     }
                 }

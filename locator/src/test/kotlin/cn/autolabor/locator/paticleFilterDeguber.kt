@@ -6,7 +6,12 @@ import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
+import org.mechdancer.dependency.must
 import org.mechdancer.displayOnConsole
+import org.mechdancer.remote.presets.remoteHub
+import org.mechdancer.remote.resources.MulticastSockets
+import org.mechdancer.remote.resources.Networks
+import kotlin.concurrent.thread
 
 @ExperimentalCoroutinesApi
 fun main() = debugParticleFilter {
@@ -31,5 +36,11 @@ fun main() = debugParticleFilter {
         displayOnConsole(
             "时间" to t / 1000.0,
             "误差" to (actual.p - odometry.p).norm())
+    }
+    // 绘图
+    painter = remoteHub("调试粒子滤波器").apply {
+        openAllNetworks()
+        println("opened ${components.must<Networks>().view.size} networks on ${components.must<MulticastSockets>().address}")
+        thread(isDaemon = true) { while (true) invoke() }
     }
 }
