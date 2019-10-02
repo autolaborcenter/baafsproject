@@ -1,4 +1,4 @@
-package cn.autolabor.pathfollower
+package cn.autolabor.pathfollower.algorithm
 
 sealed class FollowCommand {
     data class Follow(val v: Double, val w: Double) : FollowCommand()

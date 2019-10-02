@@ -1,9 +1,13 @@
 package org.mechdancer.baafs
 
+import cn.autolabor.pathfollower.PathFollowerModule.Companion.startPathFollower
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import org.mechdancer.baafs.modules.*
+import org.mechdancer.await
+import org.mechdancer.baafs.modules.LinkMode
+import org.mechdancer.baafs.modules.startChassis
+import org.mechdancer.baafs.modules.startObstacleAvoiding
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped

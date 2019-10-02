@@ -1,5 +1,6 @@
-package cn.autolabor.pathfollower
+package cn.autolabor.pathfollower.algorithm
 
+import cn.autolabor.pathfollower.algorithm.FollowCommand.*
 import org.mechdancer.Temporary
 import org.mechdancer.Temporary.Operation.DELETE
 import org.mechdancer.algebra.function.vector.dot
@@ -11,7 +12,6 @@ import org.mechdancer.geometry.angle.adjust
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.geometry.angle.toVector
-import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
@@ -22,9 +22,9 @@ import kotlin.math.min
 class VirtualLightSensorPathFollower(
     val sensor: VirtualLightSensor,
     private val controller: Controller = Controller.unit,
-    private val minTipAngle: Double = PI / 3,
-    private val minTurnAngle: Double = PI / 12,
-    private val maxJumpCount: Int = 20
+    private val minTipAngle: Double,
+    private val minTurnAngle: Double,
+    private val maxJumpCount: Int
 ) {
     private var pass = 0
     private var path = listOf<Pair<Odometry, Double>>()
@@ -62,11 +62,11 @@ class VirtualLightSensorPathFollower(
         when {
             begin > end                           ->
                 return when {
-                    abs(pre) > minTurnAngle -> FollowCommand.Turn(pre)
-                    else                    -> FollowCommand.Error
+                    abs(pre) > minTurnAngle -> Turn(pre)
+                    else                    -> Error
                 }
             begin == end && end == path.lastIndex ->
-                return FollowCommand.Finish
+                return Finish
         }
         // 丢弃通过的路径
         val next = path.subList(begin, min(end + 2, path.size))
@@ -92,12 +92,12 @@ class VirtualLightSensorPathFollower(
                         val target = (tip.p + tip.d.toVector() * 0.2 - pose.p).toAngle().asRadian()
                         val current = pose.d.asRadian()
                         val delta = (target - current).toRad().adjust().asRadian()
-                        if (abs(delta) > minTurnAngle) return FollowCommand.Turn(delta)
+                        if (abs(delta) > minTurnAngle) return Turn(delta)
                     }
                 }
             }.second
             .let { sensor(pose, subPath(pass, pass + it)) }
-            .let { FollowCommand.Follow(0.1, controller(input = it)) }
+            .let { Follow(0.1, controller(input = it)) }
     }
 }
 
