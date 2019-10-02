@@ -1,9 +1,0 @@
-rootProject.name = 'baafsproject'
-include 'common'
-include 'transform'
-include 'drivers'
-include 'locator'
-include 'pathfollower'
-include 'obstacledetector'
-include 'painter'
-
