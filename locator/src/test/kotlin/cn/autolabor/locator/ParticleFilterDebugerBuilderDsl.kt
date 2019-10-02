@@ -1,7 +1,5 @@
-package org.mechdancer.baafs.simulation
+package cn.autolabor.locator
 
-import cn.autolabor.locator.ParticleFilterBuilderDsl
-import cn.autolabor.locator.startLocationFusion
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch

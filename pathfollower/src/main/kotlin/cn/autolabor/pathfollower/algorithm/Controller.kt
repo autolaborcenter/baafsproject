@@ -1,4 +1,4 @@
-package cn.autolabor.pathfollower
+package cn.autolabor.pathfollower.algorithm
 
 /**
  * 控制器

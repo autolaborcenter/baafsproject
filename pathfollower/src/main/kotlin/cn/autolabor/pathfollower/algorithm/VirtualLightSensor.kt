@@ -1,4 +1,4 @@
-package cn.autolabor.pathfollower
+package cn.autolabor.pathfollower.algorithm
 
 import cn.autolabor.pathfollower.shape.Shape
 import org.mechdancer.Temporary
@@ -14,13 +14,19 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.invoke
 import org.mechdancer.common.toTransformation
 import org.mechdancer.geometry.angle.toVector
-import org.mechdancer.geometry.transformation.Transformation
 
-/** 位于 [robotToSensor] 位置处具有 [lightRange] 形状的虚拟光感 */
+/**
+ * 虚拟光感
+ *
+ * @param onRobot 位姿
+ * @param lightRange 光斑形状
+ */
 class VirtualLightSensor(
-    private val robotToSensor: Transformation,
+    onRobot: Odometry,
     private val lightRange: Shape
 ) {
+    private val robotToSensor = -onRobot.toTransformation()
+
     @Temporary(DELETE)
     var areaShape = listOf<Vector2D>()
 

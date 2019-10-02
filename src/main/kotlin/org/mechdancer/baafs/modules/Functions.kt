@@ -1,9 +1,6 @@
 package org.mechdancer.baafs.modules
 
 import cn.autolabor.locator.ParticleFilter
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.runBlocking
 import org.mechdancer.SimpleLogger
 import org.mechdancer.baafs.modules.Default.loggers
 import org.mechdancer.paint
@@ -11,11 +8,6 @@ import org.mechdancer.paintFrame2
 import org.mechdancer.paintPoses
 import org.mechdancer.remote.presets.RemoteHub
 import java.util.concurrent.ConcurrentHashMap
-
-/** 等待协程作用域中全部工作结束 */
-fun CoroutineScope.await() {
-    runBlocking { this@await.coroutineContext[Job]?.join() }
-}
 
 /** 注册步骤画图回调 */
 fun ParticleFilter.registerPainter(remote: RemoteHub) {

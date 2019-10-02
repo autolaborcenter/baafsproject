@@ -2,13 +2,17 @@ package org.mechdancer.baafs
 
 import cn.autolabor.locator.ParticleFilterBuilderDsl.Companion.particleFilter
 import cn.autolabor.locator.startLocationFusion
+import cn.autolabor.pathfollower.PathFollowerModule.Companion.startPathFollower
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
-import org.mechdancer.baafs.modules.*
+import org.mechdancer.await
 import org.mechdancer.baafs.modules.LinkMode.Direct
+import org.mechdancer.baafs.modules.startBeacon
+import org.mechdancer.baafs.modules.startChassis
+import org.mechdancer.baafs.modules.startObstacleAvoiding
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
