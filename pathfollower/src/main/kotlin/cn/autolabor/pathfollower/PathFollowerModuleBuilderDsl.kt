@@ -7,6 +7,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.BuilderDslMarker
+import org.mechdancer.SimpleLogger
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
@@ -20,22 +21,26 @@ import java.io.File
 import kotlin.math.PI
 
 @BuilderDslMarker
-class PathFollowerModuleBuilderDsl {
-    private lateinit var scope: CoroutineScope
-    private lateinit var robotOnMap: ReceiveChannel<Stamped<Odometry>>
-    private lateinit var commandOut: SendChannel<NonOmnidirectional>
-
+class PathFollowerModuleBuilderDsl private constructor() {
+    // 路径记录间隔
     var pathInterval: Double = .05
+    // 原地转方向分界
     var directionLimit = -2 * PI / 3
-
+    // 日志配置
+    var logger: SimpleLogger? = SimpleLogger("循径模块")
+    // 绘图配置
+    var painter: RemoteHub? = null
+    // 循径控制器配置
     private var followerConfig: PathFollowerBuilderDsl.() -> Unit = {}
+
     fun follower(block: PathFollowerBuilderDsl.() -> Unit) {
         followerConfig = block
     }
 
-    var painter: RemoteHub? = null
-
     companion object {
+        /**
+         * 构造循径模块
+         */
         fun CoroutineScope.pathFollowerModule(
             robotOnMap: ReceiveChannel<Stamped<Odometry>>,
             commandOut: SendChannel<NonOmnidirectional>,
@@ -45,26 +50,20 @@ class PathFollowerModuleBuilderDsl {
                 .apply(block)
                 .apply {
                     require(pathInterval > 0)
-                }
-                .also {
-                    it.scope = this
-                    it.robotOnMap = robotOnMap
-                    it.commandOut = commandOut
-                }
-                .run {
+                }.run {
                     PathFollowerModule(
-                        scope = scope,
+                        scope = this@pathFollowerModule,
                         robotOnMap = robotOnMap,
                         commandOut = commandOut,
                         follower = pathFollower(followerConfig),
                         pathInterval = pathInterval,
                         directionLimit = directionLimit,
+                        logger = logger,
                         painter = painter)
                 }
 
         /**
-         * 循径模块
-         *
+         * 启动循径模块
          * 包含任务控制、路径管理、控制台解析、循径任务；
          */
         @ExperimentalCoroutinesApi

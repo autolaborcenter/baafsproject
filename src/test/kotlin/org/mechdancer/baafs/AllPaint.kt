@@ -2,7 +2,7 @@ package org.mechdancer.baafs
 
 import cn.autolabor.locator.ParticleFilterBuilderDsl.Companion.particleFilter
 import cn.autolabor.locator.startLocationFusion
-import cn.autolabor.pathfollower.PathFollowerModule.Companion.startPathFollower
+import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -45,8 +45,7 @@ fun main() {
             })
         startPathFollower(
             robotOnMap = robotOnMap,
-            commandOut = commandToObstacle,
-            remote = null)
+            commandOut = commandToObstacle)
         startObstacleAvoiding(
             mode = mode,
             commandIn = commandToObstacle,

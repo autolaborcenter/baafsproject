@@ -9,6 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
+import org.mechdancer.SimpleLogger
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.common.Odometry
@@ -22,6 +23,10 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.sign
 
+/**
+ * 循径模块
+ * 处理循径相关一切功能
+ */
 class PathFollowerModule(
     private val scope: CoroutineScope,
     private val robotOnMap: ReceiveChannel<Stamped<Odometry>>,
@@ -29,11 +34,21 @@ class PathFollowerModule(
     private val follower: VirtualLightSensorPathFollower,
     private val directionLimit: Double,
     pathInterval: Double,
+    private val logger: SimpleLogger?,
     val painter: RemoteHub?
 ) {
     val path = PathManager(pathInterval)
 
+    init {
+        logger?.period = 1
+    }
+
     private var internalMode = Idle
+        set(value) {
+            field = value
+            logger?.log("mode = $value")
+        }
+
     var mode
         get() = internalMode
         set(value) {
@@ -82,7 +97,9 @@ class PathFollowerModule(
     private suspend fun follow() {
         for ((_, pose) in robotOnMap) {
             if (internalMode != Mode.Follow) break
-            when (val command = follower(pose)) {
+            val command = follower(pose)
+            logger?.log(command)
+            when (command) {
                 is Follow -> {
                     val (v, w) = command
                     drive(v, w)

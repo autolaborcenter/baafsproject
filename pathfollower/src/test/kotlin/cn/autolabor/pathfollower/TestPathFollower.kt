@@ -81,10 +81,7 @@ fun main() {
         launch { for (v in commandToRobot) command.set(v) }
         // 运行仿真
         runBlocking {
-            speedSimulation(this,
-                            T0,
-                            1000L / FREQUENCY,
-                            SPEED) {
+            speedSimulation(this, T0, 1000L / FREQUENCY, SPEED) {
                 command.get()
             }.consumeEach { (t, v) ->
                 //  计算机器人位姿增量
