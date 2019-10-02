@@ -71,6 +71,7 @@ dependencies {
     api("org.mechdancer", "linearalgebra", "+")
     api("org.jetbrains.kotlinx", "kotlinx-coroutines-core", "+")
     api("net.java.dev.jna", "jna", "+")
+    api("com.fazecast", "jSerialComm", "+")
     // 其他测试
     testImplementation("com.google.protobuf", "protobuf-java", "2.6.1")
     testImplementation("org.zeromq", "jeromq", "0.5.1")
