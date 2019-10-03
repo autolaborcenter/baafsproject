@@ -58,6 +58,7 @@ subprojects {
 dependencies {
     // 导出 kotlin 标准库
     implementation(kotlin("stdlib-jdk8"))
+    implementation(kotlin("script-runtime"))
     // 导出子模块
     implementation(project(":common"))           // 日志器和临时成员注解
     implementation(project(":drivers"))          // 传感器驱动
@@ -92,9 +93,9 @@ tasks.register<Jar>("fatJar") {
          configurations
              .runtimeClasspath
              .get()
-             .filter { "kotlin-stdlib" !in it.name }
+             .filterNot { it.name.startsWith("kotlin-") }
              .distinct()
              .onEach { println(it.name) }
-             .map { zipTree(it) })
+             .map { if (it.isDirectory) it else zipTree(it) })
     println()
 }
