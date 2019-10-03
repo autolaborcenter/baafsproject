@@ -1,5 +1,3 @@
-version = "1.0-SNAPSHOT"
-
 dependencies {
     // 日志与注解
     implementation(project(":common"))
