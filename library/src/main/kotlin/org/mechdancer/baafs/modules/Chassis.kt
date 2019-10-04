@@ -1,9 +1,9 @@
 package org.mechdancer.baafs.modules
 
+import cn.autolabor.PM1
+import cn.autolabor.PM1.ParameterId.*
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.message.navigation.Msg2DOdometry
-import cn.autolabor.pm1.sdk.PM1
-import cn.autolabor.pm1.sdk.PM1.ParameterId.*
 import cn.autolabor.util.lambda.LambdaFunWithName
 import cn.autolabor.util.lambda.function.TaskLambdaFun01
 import cn.autolabor.util.reflect.TypeNode

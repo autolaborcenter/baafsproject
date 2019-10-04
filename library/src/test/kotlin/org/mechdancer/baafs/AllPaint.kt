@@ -59,7 +59,7 @@ fun main() {
         }
     } catch (e: ApplicationException) {
         System.err.println(e.message)
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
         System.err.println("program terminate because of ${e::class.simpleName}")
     }
 }

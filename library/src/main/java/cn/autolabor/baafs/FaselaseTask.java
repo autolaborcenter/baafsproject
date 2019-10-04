@@ -17,7 +17,6 @@ import java.util.List;
 
 import static java.lang.Math.PI;
 import static kotlin.ranges.RangesKt.rangeTo;
-import static org.mechdancer.common.extension.RangeKt.adjust;
 
 /**
  * 砝石雷达转发任务
