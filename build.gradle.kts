@@ -2,6 +2,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm") version "1.3.50"
+    application
     `build-scan`
 }
 
@@ -53,4 +54,17 @@ subprojects {
         implementation("org.mechdancer", "linearalgebra", "+")
         implementation(files("../libs/simulator-0.0.1.jar"))
     }
+}
+
+// 主项目依赖项
+dependencies {
+    implementation(kotlin("scripting-common"))
+    implementation(kotlin("scripting-jvm"))
+    implementation(kotlin("scripting-jvm-host"))
+    implementation(kotlin("main-kts"))
+    implementation(project(":library"))
+}
+
+application {
+    mainClassName = "MainKt"
 }

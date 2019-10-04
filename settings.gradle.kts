@@ -5,5 +5,4 @@ include("common",
         "pathfollower",
         "obstacledetector",
         "painter",
-        "library",
-        "application")
+        "library")

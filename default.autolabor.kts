@@ -24,13 +24,13 @@ val commandToRobot = channel<NonOmnidirectional>()
 // 任务
 try {
     runBlocking {
-//        startChassis(
-//            mode = mode,
-//            odometry = robotOnOdometry,
-//            command = commandToRobot)
-//        startBeacon(
-//            mode = mode,
-//            beaconOnMap = beaconOnMap)
+        startChassis(
+            mode = mode,
+            odometry = robotOnOdometry,
+            command = commandToRobot)
+        startBeacon(
+            mode = mode,
+            beaconOnMap = beaconOnMap)
         startLocationFusion(
             robotOnOdometry = robotOnOdometry,
             beaconOnMap = beaconOnMap,
@@ -53,5 +53,5 @@ try {
             ?.run { println("running coroutines: $size") }
     }
 } catch (e: Exception) {
-    System.err.println("program stop with an ${e::class.java.simpleName}")
+    System.err.println("program stop with a ${e::class.java.simpleName}: ${e.message}")
 }
