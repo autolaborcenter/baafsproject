@@ -23,7 +23,7 @@ fun CoroutineScope.startBeacon(
     when (mode) {
         Direct    -> {
             val i = AtomicLong(0)
-            val resource = runBlocking {
+            val resource = runBlocking(coroutineContext) {
                 Resource { time, x, y ->
                     launch { beaconOnMap.send(Stamped(time, vector2DOf(x, y))) }
                     launch {
@@ -37,7 +37,6 @@ fun CoroutineScope.startBeacon(
                 resource.use { while (isActive) it() }
             }.invokeOnCompletion {
                 beaconOnMap.close()
-                if (it != null) System.err.println("beacon throw: ${it.message}")
             }
         }
         Framework -> {

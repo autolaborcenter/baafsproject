@@ -50,7 +50,6 @@ fun CoroutineScope.startChassis(
                 }
             }.invokeOnCompletion {
                 odometry.close()
-                if (it != null) System.err.println("pm1 throw: ${it.message}")
             }
             // 启动指令接收
             launch {
@@ -70,8 +69,6 @@ fun CoroutineScope.startChassis(
                         }
                     }
                 }
-            }.invokeOnCompletion {
-                if (it != null) System.err.println("pm1 throw: ${it.message}")
             }
         }
         Framework ->

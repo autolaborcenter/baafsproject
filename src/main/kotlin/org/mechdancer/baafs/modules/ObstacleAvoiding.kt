@@ -61,7 +61,6 @@ fun CoroutineScope.startObstacleAvoiding(
         }
         dump()
     }.onFailure {
-        //        ServerManager.me().stop()
-        System.err.println("Obstacle Avoiding throw: ${it.message}")
-    }
+        // ServerManager.me().stop()
+    }.getOrThrow()
 }

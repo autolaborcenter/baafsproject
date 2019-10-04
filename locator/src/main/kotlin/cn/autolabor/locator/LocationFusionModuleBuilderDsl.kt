@@ -67,6 +67,7 @@ class LocationFusionModuleBuilderDsl private constructor() {
                                         }
                                     }
                                 }
+                    }.invokeOnCompletion {
                         robotOnMap.close()
                     }
                 }
