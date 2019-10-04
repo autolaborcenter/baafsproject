@@ -1,10 +1,10 @@
 package cn.autolabor
 
 import com.sun.jna.Library
-import com.sun.jna.NativeLibrary
 import com.sun.jna.Pointer
 import com.sun.jna.ptr.DoubleByReference
 import org.mechdancer.exceptions.ApplicationException
+import java.lang.reflect.Proxy
 
 private typealias Handler = Int
 
@@ -153,7 +153,16 @@ object PM1 {
         }
     }
 
-    private val native by lazy { NativeLibrary.getInstance("pm1_sdk_native") as NativeFunctions }
+    private val native by lazy {
+        with(NativeFunctions::class.java) {
+            cast(Proxy.newProxyInstance(
+                classLoader,
+                arrayOf(this),
+                Library.Handler("pm1_sdk_native",
+                                this,
+                                emptyMap<String, NativeFunctions>())))
+        }
+    }
 
     @Suppress("FunctionName")
     private interface NativeFunctions : Library {
