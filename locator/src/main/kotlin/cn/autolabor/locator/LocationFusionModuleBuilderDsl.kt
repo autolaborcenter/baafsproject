@@ -22,7 +22,7 @@ class LocationFusionModuleBuilderDsl private constructor() {
         filter = particleFilter(block)
     }
 
-    var logger: SimpleLogger? = SimpleLogger("定位融合")
+    var logger: SimpleLogger? = SimpleLogger("LocationFusionModule")
     var painter: RemoteHub? = null
 
     companion object {

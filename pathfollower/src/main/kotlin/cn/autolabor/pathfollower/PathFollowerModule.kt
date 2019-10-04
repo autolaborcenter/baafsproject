@@ -34,7 +34,7 @@ class PathFollowerModule(
     private val follower: VirtualLightSensorPathFollower,
     private val directionLimit: Double,
     pathInterval: Double,
-    private val logger: SimpleLogger?,
+    val logger: SimpleLogger?,
     val painter: RemoteHub?
 ) {
     val path = PathManager(pathInterval)

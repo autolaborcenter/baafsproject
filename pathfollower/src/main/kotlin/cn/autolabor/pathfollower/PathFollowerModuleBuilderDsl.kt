@@ -27,7 +27,7 @@ class PathFollowerModuleBuilderDsl private constructor() {
     // 原地转方向分界
     var directionLimit = -2 * PI / 3
     // 日志配置
-    var logger: SimpleLogger? = SimpleLogger("循径模块")
+    var logger: SimpleLogger? = SimpleLogger("PathFollowerModule")
     // 绘图配置
     var painter: RemoteHub? = null
     // 循径控制器配置
@@ -127,7 +127,11 @@ class PathFollowerModuleBuilderDsl private constructor() {
                     withContext(coroutineContext) {
                         print(">> ")
                         readLine()
-                    }?.let(parser::invoke)?.map(::feedback)?.forEach(::display)
+                    }
+                        ?.also { module.logger?.log("user input: $it") }
+                        ?.let(parser::invoke)
+                        ?.map(::feedback)
+                        ?.forEach(::display)
             }
         }
     }
