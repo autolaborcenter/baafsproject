@@ -4,4 +4,6 @@ include("common",
         "locator",
         "pathfollower",
         "obstacledetector",
-        "painter")
+        "painter",
+        "library",
+        "application")

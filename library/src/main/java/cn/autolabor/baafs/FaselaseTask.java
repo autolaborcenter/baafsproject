@@ -10,6 +10,7 @@ import cn.autolabor.message.sensor.MsgLidar;
 import cn.autolabor.util.Strings;
 import com.faselase.Resource;
 import kotlin.Unit;
+import org.mechdancer.common.extension.RangeKt;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,7 +52,7 @@ public class FaselaseTask extends AbstractTask {
             List<Double> angles = new ArrayList<>(list.size());
             list.forEach(pair -> {
                 distances.add(pair.getData().getDistance());
-                angles.add(adjust(rangeTo(-PI, +PI), pair.getData().getAngle()));
+                angles.add(RangeKt.adjust(rangeTo(-PI, +PI), pair.getData().getAngle()));
             });
             // 发送
             MsgLidar msg = new MsgLidar();

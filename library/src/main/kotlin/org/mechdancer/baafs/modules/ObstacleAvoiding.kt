@@ -29,11 +29,11 @@ fun CoroutineScope.startObstacleAvoiding(
     ServerManager.me().runCatching {
         loadConfig("conf/obstacle.conf")
         if (mode == Direct) {
-            register(FaselaseTask("FaselaseTaskFront"))
-            register(FaselaseTask("FaselaseTaskBack"))
+            register(cn.autolabor.baafs.FaselaseTask("FaselaseTaskFront"))
+            register(cn.autolabor.baafs.FaselaseTask("FaselaseTaskBack"))
         }
-        register(LaserFilterTask("LaserFilterFront"))
-        register(LaserFilterTask("LaserFilterBack"))
+        register(cn.autolabor.baafs.LaserFilterTask("LaserFilterFront"))
+        register(cn.autolabor.baafs.LaserFilterTask("LaserFilterBack"))
         register(ObstacleDetectionTask("ObstacleDetectionTask"))
         register(PoseDetectionTask("PoseDetectionTask"))
         register(FilterTwistTask("FilterTwistTask"))
