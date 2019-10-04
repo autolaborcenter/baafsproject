@@ -79,6 +79,6 @@ public class FaselaseTask extends AbstractTask {
     @Override
     public void onClose() {
         super.onClose();
-        resource.close();
+        if (resource != null) resource.close();
     }
 }

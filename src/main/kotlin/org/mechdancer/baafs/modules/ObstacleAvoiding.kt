@@ -61,6 +61,6 @@ fun CoroutineScope.startObstacleAvoiding(
         }
         dump()
     }.onFailure {
-        // ServerManager.me().stop()
+        ServerManager.me().stop()
     }.getOrThrow()
 }

@@ -57,6 +57,6 @@ fun main() {
                 ?.run { println("running coroutines: $size") }
         }
     } catch (e: Exception) {
-        System.err.println("program stop with exception: ${e.message}")
+        System.err.println("program stop with ${e::class.simpleName}: ${e.message}")
     }
 }
