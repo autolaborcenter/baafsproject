@@ -3,13 +3,14 @@ package org.mechdancer.baafs.modules
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.message.navigation.Msg2DOdometry
 import cn.autolabor.pm1.sdk.PM1
+import cn.autolabor.pm1.sdk.PM1.ParameterId.*
 import cn.autolabor.util.lambda.LambdaFunWithName
 import cn.autolabor.util.lambda.function.TaskLambdaFun01
 import cn.autolabor.util.reflect.TypeNode
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
-import org.mechdancer.baafs.modules.Default.loggers
+import org.mechdancer.SimpleLogger
 import org.mechdancer.baafs.modules.LinkMode.Direct
 import org.mechdancer.baafs.modules.LinkMode.Framework
 import org.mechdancer.common.Odometry
@@ -26,26 +27,35 @@ fun CoroutineScope.startChassis(
     command: ReceiveChannel<NonOmnidirectional>
 ) {
     when (mode) {
-        Direct -> {
-            PM1.initialize()
-            PM1.locked = false
-            // 配置参数
-            PM1[PM1.ParameterId.LeftRadius] = 0.1026
-            PM1[PM1.ParameterId.RightRadius] = 0.1026
-            PM1[PM1.ParameterId.Width] = 0.484
-            PM1[PM1.ParameterId.Length] = 0.35
+        Direct    -> {
+            // 初始化 PM1
+            runBlocking(coroutineContext) {
+                with(PM1) {
+                    initialize()
+                    locked = false
+                    setCommandEnabled(false)
+                    // 配置参数
+                    this[LeftRadius] = 0.1026
+                    this[RightRadius] = 0.1026
+                    this[Width] = 0.484
+                    this[Length] = 0.35
+                }
+            }
+            // 启动里程计发送
             launch {
                 while (isActive) {
                     val (x, y, theta) = PM1.odometry
                     odometry.send(stamp(Odometry.odometry(x, y, theta)))
                     delay(30L)
                 }
+            }.invokeOnCompletion {
                 odometry.close()
+                if (it != null) System.err.println("pm1 throw: ${it.message}")
             }
+            // 启动指令接收
             launch {
-                PM1.setCommandEnabled(false)
                 val i = AtomicLong()
-                val logger = loggers.getLogger("控制量")
+                val logger = SimpleLogger("控制量")
                 for ((v, w) in command) {
                     PM1.drive(v, w)
                     logger.log(v, w)
@@ -60,6 +70,8 @@ fun CoroutineScope.startChassis(
                         }
                     }
                 }
+            }.invokeOnCompletion {
+                if (it != null) System.err.println("pm1 throw: ${it.message}")
             }
         }
         Framework ->

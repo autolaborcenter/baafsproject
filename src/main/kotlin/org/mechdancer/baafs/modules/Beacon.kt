@@ -6,11 +6,8 @@ import cn.autolabor.util.lambda.LambdaFunWithName
 import cn.autolabor.util.lambda.function.TaskLambdaFun01
 import cn.autolabor.util.reflect.TypeNode
 import com.marvelmind.Resource
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.SendChannel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.baafs.modules.LinkMode.Direct
@@ -25,8 +22,8 @@ fun CoroutineScope.startBeacon(
 ) {
     when (mode) {
         Direct    -> {
-            launch {
-                val i = AtomicLong(0)
+            val i = AtomicLong(0)
+            val resource = runBlocking {
                 Resource { time, x, y ->
                     launch { beaconOnMap.send(Stamped(time, vector2DOf(x, y))) }
                     launch {
@@ -34,8 +31,13 @@ fun CoroutineScope.startBeacon(
                         delay(4000L)
                         if (i.get() == mark) throw RuntimeException("Beacon data stopped.")
                     }
-                }.use { while (isActive) it() }
+                }
+            }
+            launch {
+                resource.use { while (isActive) it() }
+            }.invokeOnCompletion {
                 beaconOnMap.close()
+                if (it != null) System.err.println("beacon throw: ${it.message}")
             }
         }
         Framework -> {

@@ -25,36 +25,43 @@ fun CoroutineScope.startObstacleAvoiding(
     mode: LinkMode,
     commandIn: ReceiveChannel<NonOmnidirectional>,
     commandOut: SendChannel<NonOmnidirectional>
-): Unit = with(ServerManager.me()) {
-    loadConfig("conf/obstacle.conf")
-    if (mode == Direct) {
-        register(FaselaseTask("FaselaseTaskFront"))
-        register(FaselaseTask("FaselaseTaskBack"))
-    }
-    register(LaserFilterTask("LaserFilterFront"))
-    register(LaserFilterTask("LaserFilterBack"))
-    register(ObstacleDetectionTask("ObstacleDetectionTask"))
-    register(PoseDetectionTask("PoseDetectionTask"))
-    register(FilterTwistTask("FilterTwistTask"))
-    getOrCreateMessageHandle(
-        getConfig("FilterTwistTask", "cmdTopicOutput") as? String ?: "cmdvel",
-        TypeNode(Msg2DOdometry::class.java)
-    ).addCallback(LambdaFunWithName("chassis", object : TaskLambdaFun01<Msg2DOdometry> {
-        override fun run(p0: Msg2DOdometry?) {
-            if (commandOut.isClosedForSend) return
-            val v = p0?.twist ?: return
-            launch { commandOut.send(Velocity.velocity(v.x, v.yaw)) }
+) {
+    ServerManager.me().runCatching {
+        loadConfig("conf/obstacle.conf")
+        if (mode == Direct) {
+            register(FaselaseTask("FaselaseTaskFront"))
+            register(FaselaseTask("FaselaseTaskBack"))
         }
-    }))
-    getOrCreateMessageHandle(
-        getConfig("FilterTwistTask", "cmdTopicInput") as? String ?: "cmdvel_in",
-        TypeNode(Msg2DOdometry::class.java)
-    ).let { topic ->
-        launch {
-            for (v in commandIn)
-                topic.pushSubData(Msg2DOdometry(null, Msg2DTwist(v.v, .0, v.w)))
-            commandOut.close()
+        register(LaserFilterTask("LaserFilterFront"))
+        register(LaserFilterTask("LaserFilterBack"))
+        register(ObstacleDetectionTask("ObstacleDetectionTask"))
+        register(PoseDetectionTask("PoseDetectionTask"))
+        register(FilterTwistTask("FilterTwistTask"))
+        getOrCreateMessageHandle(
+            getConfig("FilterTwistTask", "cmdTopicOutput") as? String ?: "cmdvel",
+            TypeNode(Msg2DOdometry::class.java)
+        ).addCallback(LambdaFunWithName("chassis", object : TaskLambdaFun01<Msg2DOdometry> {
+            override fun run(p0: Msg2DOdometry?) {
+                if (commandOut.isClosedForSend) return
+                val v = p0?.twist ?: return
+                launch { commandOut.send(Velocity.velocity(v.x, v.yaw)) }
+            }
+        }))
+        getOrCreateMessageHandle(
+            getConfig("FilterTwistTask", "cmdTopicInput") as? String ?: "cmdvel_in",
+            TypeNode(Msg2DOdometry::class.java)
+        ).let { topic ->
+            launch {
+                for (v in commandIn)
+                    topic.pushSubData(Msg2DOdometry(null, Msg2DTwist(v.v, .0, v.w)))
+            }.invokeOnCompletion {
+                commandOut.close()
+                if (it != null) System.err.println("Obstacle Avoiding throw: ${it.message}")
+            }
         }
+        dump()
+    }.onFailure {
+        //        ServerManager.me().stop()
+        System.err.println("Obstacle Avoiding throw: ${it.message}")
     }
-    dump()
 }
