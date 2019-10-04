@@ -2,6 +2,7 @@ package com.marvelmind
 
 import cn.autolabor.Resource
 import cn.autolabor.serialport.parser.SerialPortFinder.Companion.findSerialPort
+import org.mechdancer.exceptions.DeviceNotExistException
 
 /**
  * Marvelmind 移动标签资源控制器
@@ -18,7 +19,7 @@ class Resource(
             timeoutMs = 1000
             bufferSize = 32
             condition { (code, _) -> code == 0x11 }
-        } ?: throw RuntimeException("cannot find marvelmind mobile beacon")
+        } ?: throw DeviceNotExistException("marvelmind mobile beacon")
 
     private val buffer = ByteArray(32)
     override val info: String

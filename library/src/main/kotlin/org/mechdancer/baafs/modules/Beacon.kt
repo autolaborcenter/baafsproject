@@ -13,6 +13,7 @@ import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.baafs.modules.LinkMode.Direct
 import org.mechdancer.baafs.modules.LinkMode.Framework
 import org.mechdancer.common.Stamped
+import org.mechdancer.exceptions.DataTimeoutException
 import java.util.concurrent.atomic.AtomicLong
 
 /** 以 [mode] 模式启动底盘 */
@@ -29,7 +30,7 @@ fun CoroutineScope.startBeacon(
                     launch {
                         val mark = i.incrementAndGet()
                         delay(4000L)
-                        if (i.get() == mark) throw RuntimeException("Beacon data stopped.")
+                        if (i.get() == mark) throw DataTimeoutException("marvelmind mobile beacon")
                     }
                 }
             }

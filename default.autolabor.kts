@@ -1,3 +1,5 @@
+package org.mechdancer.baafs
+
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -13,6 +15,7 @@ import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.exceptions.ApplicationException
 
 val mode = Direct
 // 话题
@@ -52,6 +55,8 @@ try {
             ?.toList()
             ?.run { println("running coroutines: $size") }
     }
+} catch (e: ApplicationException) {
+    System.err.println(e.message)
 } catch (e: Exception) {
-    System.err.println("program stop with a ${e::class.java.simpleName}: ${e.message}")
+    System.err.println("program terminate because of ${e::class.simpleName}")
 }

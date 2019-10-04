@@ -4,6 +4,7 @@ import cn.autolabor.Resource
 import cn.autolabor.serialport.parser.SerialPortFinder
 import org.mechdancer.common.Polar
 import org.mechdancer.common.Stamped
+import org.mechdancer.exceptions.DeviceNotExistException
 import java.util.*
 import kotlin.math.PI
 
@@ -25,7 +26,7 @@ class Resource(
             bufferSize = 32
             activate = "#SF 10\r\n".toByteArray(Charsets.US_ASCII)
             condition { pack -> pack is LidarPack.Data }
-        } ?: throw RuntimeException("cannot find faselase lidar")
+        } ?: throw DeviceNotExistException("faselase lidar")
     private val buffer = ByteArray(256)
     private val list = LinkedList<Stamped<Polar>>()
     private var offset = .0

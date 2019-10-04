@@ -6,9 +6,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.concurrent.thread
 
-/**
- * 具有[name]名字的日志器
- */
+/** 简易日志器 */
 class SimpleLogger(vararg names: String) {
     private val buffer = StringBuilder()
     private val name = "${names.joinToString("_")}.txt"

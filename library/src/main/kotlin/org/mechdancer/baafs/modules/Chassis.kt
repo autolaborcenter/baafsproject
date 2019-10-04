@@ -17,6 +17,7 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Stamped.Companion.stamp
 import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.exceptions.DeviceNotExistException
 import java.util.concurrent.atomic.AtomicLong
 
 /** 以 [mode] 模式启动底盘 */
@@ -31,7 +32,11 @@ fun CoroutineScope.startChassis(
             // 初始化 PM1
             runBlocking(coroutineContext) {
                 with(PM1) {
-                    initialize()
+                    try {
+                        initialize()
+                    } catch (e: RuntimeException) {
+                        throw DeviceNotExistException("pm1 chassis")
+                    }
                     locked = false
                     setCommandEnabled(false)
                     // 配置参数

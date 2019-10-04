@@ -15,6 +15,7 @@ import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.exceptions.ApplicationException
 
 @ExperimentalCoroutinesApi
 fun main() {
@@ -56,7 +57,9 @@ fun main() {
                 ?.toList()
                 ?.run { println("running coroutines: $size") }
         }
+    } catch (e: ApplicationException) {
+        System.err.println(e.message)
     } catch (e: Exception) {
-        System.err.println("program stop with ${e::class.simpleName}: ${e.message}")
+        System.err.println("program terminate because of ${e::class.simpleName}")
     }
 }
