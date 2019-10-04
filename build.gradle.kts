@@ -28,26 +28,27 @@ allprojects {
         targetCompatibility = "1.8"
     }
     dependencies {
+        // 自动依赖 kotlin 标准库
+        implementation(kotlin("stdlib-jdk8"))
         // 单元测试
         testImplementation("junit", "junit", "+")
         testImplementation(kotlin("test-junit"))
     }
     // 源码导出任务
-    val sourceTaskName = "sourcesJar"
-    task<Jar>(sourceTaskName) {
-        archiveClassifier.set("sources")
-        group = "build"
+    with("sourcesJar") {
+        tasks["jar"].dependsOn(this)
+        task<Jar>(this) {
+            archiveClassifier.set("sources")
+            group = "build"
 
-        from(sourceSets["main"].allSource)
+            from(sourceSets["main"].allSource)
+        }
     }
-    tasks["jar"].dependsOn(sourceTaskName)
 }
 
 // 排除主项目的构建脚本
 subprojects {
     dependencies {
-        // 子项目自动依赖 kotlin 标准库
-        implementation(kotlin("stdlib-jdk8"))
         // 子项目自动依赖重要数学和定义库
         implementation("org.mechdancer", "linearalgebra", "+")
         implementation(files("../libs/simulator-0.0.1.jar"))
@@ -57,7 +58,6 @@ subprojects {
 // 主项目依赖项
 dependencies {
     // 导出 kotlin 标准库
-    implementation(kotlin("stdlib-jdk8"))
     implementation(kotlin("script-runtime"))
     // 导出子模块
     implementation(project(":common"))           // 日志器和临时成员注解
@@ -73,29 +73,33 @@ dependencies {
     implementation("net.java.dev.jna", "jna", "+")
     implementation("com.fazecast", "jSerialComm", "+")
     // 其他测试
+    testImplementation(fileTree("libs-test"))
     testImplementation("com.google.protobuf", "protobuf-java", "2.6.1")
     testImplementation("org.zeromq", "jeromq", "0.5.1")
-    testImplementation(fileTree("libs-test"))
 }
 
-// 打包任务
-tasks.register<Jar>("fatJar") {
-    group = JavaBasePlugin.BUILD_TASK_NAME
-    description = "Packs binary output with dependencies"
-    archiveClassifier.set("all-in-one")
-    println("all classes:")
-    from(sourceSets
-             .main
-             .get()
-             .output
-             .filter { "resources" !in it.path }
-             .onEach { println(it.path) },
-         configurations
-             .runtimeClasspath
-             .get()
-             .filterNot { it.name.startsWith("kotlin-") }
-             .distinct()
-             .onEach { println(it.name) }
-             .map { if (it.isDirectory) it else zipTree(it) })
-    println()
+with("fatJar") {
+    // 打包任务
+    tasks["build"].dependsOn(this)
+    tasks.register<Jar>(this) {
+        group = JavaBasePlugin.BUILD_TASK_NAME
+        description = "Packs binary output with dependencies"
+        archiveClassifier.set("all-in-one")
+        println("all classes:")
+        from(sourceSets
+                 .main
+                 .get()
+                 .output
+                 .filter { "resources" !in it.path }
+                 .onEach { println(it.path) },
+             configurations
+                 .runtimeClasspath
+                 .get()
+                 .filterNot { it.name.startsWith("kotlin-") }
+                 .distinct()
+                 .onEach { println(it.name) }
+                 .map { if (it.isDirectory) it else zipTree(it) })
+        println()
+    }
 }
+
