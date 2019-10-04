@@ -31,6 +31,17 @@ public class FilterTwistTask extends AbstractTask {
     private int lidarTimeout;
     @TaskParameter(name = "lidarTopic", value = "scan_out")
     private String lidarTopic;
+    private int count = 0;
+    private SimpleLogger logger = new SimpleLogger("Filter_Twist_logger");
+    @InjectMessage(topic = "${cmdTopicOutput}")
+    private MessageHandle<Msg2DOdometry> twistOutHandle;
+    @InjectMessage(topic = "${lidarTopic}")
+    private MessageHandle<List<MsgPolygon>> lidarMessageHandle;
+    private PoseDetectionTask poseDetectionTask;
+
+    public FilterTwistTask(String... name) {
+        super(name);
+    }
 
     @SubscribeMessage(topic = "${cmdTopicInput}")
     @TaskFunction(name = "filterTwist")
@@ -79,21 +90,6 @@ public class FilterTwistTask extends AbstractTask {
                 out.getTwist().getX(), out.getTwist().getYaw()));
             twistOutHandle.pushSubData(out);
         }
-    }
-
-    private int count = 0;
-    private SimpleLogger logger = new SimpleLogger("Filter_Twist_logger");
-
-    @InjectMessage(topic = "${cmdTopicOutput}")
-    private MessageHandle<Msg2DOdometry> twistOutHandle;
-
-    @InjectMessage(topic = "${lidarTopic}")
-    private MessageHandle<List<MsgPolygon>> lidarMessageHandle;
-
-    private PoseDetectionTask poseDetectionTask;
-
-    public FilterTwistTask(String... name) {
-        super(name);
     }
 
     @FilterTask

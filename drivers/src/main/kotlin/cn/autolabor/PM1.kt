@@ -1,7 +1,7 @@
 package cn.autolabor
 
 import com.sun.jna.Library
-import com.sun.jna.Native
+import com.sun.jna.NativeLibrary
 import com.sun.jna.Pointer
 import com.sun.jna.ptr.DoubleByReference
 import org.mechdancer.exceptions.ApplicationException
@@ -153,14 +153,7 @@ object PM1 {
         }
     }
 
-    private val native by lazy {
-        try {
-            Native.load("pm1_sdk_native", NativeFunctions::class.java)
-        } catch (e: UnsatisfiedLinkError) {
-            e.printStackTrace()
-            throw e
-        }
-    }
+    private val native by lazy { NativeLibrary.getInstance("pm1_sdk_native") as NativeFunctions }
 
     @Suppress("FunctionName")
     private interface NativeFunctions : Library {

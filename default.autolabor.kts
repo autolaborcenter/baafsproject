@@ -59,5 +59,4 @@ try {
     System.err.println(e.message)
 } catch (e: Throwable) {
     System.err.println("program terminate because of ${e::class.simpleName}")
-    e.printStackTrace()
 }

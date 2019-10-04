@@ -51,23 +51,23 @@ fun parser(buffer: List<Byte>): ParseInfo<LidarPack> {
         buffer
             .indexOfFirst { it >= 0 }
             .takeIf { it >= 0 }
-            ?: return ParseInfo(size, size, LidarPack.Failed)
+        ?: return ParseInfo(size, size, LidarPack.Failed)
 
     val `package` =
         (begin + 4)
             .takeIf { it < size }
             ?.let { buffer.subList(begin, it) }
-            ?: return ParseInfo(begin, size, LidarPack.Failed)
+        ?: return ParseInfo(begin, size, LidarPack.Failed)
 
     val result =
         if (crcCheck(`package`)) {
             begin += 4
 
             val rho = k_rho * (`package`[0].takeBits(0b00001111, 8)
-                    or `package`[1].takeBits(0b01111111, 1)
-                    or `package`[2].takeBits(0b01000000, -6))
+                or `package`[1].takeBits(0b01111111, 1)
+                or `package`[2].takeBits(0b01000000, -6))
             val theta = k_theta * (`package`[2].takeBits(0b00111111, 7)
-                    or `package`[3].takeBits(0b01111111, 0))
+                or `package`[3].takeBits(0b01111111, 0))
 
             when {
                 theta !in 0.0..2 * PI -> LidarPack.Failed
@@ -82,7 +82,7 @@ fun parser(buffer: List<Byte>): ParseInfo<LidarPack> {
         (begin until size)
             .find { buffer[it] >= 0 }
             ?.let { it to it + 1 }
-            ?: size to size
+        ?: size to size
     return ParseInfo(nextBegin, passed, result)
 }
 

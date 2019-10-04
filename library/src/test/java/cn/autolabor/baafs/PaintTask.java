@@ -50,13 +50,13 @@ public class PaintTask extends AbstractTask {
             DataOutputStream s = new DataOutputStream(stream);
             points.forEach(p -> {
 
-                        try {
-                            s.writeDouble(p.getX());
-                            s.writeDouble(p.getY());
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
+                    try {
+                        s.writeDouble(p.getX());
+                        s.writeDouble(p.getY());
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
+                }
             );
         } catch (Exception e) {
             e.printStackTrace();
@@ -77,20 +77,20 @@ public class PaintTask extends AbstractTask {
             stream.write(bb.toBytes());
             DataOutputStream s = new DataOutputStream(stream);
             obstacles
-                    .stream()
-                    .filter(o -> o.getPoints().size() > 1)
-                    .forEach(obstacle -> {
-                        obstacle
-                                .getPoints()
-                                .forEach(point -> {
-                                    try {
-                                        s.writeDouble(point.getX());
-                                        s.writeDouble(point.getY());
-                                    } catch (IOException e) {
-                                        e.printStackTrace();
-                                    }
-                                });
-                    });
+                .stream()
+                .filter(o -> o.getPoints().size() > 1)
+                .forEach(obstacle -> {
+                    obstacle
+                        .getPoints()
+                        .forEach(point -> {
+                            try {
+                                s.writeDouble(point.getX());
+                                s.writeDouble(point.getY());
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        });
+                });
         } catch (Exception e) {
             e.printStackTrace();
         }

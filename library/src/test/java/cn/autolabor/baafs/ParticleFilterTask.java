@@ -22,6 +22,7 @@ import static java.lang.Math.abs;
 @TaskProperties
 public class ParticleFilterTask extends AbstractTask {
 
+    public final ParticleFilter filter;
     private final Matcher<Stamped<Msg2DOdometry>, Stamped<Msg2DOdometry>> matcher = new ClampMatcher<>();
     @TaskParameter(name = "marvelmindTopic", value = "marvelmind")
     private String marvelmindTopic;
@@ -45,10 +46,8 @@ public class ParticleFilterTask extends AbstractTask {
     private int maxAge;
     @TaskParameter(name = "sigma", value = "0.314159")
     private double sigma;
-
     @InjectMessage(topic = "${fusionTopic}")
     private MessageHandle<Msg2DOdometry> topicSender;
-    public final ParticleFilter filter;
 
     @SuppressWarnings("unchecked")
     public ParticleFilterTask(String... name) {

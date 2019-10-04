@@ -40,15 +40,15 @@ public class LaserFilterTask extends AbstractTask {
             List<Double> angles = new ArrayList<>();
             List<Double> distances = new ArrayList<>();
             IntStream.range(0, msgLidar.getAngles().size())
-                    .filter(i ->
-                            angleRange.stream().allMatch(range -> {
-                                double angleItem = msgLidar.getAngles().get(i);
-                                return includeFlag == (angleItem >= range.get(0) && angleItem <= range.get(1));
-                            }))
-                    .forEach(j -> {
-                        angles.add(msgLidar.getAngles().get(j));
-                        distances.add(msgLidar.getDistances().get(j));
-                    });
+                .filter(i ->
+                    angleRange.stream().allMatch(range -> {
+                        double angleItem = msgLidar.getAngles().get(i);
+                        return includeFlag == (angleItem >= range.get(0) && angleItem <= range.get(1));
+                    }))
+                .forEach(j -> {
+                    angles.add(msgLidar.getAngles().get(j));
+                    distances.add(msgLidar.getDistances().get(j));
+                });
             msgLidarOut.setAngles(angles);
             msgLidarOut.setDistances(distances);
         }

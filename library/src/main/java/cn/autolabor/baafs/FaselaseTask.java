@@ -24,20 +24,15 @@ import static kotlin.ranges.RangesKt.rangeTo;
 @TaskProperties(unique = false)
 public class FaselaseTask extends AbstractTask {
 
+    private final Resource resource;
     @TaskParameter(name = "topic", value = "scan")
     private String topic;
-
     @TaskParameter(name = "frameId", value = "lidar")
     private String frameId;
-
     @TaskParameter(name = "comName", value = "")
     private String comName;
-
     @InjectMessage(topic = "${topic}")
     private MessageHandle<MsgLidar> topicSender;
-
-    private final Resource resource;
-
     private long time = System.currentTimeMillis();
 
     public FaselaseTask(String... name) {
