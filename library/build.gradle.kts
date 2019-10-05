@@ -19,9 +19,21 @@ dependencies {
     testImplementation("org.zeromq", "jeromq", "0.5.1")
 }
 
+"copyJar".let { name ->
+    tasks["build"].dependsOn(name)
+    tasks.register<Copy>(name) {
+        group = JavaBasePlugin.BUILD_TASK_NAME
+        description = "copy jar to root libs"
+        from("$buildDir/libs")
+        include("*-direct-application.jar")
+        into("${rootProject.buildDir}/libs")
+    }
+    tasks[name].dependsOn("direct-application")
+}
+
 "direct-application".let { name ->
     // 打包任务
-    tasks["build"].dependsOn(name)
+    tasks["copyJar"].dependsOn(name)
     tasks.register<Jar>(name) {
         manifest { attributes("Main-Class" to "org.mechdancer.baafs.modules.MainKt") }
         group = JavaBasePlugin.BUILD_TASK_NAME
@@ -32,3 +44,5 @@ dependencies {
                  .map { if (it.isDirectory) it else zipTree(it) })
     }
 }
+
+
