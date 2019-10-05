@@ -1,5 +1,7 @@
 import AutolaborScript.ScriptConfiguration
 import java.io.File
+import kotlin.script.experimental.api.ScriptDiagnostic.Severity
+import kotlin.script.experimental.api.onFailure
 import kotlin.script.experimental.host.toScriptSource
 import kotlin.script.experimental.jvmhost.BasicJvmScriptingHost
 import kotlin.script.experimental.jvmhost.createJvmEvaluationConfigurationFromTemplate
@@ -17,7 +19,9 @@ fun main(args: Array<String>) {
         .eval(file.toScriptSource(),
               ScriptConfiguration,
               createJvmEvaluationConfigurationFromTemplate<AutolaborScript>())
-        .run {
-            if ("-debugScript" in args) println(reports)
+        .onFailure { result ->
+            result.reports
+                .filter { (_, level) -> level == Severity.ERROR }
+                .forEach { System.err.println(it) }
         }
 }
