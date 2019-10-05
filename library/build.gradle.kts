@@ -23,12 +23,11 @@ with("fatJar") {
     // 打包任务
     tasks["build"].dependsOn(this)
     tasks.register<Jar>(this) {
+        manifest { attributes("Main-Class" to "MainKt") }
         group = JavaBasePlugin.BUILD_TASK_NAME
         description = "Packs binary output with dependencies"
         archiveClassifier.set("all-in-one")
-        from(sourceSets.main.get()
-                 .output
-                 .filter { "resources" !in it.path },
+        from(sourceSets.main.get().output,
              configurations.runtimeClasspath.get()
                  .map { if (it.isDirectory) it else zipTree(it) })
     }
