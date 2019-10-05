@@ -1,12 +1,14 @@
+package org.mechdancer.baafs.modules
+
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.runBlocking
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.baafs.modules.LinkMode.Direct
-import org.mechdancer.baafs.modules.startBeacon
-import org.mechdancer.baafs.modules.startChassis
-import org.mechdancer.baafs.modules.startObstacleAvoiding
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
@@ -24,7 +26,7 @@ fun main() {
     val commandToRobot = channel<NonOmnidirectional>()
     // 任务
     try {
-        with(CoroutineScope(Dispatchers.Default)) {
+        runBlocking(Dispatchers.Default) {
             startChassis(
                 mode = mode,
                 odometry = robotOnOdometry,
@@ -52,7 +54,6 @@ fun main() {
                 ?.filter { it.isActive }
                 ?.toList()
                 ?.run { println("running coroutines: $size") }
-            runBlocking { coroutineContext[Job]?.join() }
         }
     } catch (e: ApplicationException) {
         System.err.println(e.message)

@@ -2,7 +2,6 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm") version "1.3.50"
-    application
     `build-scan`
 }
 
@@ -65,6 +64,28 @@ dependencies {
     implementation(project(":library"))
 }
 
-application {
-    mainClassName = "MainKt"
+"scripting-application".let { name ->
+    // 打包任务
+    tasks["build"].dependsOn(name)
+    tasks.register<Jar>(name) {
+        manifest { attributes("Main-Class" to "MainKt") }
+        group = JavaBasePlugin.BUILD_TASK_NAME
+        description = "pack jar to run script"
+        archiveClassifier.set(name)
+        from(sourceSets.main.get().output,
+             configurations.runtimeClasspath.get()
+                 .map { if (it.isDirectory) it else zipTree(it) })
+    }
+}
+
+"copyConfiguration".let { name ->
+    tasks["build"].dependsOn(name)
+    tasks.register<Copy>(name) {
+        group = JavaBasePlugin.BUILD_TASK_NAME
+        description = "copy configuration files to target direction"
+        from("$rootDir")
+        include("conf/**")
+        include("*.autolabor.kts")
+        into("$buildDir/libs")
+    }
 }

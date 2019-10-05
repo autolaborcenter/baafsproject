@@ -19,14 +19,14 @@ dependencies {
     testImplementation("org.zeromq", "jeromq", "0.5.1")
 }
 
-with("fatJar") {
+"direct-application".let { name ->
     // 打包任务
-    tasks["build"].dependsOn(this)
-    tasks.register<Jar>(this) {
-        manifest { attributes("Main-Class" to "MainKt") }
+    tasks["build"].dependsOn(name)
+    tasks.register<Jar>(name) {
+        manifest { attributes("Main-Class" to "org.mechdancer.baafs.modules.MainKt") }
         group = JavaBasePlugin.BUILD_TASK_NAME
-        description = "Packs binary output with dependencies"
-        archiveClassifier.set("all-in-one")
+        description = "pack jar to run program directly"
+        archiveClassifier.set(name)
         from(sourceSets.main.get().output,
              configurations.runtimeClasspath.get()
                  .map { if (it.isDirectory) it else zipTree(it) })

@@ -30,21 +30,19 @@ fun CoroutineScope.startChassis(
     when (mode) {
         Direct    -> {
             // 初始化 PM1
-            runBlocking(coroutineContext) {
-                with(PM1) {
-                    try {
-                        initialize()
-                    } catch (e: RuntimeException) {
-                        throw DeviceNotExistException("pm1 chassis")
-                    }
-                    locked = false
-                    setCommandEnabled(false)
-                    // 配置参数
-                    this[LeftRadius] = 0.1026
-                    this[RightRadius] = 0.1026
-                    this[Width] = 0.484
-                    this[Length] = 0.35
+            with(PM1) {
+                try {
+                    initialize()
+                } catch (e: RuntimeException) {
+                    throw DeviceNotExistException("pm1 chassis")
                 }
+                locked = false
+                setCommandEnabled(false)
+                // 配置参数
+                this[LeftRadius] = 0.1026
+                this[RightRadius] = 0.1026
+                this[Width] = 0.484
+                this[Length] = 0.35
             }
             // 启动里程计发送
             launch {

@@ -18,6 +18,7 @@ import org.mechdancer.paintFrame3
 import org.mechdancer.paintPoses
 import org.mechdancer.remote.presets.RemoteHub
 import java.io.File
+import java.util.concurrent.Executors
 import kotlin.math.PI
 
 @BuilderDslMarker
@@ -75,13 +76,17 @@ class PathFollowerModuleBuilderDsl private constructor() {
             val file = File("path.txt")
             val module = pathFollowerModule(robotOnMap, commandOut, block)
             val parser = buildParser {
+                this["cancel"] = {
+                    module.mode = Idle
+                    "current mode: ${module.mode}"
+                }
                 this["record"] = {
                     module.mode = Record
                     "current mode: ${module.mode}"
                 }
                 this["clear"] = {
                     module.path.clear()
-                    module.painter?.paintFrame3("path", emptyList())
+                    module.painter?.paintFrame3("路径", emptyList())
                     "path cleared"
                 }
                 this["show"] = {
@@ -106,7 +111,7 @@ class PathFollowerModuleBuilderDsl private constructor() {
                         "$size nodes loaded"
                     }
                 }
-                this["delete"] = { file.writeText(""); "path save deleted" }
+                this["delete"] = { file.writeText(""); "path file deleted" }
 
                 this["go"] = {
                     module.mode = Follow
@@ -123,15 +128,17 @@ class PathFollowerModuleBuilderDsl private constructor() {
 
             /** 从控制台阻塞解析 */
             launch {
-                while (isActive)
-                    withContext(coroutineContext) {
-                        print(">> ")
-                        readLine()
-                    }
+                println("command parsing will start 5 seconds later")
+                delay(5000)
+                val forConsole = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+                while (isActive) {
+                    print(">> ")
+                    withContext(forConsole) { readLine() }
                         ?.also { module.logger?.log("user input: $it") }
                         ?.let(parser::invoke)
                         ?.map(::feedback)
                         ?.forEach(::display)
+                }
             }
         }
     }

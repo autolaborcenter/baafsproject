@@ -1,7 +1,6 @@
-package org.mechdancer.baafs
-
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
@@ -26,7 +25,7 @@ val commandToObstacle = channel<NonOmnidirectional>()
 val commandToRobot = channel<NonOmnidirectional>()
 // 任务
 try {
-    runBlocking {
+    runBlocking(Dispatchers.Default) {
         startChassis(
             mode = mode,
             odometry = robotOnOdometry,
@@ -59,4 +58,5 @@ try {
     System.err.println(e.message)
 } catch (e: Throwable) {
     System.err.println("program terminate because of ${e::class.simpleName}")
+    System.err.println(e.message)
 }
