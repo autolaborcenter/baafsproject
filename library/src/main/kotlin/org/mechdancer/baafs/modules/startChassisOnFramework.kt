@@ -6,11 +6,13 @@ import cn.autolabor.util.lambda.LambdaFunWithName
 import cn.autolabor.util.lambda.function.TaskLambdaFun01
 import cn.autolabor.util.reflect.TypeNode
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 
+@ExperimentalCoroutinesApi
 fun CoroutineScope.startChassisOnFramework(
     odometry: SendChannel<Stamped<Odometry>>
 ) {

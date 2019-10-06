@@ -1,5 +1,6 @@
 package org.mechdancer.baafs.modules
 
+import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
 import cn.autolabor.core.server.DefaultSetup
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
@@ -10,7 +11,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
-import org.mechdancer.baafs.modules.ChassisModuleBuilderDsl.Companion.startChassis
 import org.mechdancer.baafs.modules.LinkMode.Direct
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
@@ -72,5 +72,7 @@ fun main() {
         System.err.println(e.message)
     } catch (e: Throwable) {
         System.err.println("program terminate because of ${e::class.simpleName}")
+    } finally {
+        println("program stopped")
     }
 }

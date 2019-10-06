@@ -54,10 +54,9 @@ fun CoroutineScope.startObstacleAvoiding(
                     topic.pushSubData(Msg2DOdometry(null, Msg2DTwist(v.v, .0, v.w)))
             }.invokeOnCompletion {
                 commandOut.close()
-                if (it != null) System.err.println("Obstacle Avoiding throw: ${it.message}")
+                ServerManager.me().stop()
             }
         }
-        dump()
     }.onFailure {
         ServerManager.me().stop()
     }.getOrThrow()

@@ -1,11 +1,11 @@
 package org.mechdancer.baafs
 
+import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
 import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.baafs.modules.LinkMode.Direct
-import org.mechdancer.baafs.modules.startChassis
 import org.mechdancer.baafs.modules.startObstacleAvoiding
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
@@ -23,7 +23,6 @@ fun main() {
     try {
         runBlocking {
             startChassis(
-                mode = mode,
                 odometry = robotOnMap,
                 command = commandToRobot)
             startPathFollower(

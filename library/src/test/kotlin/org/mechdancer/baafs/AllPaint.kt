@@ -1,5 +1,6 @@
 package org.mechdancer.baafs
 
+import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
 import kotlinx.coroutines.Dispatchers
@@ -10,7 +11,6 @@ import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.baafs.modules.LinkMode.Direct
 import org.mechdancer.baafs.modules.startBeacon
-import org.mechdancer.baafs.modules.startChassis
 import org.mechdancer.baafs.modules.startObstacleAvoiding
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
@@ -31,7 +31,6 @@ fun main() {
     try {
         runBlocking(Dispatchers.Default) {
             startChassis(
-                mode = mode,
                 odometry = robotOnOdometry,
                 command = commandToRobot)
             startBeacon(

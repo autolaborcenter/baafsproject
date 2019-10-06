@@ -59,9 +59,9 @@ class PathFollowerModule(
                     Idle           -> internalMode = Idle
                 }
                 is Mode.Follow -> when (value) {
-                    Record         -> Unit
-                    is Mode.Follow -> Unit
-                    Idle           -> internalMode = Idle
+                    Record -> Unit
+                    is Mode.Follow,
+                    Idle   -> internalMode = value
                 }
                 Idle           -> when (value) {
                     Record         -> {
