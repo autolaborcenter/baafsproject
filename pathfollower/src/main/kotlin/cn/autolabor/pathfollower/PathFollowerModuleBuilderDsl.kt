@@ -19,7 +19,6 @@ import org.mechdancer.paintFrame3
 import org.mechdancer.paintPoses
 import org.mechdancer.remote.presets.RemoteHub
 import java.io.File
-import java.util.concurrent.Executors
 import kotlin.math.PI
 
 @BuilderDslMarker
@@ -133,10 +132,13 @@ class PathFollowerModuleBuilderDsl private constructor() {
 
             /** 从控制台阻塞解析 */
             return launch(start = LAZY) {
-                val forConsole = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
                 while (isActive) {
                     print(">> ")
-                    withContext(forConsole) { readLine() }
+                    (GlobalScope
+                         .async { readLine() }
+                         .takeIf { isActive }
+                     ?: break)
+                        .await()
                         ?.also { module.logger?.log("user input: $it") }
                         ?.let(parser::invoke)
                         ?.map(::feedback)

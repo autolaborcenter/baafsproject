@@ -31,7 +31,7 @@ fun CoroutineScope.startBeacon(
                 launch { beaconOnMap.send(Stamped(time, vector2DOf(x, y))) }
                 launch {
                     val mark = i.incrementAndGet()
-                    delay(4000L)
+                    delay(2000L)
                     if (i.get() == mark) throw DataTimeoutException("marvelmind mobile beacon")
                 }
             }
