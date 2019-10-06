@@ -19,7 +19,7 @@ class SerialPortFinder<T> private constructor() {
     /**
      * 查找超时时间
      */
-    var timeoutMs: Int = 1000
+    var timeoutMs: Long = 1000L
 
     /**
      * 发送激活码

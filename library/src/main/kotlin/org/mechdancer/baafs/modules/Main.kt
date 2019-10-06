@@ -5,6 +5,7 @@ import cn.autolabor.core.server.DefaultSetup
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
+import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -16,11 +17,9 @@ import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
-import org.mechdancer.dependency.must
 import org.mechdancer.exceptions.ApplicationException
+import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
-import org.mechdancer.remote.resources.MulticastSockets
-import org.mechdancer.remote.resources.Networks
 import kotlin.concurrent.thread
 
 @ExperimentalCoroutinesApi
@@ -32,11 +31,10 @@ fun main() {
     val remote = remoteHub("painter")
         .apply {
             openAllNetworks()
-            println("open ${components.must<Networks>().view.size} networks on ${components.must<MulticastSockets>().address}")
+            println(networksInfo())
             thread(isDaemon = true) { while (true) invoke() }
         }
 
-    val mode = Direct
     // 话题
     val robotOnOdometry = channel<Stamped<Odometry>>()
     val robotOnMap = channel<Stamped<Odometry>>()
@@ -49,32 +47,46 @@ fun main() {
             println("trying to connect to pm1 chassis...")
             startChassis(
                 odometry = robotOnOdometry,
-                command = commandToRobot)
+                command = commandToRobot
+            ) {
+                port = null
+                period = 30L
+                controlTimeout = 300L
+            }
             println("done")
+
             println("trying to connect to marvelmind mobile beacon...")
-            startBeacon(
-                mode = mode,
-                beaconOnMap = beaconOnMap)
+            startMobileBeacon(
+                beaconOnMap = beaconOnMap
+            ) {
+                port = null
+                openTimeout = 1000L
+                dataTimeout = 2000L
+            }
             println("done")
+
+            println("trying to connect to faselase lidars...")
+            startObstacleAvoiding(
+                mode = Direct,
+                commandIn = commandToObstacle,
+                commandOut = commandToRobot)
+            println("done")
+
             startLocationFusion(
                 robotOnOdometry = robotOnOdometry,
                 beaconOnMap = beaconOnMap,
-                robotOnMap = robotOnMap) {
+                robotOnMap = robotOnMap
+            ) {
                 filter {
-                    beaconOnRobot = vector2DOf(-0.037, 0)
-                    beaconWeight = 40.0
+                    beaconOnRobot = vector2DOf(-.037, 0)
+                    beaconWeight = .15 * count
                 }
                 painter = remote
             }
             val parsing = startPathFollower(
                 robotOnMap = robotOnMap,
                 commandOut = commandToObstacle)
-            println("trying to connect to faselase lidars...")
-            startObstacleAvoiding(
-                mode = mode,
-                commandIn = commandToObstacle,
-                commandOut = commandToRobot)
-            println("done")
+
             coroutineContext[Job]
                 ?.children
                 ?.filter { it.isActive }

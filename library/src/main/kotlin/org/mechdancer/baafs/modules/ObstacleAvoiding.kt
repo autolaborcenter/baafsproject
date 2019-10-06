@@ -18,6 +18,8 @@ import org.mechdancer.baafs.modules.LinkMode.Direct
 import org.mechdancer.common.Velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
 
+enum class LinkMode { Direct, Framework }
+
 @ExperimentalCoroutinesApi
 fun CoroutineScope.startObstacleAvoiding(
     mode: LinkMode,

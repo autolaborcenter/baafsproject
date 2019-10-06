@@ -1,22 +1,24 @@
-package org.mechdancer.baafs
+package cn.autolabor
 
+import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
-import org.mechdancer.baafs.modules.LinkMode.Direct
-import org.mechdancer.baafs.modules.startBeacon
 import org.mechdancer.channel
 import org.mechdancer.common.Stamped
 import kotlin.math.sqrt
 
-fun main() = runBlocking<Unit> {
+// 静止状态下 marvelmind 标签定位相当准确
+// 此测试用于计算静止状态下的定位标签位置方差
+// 也可用于测试数据是否出现中断
+
+fun main() = runBlocking<Unit>(Dispatchers.Default) {
     // 话题
     val beaconOnMap = channel<Stamped<Vector2D>>()
     // 任务
-    startBeacon(
-        mode = Direct,
-        beaconOnMap = beaconOnMap)
+    startMobileBeacon(beaconOnMap = beaconOnMap)
     val list = mutableListOf<Vector2D>()
     launch {
         for ((_, p) in beaconOnMap) {
