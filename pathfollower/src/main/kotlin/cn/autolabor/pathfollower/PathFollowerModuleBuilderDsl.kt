@@ -4,6 +4,7 @@ import cn.autolabor.pathfollower.Mode.*
 import cn.autolabor.pathfollower.algorithm.PathFollowerBuilderDsl
 import cn.autolabor.pathfollower.algorithm.PathFollowerBuilderDsl.Companion.pathFollower
 import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineStart.LAZY
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.BuilderDslMarker
@@ -72,7 +73,7 @@ class PathFollowerModuleBuilderDsl private constructor() {
             robotOnMap: ReceiveChannel<Stamped<Odometry>>,
             commandOut: SendChannel<NonOmnidirectional>,
             block: PathFollowerModuleBuilderDsl.() -> Unit = {}
-        ) {
+        ): Job {
             val file = File("path.txt")
             val module = pathFollowerModule(robotOnMap, commandOut, block)
             val parser = buildParser {
@@ -114,7 +115,11 @@ class PathFollowerModuleBuilderDsl private constructor() {
                 this["delete"] = { file.writeText(""); "path file deleted" }
 
                 this["go"] = {
-                    module.mode = Follow
+                    module.mode = Follow(loop = false)
+                    "current mode: ${module.mode}"
+                }
+                this["loop"] = {
+                    module.mode = Follow(loop = true)
                     "current mode: ${module.mode}"
                 }
                 this["\'"] = {
@@ -127,9 +132,7 @@ class PathFollowerModuleBuilderDsl private constructor() {
             }
 
             /** 从控制台阻塞解析 */
-            launch {
-                println("command parsing will start 5 seconds later")
-                delay(5000)
+            return launch(start = LAZY) {
                 val forConsole = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
                 while (isActive) {
                     print(">> ")

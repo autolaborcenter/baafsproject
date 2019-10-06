@@ -1,5 +1,7 @@
 package org.mechdancer.baafs.modules
 
+import cn.autolabor.core.server.DefaultSetup
+import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +19,10 @@ import org.mechdancer.exceptions.ApplicationException
 
 @ExperimentalCoroutinesApi
 fun main() {
+    ServerManager.setSetup(object : DefaultSetup() {
+        override fun start() = Unit
+    })
+
     val mode = Direct
     // 话题
     val robotOnOdometry = channel<Stamped<Odometry>>()
@@ -59,6 +65,5 @@ fun main() {
         System.err.println(e.message)
     } catch (e: Throwable) {
         System.err.println("program terminate because of ${e::class.simpleName}")
-        System.err.println(e.message)
     }
 }

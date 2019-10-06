@@ -1,9 +1,8 @@
+package org.mechdancer.baafs
+
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.baafs.modules.LinkMode.Direct
@@ -16,6 +15,10 @@ import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.exceptions.ApplicationException
 
+ServerManager.setSetup(object : DefaultSetup() {
+    override fun start() = Unit
+})
+
 val mode = Direct
 // 话题
 val robotOnOdometry = channel<Stamped<Odometry>>()
@@ -25,7 +28,7 @@ val commandToObstacle = channel<NonOmnidirectional>()
 val commandToRobot = channel<NonOmnidirectional>()
 // 任务
 try {
-    runBlocking(Dispatchers.Default) {
+    with(CoroutineScope(Dispatchers.Default)) {
         startChassis(
             mode = mode,
             odometry = robotOnOdometry,
@@ -41,7 +44,7 @@ try {
                 beaconOnRobot = vector2DOf(-0.37, 0)
             }
         }
-        startPathFollower(
+        val parsing = startPathFollower(
             robotOnMap = robotOnMap,
             commandOut = commandToObstacle)
         startObstacleAvoiding(
@@ -52,11 +55,11 @@ try {
             ?.children
             ?.filter { it.isActive }
             ?.toList()
-            ?.run { println("running coroutines: $size") }
+            ?.run { kotlin.io.println("running coroutines: $size") }
+        runBlocking { parsing.join() }
     }
 } catch (e: ApplicationException) {
     System.err.println(e.message)
 } catch (e: Throwable) {
     System.err.println("program terminate because of ${e::class.simpleName}")
-    System.err.println(e.message)
 }

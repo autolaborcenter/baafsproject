@@ -2,6 +2,7 @@ package org.mechdancer.baafs
 
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
@@ -28,7 +29,7 @@ fun main() {
     val commandToRobot = channel<NonOmnidirectional>()
     // 任务
     try {
-        runBlocking {
+        runBlocking(Dispatchers.Default) {
             startChassis(
                 mode = mode,
                 odometry = robotOnOdometry,
@@ -44,13 +45,14 @@ fun main() {
                     beaconOnRobot = vector2DOf(-0.37, 0)
                 }
             }
-            startPathFollower(
+            val parsing = startPathFollower(
                 robotOnMap = robotOnMap,
                 commandOut = commandToObstacle)
             startObstacleAvoiding(
                 mode = mode,
                 commandIn = commandToObstacle,
                 commandOut = commandToRobot)
+            parsing.start()
             coroutineContext[Job]
                 ?.children
                 ?.filter { it.isActive }

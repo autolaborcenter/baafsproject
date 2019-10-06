@@ -43,7 +43,7 @@ class PathFollowerModule(
         logger?.period = 1
     }
 
-    private var internalMode = Idle
+    private var internalMode: Mode = Idle
         set(value) {
             field = value
             logger?.log("mode = $value")
@@ -53,38 +53,38 @@ class PathFollowerModule(
         get() = internalMode
         set(value) {
             when (internalMode) {
-                Record      -> when (value) {
-                    Record      -> Unit
-                    Mode.Follow -> Unit
-                    Idle        -> internalMode = Idle
+                Record         -> when (value) {
+                    Record         -> Unit
+                    is Mode.Follow -> Unit
+                    Idle           -> internalMode = Idle
                 }
-                Mode.Follow -> when (value) {
-                    Record      -> Unit
-                    Mode.Follow -> Unit
-                    Idle        -> internalMode = Idle
+                is Mode.Follow -> when (value) {
+                    Record         -> Unit
+                    is Mode.Follow -> Unit
+                    Idle           -> internalMode = Idle
                 }
-                Idle        -> when (value) {
-                    Record      -> {
+                Idle           -> when (value) {
+                    Record         -> {
                         internalMode = Record
                         scope.launch { record() }
                     }
-                    Mode.Follow -> {
+                    is Mode.Follow -> {
                         if (path.size < 2) return
 
                         follower.setPath(path.get())
                         isEnabled = false
 
-                        internalMode = Mode.Follow
+                        internalMode = value
                         scope.launch { follow() }
                     }
-                    Idle        -> Unit
+                    Idle           -> Unit
                 }
             }
         }
 
     var isEnabled = false
         set(value) {
-            if (internalMode == Mode.Follow) field = value
+            if (internalMode is Mode.Follow) field = value
         }
 
     private suspend fun record() {
@@ -96,7 +96,8 @@ class PathFollowerModule(
 
     private suspend fun follow() {
         for ((_, pose) in robotOnMap) {
-            if (internalMode != Mode.Follow) break
+            val m = internalMode
+            if (m !is Mode.Follow) break
             val command = follower(pose)
             logger?.log(command)
             when (command) {
@@ -112,8 +113,12 @@ class PathFollowerModule(
                 }
                 is Error  -> Unit
                 is Finish -> {
-                    stop()
-                    internalMode = Idle
+                    if (m.loop)
+                        follower.setPath(path.get())
+                    else {
+                        stop()
+                        internalMode = Idle
+                    }
                 }
             }
             painter?.run {

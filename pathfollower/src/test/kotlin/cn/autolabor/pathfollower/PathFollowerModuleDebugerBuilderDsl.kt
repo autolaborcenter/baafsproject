@@ -85,7 +85,7 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
                             commandOut = commandToRobot
                         ) {
                             painter = remote
-                        }
+                        }.start()
                         launch { for ((v, w) in commands) command.set(Velocity.velocity(0.2 * v, 0.8 * w)) }
                         launch { for (v in commandToRobot) command.set(v) }
                         // 运行仿真

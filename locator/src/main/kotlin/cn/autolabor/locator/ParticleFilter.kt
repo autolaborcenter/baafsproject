@@ -130,7 +130,7 @@ class ParticleFilter(private val count: Int,
                                          initialize(measure, state)
                                          return@forEach
                                      }
-                    // 计算期望和方差
+                    // 计算期望
                     var eP = vector2DOfZero()
                     var eD = vector2DOfZero()
                     locators.forEachIndexed { i, (odometry, _) ->
@@ -143,7 +143,7 @@ class ParticleFilter(private val count: Int,
                     eD /= weightsSum
                     val eAngle = eD.toAngle()
                     val angle = eAngle.asRadian()
-                    // 计算方向标准差，对偏差较大的粒子进行随机方向的重采样
+                    // 对偏差较大的粒子进行随机方向的重采样
                     particles = particles.mapIndexed { i, item ->
                         if ((locators[i].first.p - measure).norm() > 0.05) {
                             val newAge = item.second - 2

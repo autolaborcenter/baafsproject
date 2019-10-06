@@ -1,8 +1,8 @@
 package cn.autolabor.pathfollower
 
 // 任务类型/工作状态
-enum class Mode {
-    Record,
-    Follow,
-    Idle
+sealed class Mode {
+    object Record : Mode()
+    data class Follow(val loop: Boolean) : Mode()
+    object Idle : Mode()
 }
