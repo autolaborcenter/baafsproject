@@ -16,11 +16,23 @@ import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.dependency.must
 import org.mechdancer.exceptions.ApplicationException
+import org.mechdancer.remote.presets.remoteHub
+import org.mechdancer.remote.resources.MulticastSockets
+import org.mechdancer.remote.resources.Networks
+import kotlin.concurrent.thread
 
 ServerManager.setSetup(object : DefaultSetup() {
     override fun start() = Unit
 })
+
+val remote = remoteHub("painter")
+    .apply {
+        openAllNetworks()
+        println("simulator open ${components.must<Networks>().view.size} networks on ${components.must<MulticastSockets>().address}")
+        thread(isDaemon = true) { while (true) invoke() }
+    }
 
 val mode = Direct
 // 话题
@@ -49,6 +61,7 @@ try {
             filter {
                 beaconOnRobot = vector2DOf(-0.037, 0)
             }
+            painter = remote
         }
         val parsing = startPathFollower(
             robotOnMap = robotOnMap,
@@ -70,6 +83,7 @@ try {
     System.err.println(e.message)
 } catch (e: Throwable) {
     System.err.println("program terminate because of ${e::class.simpleName}")
+    e.printStackTrace()
 } finally {
     println("program stopped")
 }

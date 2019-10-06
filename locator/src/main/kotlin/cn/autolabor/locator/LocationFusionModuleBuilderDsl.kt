@@ -48,13 +48,15 @@ class LocationFusionModuleBuilderDsl private constructor() {
                     // 使用定位数据
                     launch {
                         for (item in beaconOnMap) {
+                            painter?.paint("定位", item.data.x, item.data.y)
                             filter.measureHelper(item)
                             if (robotOnOdometry.isClosedForReceive) break
                         }
                     }
                     // 使用里程计数据
                     launch {
-                        for (item in robotOnOdometry)
+                        for (item in robotOnOdometry) {
+                            painter?.paintPose("里程计", item.data)
                             filter.measureMaster(item)
                                 ?.also { robotOnMap.send(it) }
                                 ?.also { (_, data) ->
@@ -67,9 +69,8 @@ class LocationFusionModuleBuilderDsl private constructor() {
                                         }
                                     }
                                 }
-                    }.invokeOnCompletion {
-                        robotOnMap.close()
-                    }
+                        }
+                    }.invokeOnCompletion { robotOnMap.close() }
                 }
         }
     }

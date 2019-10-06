@@ -16,13 +16,25 @@ import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.dependency.must
 import org.mechdancer.exceptions.ApplicationException
+import org.mechdancer.remote.presets.remoteHub
+import org.mechdancer.remote.resources.MulticastSockets
+import org.mechdancer.remote.resources.Networks
+import kotlin.concurrent.thread
 
 @ExperimentalCoroutinesApi
 fun main() {
     ServerManager.setSetup(object : DefaultSetup() {
         override fun start() = Unit
     })
+
+    val remote = remoteHub("painter")
+        .apply {
+            openAllNetworks()
+            println("open ${components.must<Networks>().view.size} networks on ${components.must<MulticastSockets>().address}")
+            thread(isDaemon = true) { while (true) invoke() }
+        }
 
     val mode = Direct
     // 话题
@@ -50,7 +62,9 @@ fun main() {
                 robotOnMap = robotOnMap) {
                 filter {
                     beaconOnRobot = vector2DOf(-0.037, 0)
+                    beaconWeight = 40.0
                 }
+                painter = remote
             }
             val parsing = startPathFollower(
                 robotOnMap = robotOnMap,
