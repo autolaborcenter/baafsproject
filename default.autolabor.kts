@@ -17,11 +17,9 @@ import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
-import org.mechdancer.dependency.must
 import org.mechdancer.exceptions.ApplicationException
+import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
-import org.mechdancer.remote.resources.MulticastSockets
-import org.mechdancer.remote.resources.Networks
 import kotlin.concurrent.thread
 
 ServerManager.setSetup(object : DefaultSetup() {
@@ -98,7 +96,6 @@ try {
     System.err.println(e.message)
 } catch (e: Throwable) {
     System.err.println("program terminate because of ${e::class.simpleName}")
-    e.printStackTrace()
 } finally {
     println("program stopped")
 }
