@@ -10,6 +10,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.baafs.modules.ChassisModuleBuilderDsl.Companion.startChassis
 import org.mechdancer.baafs.modules.LinkMode.Direct
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
@@ -33,7 +34,6 @@ try {
     runBlocking(Dispatchers.Default) {
         println("trying to connect to pm1 chassis...")
         startChassis(
-            mode = mode,
             odometry = robotOnOdometry,
             command = commandToRobot)
         println("done")
