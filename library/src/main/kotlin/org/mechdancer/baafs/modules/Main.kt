@@ -33,13 +33,17 @@ fun main() {
     // 任务
     try {
         runBlocking(Dispatchers.Default) {
+            println("trying to connect to pm1 chassis...")
             startChassis(
                 mode = mode,
                 odometry = robotOnOdometry,
                 command = commandToRobot)
+            println("done")
+            println("trying to connect to marvelmind mobile beacon...")
             startBeacon(
                 mode = mode,
                 beaconOnMap = beaconOnMap)
+            println("done")
             startLocationFusion(
                 robotOnOdometry = robotOnOdometry,
                 beaconOnMap = beaconOnMap,
@@ -48,18 +52,21 @@ fun main() {
                     beaconOnRobot = vector2DOf(-0.37, 0)
                 }
             }
-            startPathFollower(
+            val parsing = startPathFollower(
                 robotOnMap = robotOnMap,
                 commandOut = commandToObstacle)
+            println("trying to connect to faselase lidars...")
             startObstacleAvoiding(
                 mode = mode,
                 commandIn = commandToObstacle,
                 commandOut = commandToRobot)
+            println("done")
             coroutineContext[Job]
                 ?.children
                 ?.filter { it.isActive }
                 ?.toList()
                 ?.run { println("running coroutines: $size") }
+            parsing.start()
         }
     } catch (e: ApplicationException) {
         System.err.println(e.message)
