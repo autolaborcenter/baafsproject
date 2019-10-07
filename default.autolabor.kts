@@ -5,6 +5,8 @@ import cn.autolabor.core.server.DefaultSetup
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
+import cn.autolabor.pathfollower.parseFromConsole
+import cn.autolabor.pathfollower.shape.Circle
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
 import kotlinx.coroutines.*
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -12,26 +14,28 @@ import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.baafs.modules.LinkMode.Direct
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
+import org.mechdancer.common.Odometry.Companion.odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.console.parser.buildParser
-import org.mechdancer.console.parser.display
-import org.mechdancer.console.parser.feedback
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
 import kotlin.concurrent.thread
+import kotlin.math.PI
 
 ServerManager.setSetup(object : DefaultSetup() {
     override fun start() = Unit
 })
 
-val remote = remoteHub("painter")
-    .apply {
-        openAllNetworks()
-        println(networksInfo())
-        thread(isDaemon = true) { while (true) invoke() }
-    }
+val remote by lazy {
+    remoteHub("painter")
+        .apply {
+            openAllNetworks()
+            println(networksInfo())
+            thread(isDaemon = true) { while (true) invoke() }
+        }
+}
 
 // 话题
 val robotOnOdometry = channel<Stamped<Odometry>>()
@@ -85,23 +89,23 @@ try {
         startPathFollower(
             robotOnMap = robotOnMap,
             commandOut = commandToObstacle,
-            consoleParser = parser)
-
-        coroutineContext[Job]
-            ?.children
-            ?.filter { it.isActive }
-            ?.toList()
-            ?.run { println("running coroutines: $size") }
-
-        launch {
-            while (isActive) {
-                print(">> ")
-                withContext(Dispatchers.Default) { readLine() }
-                    ?.let(parser::invoke)
-                    ?.map(::feedback)
-                    ?.forEach(::display)
+            consoleParser = parser
+        ) {
+            pathInterval = .05
+            directionLimit = -2 * PI / 3
+            follower {
+                sensorPose = odometry(.275, 0)
+                lightRange = Circle(.3)
+                minTipAngle = PI / 3
+                minTurnAngle = PI / 12
+                maxJumpCount = 20
+                maxLinearSpeed = .1
+                maxAngularSpeed = .5
             }
         }
+
+        parser["coroutines count"] = { coroutineContext[Job]?.children?.count() }
+        while (isActive) parser.parseFromConsole()
     }
 } catch (e: ApplicationException) {
     System.err.println(e.message)

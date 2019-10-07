@@ -1,4 +1,4 @@
-package org.mechdancer.baafs.modules
+package cn.autolabor.baafs
 
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.message.navigation.Msg2DOdometry
