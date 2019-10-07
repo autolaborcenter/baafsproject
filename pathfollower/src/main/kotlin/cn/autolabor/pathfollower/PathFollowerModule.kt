@@ -30,6 +30,7 @@ import kotlin.math.sign
 class PathFollowerModule(
     private val scope: CoroutineScope,
     private val robotOnMap: ReceiveChannel<Stamped<Odometry>>,
+    private val robotOnOdometry: ReceiveChannel<Stamped<Odometry>>,
     private val commandOut: SendChannel<NonOmnidirectional>,
     private val follower: VirtualLightSensorPathFollower,
     private val directionLimit: Double,
@@ -137,15 +138,15 @@ class PathFollowerModule(
     }
 
     private suspend fun goStraight(distance: Double) {
-        val (p0, _) = robotOnMap.receive().data
-        for ((_, pose) in robotOnMap) {
+        val (p0, _) = robotOnOdometry.receive().data
+        for ((_, pose) in robotOnOdometry) {
             if ((pose.p - p0).norm() > distance) break
             drive(.1, 0)
         }
     }
 
     private suspend fun turn(angle: Double) {
-        val (_, d0) = robotOnMap.receive().data
+        val (_, d0) = robotOnOdometry.receive().data
         val value = angle.let {
             when {
                 directionLimit < 0 && it < directionLimit -> it + 2 * PI
@@ -155,7 +156,7 @@ class PathFollowerModule(
         }
         val delta = abs(value)
         val w = value.sign * follower.maxAngularSpeed
-        for ((_, pose) in robotOnMap) {
+        for ((_, pose) in robotOnOdometry) {
             if (abs(pose.d.asRadian() - d0.asRadian()) > delta) break
             drive(0, w)
         }

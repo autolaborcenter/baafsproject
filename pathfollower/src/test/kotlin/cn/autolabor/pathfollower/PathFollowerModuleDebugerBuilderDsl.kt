@@ -75,6 +75,7 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
                         // 任务
                         startPathFollower(
                             robotOnMap = robotOnMap,
+                            robotOnOdometry = robotOnMap,
                             commandOut = commandToRobot,
                             consoleParser = parser
                         ) {

@@ -9,6 +9,7 @@ import cn.autolabor.pathfollower.parseFromConsole
 import cn.autolabor.pathfollower.shape.Circle
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
 import kotlinx.coroutines.*
+import org.mechdancer.YChannel
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.baafs.modules.LinkMode.Direct
@@ -19,6 +20,7 @@ import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
+import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
 import kotlin.concurrent.thread
@@ -38,7 +40,7 @@ val remote by lazy {
 }
 
 // 话题
-val robotOnOdometry = channel<Stamped<Odometry>>()
+val robotOnOdometry = YChannel<Stamped<Odometry>>()
 val robotOnMap = channel<Stamped<Odometry>>()
 val beaconOnMap = channel<Stamped<Vector2D>>()
 val commandToObstacle = channel<NonOmnidirectional>()
@@ -49,7 +51,7 @@ try {
     runBlocking(Dispatchers.Default) {
         println("trying to connect to pm1 chassis...")
         startChassis(
-            odometry = robotOnOdometry,
+            odometry = robotOnOdometry.input,
             command = commandToRobot
         ) {
             port = null
@@ -79,7 +81,7 @@ try {
         println("done")
 
         startLocationFusion(
-            robotOnOdometry = robotOnOdometry,
+            robotOnOdometry = robotOnOdometry.outputs[0],
             beaconOnMap = beaconOnMap,
             robotOnMap = robotOnMap
         ) {
@@ -91,11 +93,12 @@ try {
         }
         startPathFollower(
             robotOnMap = robotOnMap,
+            robotOnOdometry = robotOnOdometry.outputs[1],
             commandOut = commandToObstacle,
             consoleParser = parser
         ) {
             pathInterval = .05
-            directionLimit = -2 * PI / 3
+            directionLimit = (-120).toDegree().asRadian()
             follower {
                 sensorPose = odometry(.275, 0)
                 lightRange = Circle(.3)
@@ -103,7 +106,7 @@ try {
                 minTurnAngle = PI / 12
                 maxJumpCount = 20
                 maxLinearSpeed = .1
-                maxAngularSpeed = .5
+                maxAngularSpeed = .4
             }
         }
 

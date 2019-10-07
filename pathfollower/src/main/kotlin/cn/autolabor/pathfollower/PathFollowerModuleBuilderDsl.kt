@@ -25,7 +25,7 @@ class PathFollowerModuleBuilderDsl private constructor() {
     // 路径记录间隔
     var pathInterval: Double = .05
     // 原地转方向分界
-    var directionLimit = -2 * PI / 3
+    var directionLimit: Double = -2 * PI / 3
     // 日志配置
     var logger: SimpleLogger? = SimpleLogger("PathFollowerModule")
     // 绘图配置
@@ -43,6 +43,7 @@ class PathFollowerModuleBuilderDsl private constructor() {
          */
         fun CoroutineScope.pathFollowerModule(
             robotOnMap: ReceiveChannel<Stamped<Odometry>>,
+            robotOnOdometry: ReceiveChannel<Stamped<Odometry>>,
             commandOut: SendChannel<NonOmnidirectional>,
             block: PathFollowerModuleBuilderDsl.() -> Unit = {}
         ) =
@@ -54,6 +55,7 @@ class PathFollowerModuleBuilderDsl private constructor() {
                     PathFollowerModule(
                         scope = this@pathFollowerModule,
                         robotOnMap = robotOnMap,
+                        robotOnOdometry = robotOnOdometry,
                         commandOut = commandOut,
                         follower = pathFollower(followerConfig),
                         pathInterval = pathInterval,
@@ -69,12 +71,17 @@ class PathFollowerModuleBuilderDsl private constructor() {
         @ExperimentalCoroutinesApi
         fun CoroutineScope.startPathFollower(
             robotOnMap: ReceiveChannel<Stamped<Odometry>>,
+            robotOnOdometry: ReceiveChannel<Stamped<Odometry>>,
             commandOut: SendChannel<NonOmnidirectional>,
             consoleParser: Parser,
             block: PathFollowerModuleBuilderDsl.() -> Unit = {}
         ) {
             val file = File("path.txt")
-            val module = pathFollowerModule(robotOnMap, commandOut, block)
+            val module = pathFollowerModule(
+                robotOnMap = robotOnMap,
+                robotOnOdometry = robotOnOdometry,
+                commandOut = commandOut,
+                block = block)
             with(consoleParser) {
                 this["cancel"] = {
                     module.mode = Idle
