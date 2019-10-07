@@ -26,7 +26,7 @@ class MobileBeaconModuleBuilderDsl private constructor() {
     companion object {
         private const val NAME = "marvelmind mobile beacon"
         private const val BUFFER_SIZE = 32
-        private const val COORDINATE_CODE = 0x111
+        private const val COORDINATE_CODE = 0x11
 
         fun CoroutineScope.startMobileBeacon(
             beaconOnMap: SendChannel<Stamped<Vector2D>>,
@@ -74,7 +74,7 @@ class MobileBeaconModuleBuilderDsl private constructor() {
                 ?.let { array ->
                     engine(array) { pack ->
                         when (pack) {
-                            Nothing -> Unit
+                            Nothing -> logger.log("nothing")
                             Failed  -> logger.log("failed")
                             is Data -> {
                                 val (code, payload) = pack
