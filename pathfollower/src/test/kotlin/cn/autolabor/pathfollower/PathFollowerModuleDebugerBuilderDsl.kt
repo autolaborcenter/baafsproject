@@ -1,17 +1,17 @@
 package cn.autolabor.pathfollower
 
 import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.consumeEach
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import org.mechdancer.BuilderDslMarker
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.console.parser.Parser
+import org.mechdancer.console.parser.display
+import org.mechdancer.console.parser.feedback
 import org.mechdancer.dependency.must
 import org.mechdancer.paintPose
 import org.mechdancer.remote.modules.multicast.multicastListener
@@ -78,14 +78,25 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
                     val robotOnMap = channel<Stamped<Odometry>>()
                     val commandToRobot = channel<NonOmnidirectional>()
                     val command = AtomicReference(Velocity.velocity(.0, .0))
+                    val parser = Parser()
                     runBlocking {
                         // 任务
                         startPathFollower(
                             robotOnMap = robotOnMap,
-                            commandOut = commandToRobot
+                            commandOut = commandToRobot,
+                            consoleParser = parser
                         ) {
                             painter = remote
-                        }.start()
+                        }
+                        launch {
+                            while (isActive) {
+                                print(">> ")
+                                withContext(Dispatchers.Default) { readLine() }
+                                    ?.let(parser::invoke)
+                                    ?.map(::feedback)
+                                    ?.forEach(::display)
+                            }
+                        }
                         launch { for ((v, w) in commands) command.set(Velocity.velocity(0.2 * v, 0.8 * w)) }
                         launch { for (v in commandToRobot) command.set(v) }
                         // 运行仿真

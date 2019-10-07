@@ -3,8 +3,9 @@ package cn.autolabor.pathfollower
 import cn.autolabor.pathfollower.Mode.*
 import cn.autolabor.pathfollower.algorithm.PathFollowerBuilderDsl
 import cn.autolabor.pathfollower.algorithm.PathFollowerBuilderDsl.Companion.pathFollower
-import kotlinx.coroutines.*
-import kotlinx.coroutines.CoroutineStart.LAZY
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.BuilderDslMarker
@@ -12,9 +13,7 @@ import org.mechdancer.SimpleLogger
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
-import org.mechdancer.console.parser.buildParser
-import org.mechdancer.console.parser.display
-import org.mechdancer.console.parser.feedback
+import org.mechdancer.console.parser.Parser
 import org.mechdancer.paintFrame3
 import org.mechdancer.paintPoses
 import org.mechdancer.remote.presets.RemoteHub
@@ -71,11 +70,12 @@ class PathFollowerModuleBuilderDsl private constructor() {
         fun CoroutineScope.startPathFollower(
             robotOnMap: ReceiveChannel<Stamped<Odometry>>,
             commandOut: SendChannel<NonOmnidirectional>,
+            consoleParser: Parser,
             block: PathFollowerModuleBuilderDsl.() -> Unit = {}
-        ): Job {
+        ) {
             val file = File("path.txt")
             val module = pathFollowerModule(robotOnMap, commandOut, block)
-            val parser = buildParser {
+            with(consoleParser) {
                 this["cancel"] = {
                     module.mode = Idle
                     "current mode: ${module.mode}"
@@ -128,22 +128,6 @@ class PathFollowerModuleBuilderDsl private constructor() {
 
                 this["state"] = { module.mode }
                 this["shutdown"] = { cancel(); "Bye~" }
-            }
-
-            /** 从控制台阻塞解析 */
-            return launch(start = LAZY) {
-                while (isActive) {
-                    print(">> ")
-                    (GlobalScope
-                         .async { readLine() }
-                         .takeIf { isActive }
-                     ?: break)
-                        .await()
-                        ?.also { module.logger?.log("user input: $it") }
-                        ?.let(parser::invoke)
-                        ?.map(::feedback)
-                        ?.forEach(::display)
-                }
             }
         }
     }

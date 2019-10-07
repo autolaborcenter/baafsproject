@@ -2,6 +2,8 @@ package com.marvelmind
 
 import cn.autolabor.serialport.parser.ParseEngine
 import cn.autolabor.serialport.parser.ParseEngine.ParseInfo
+import com.marvelmind.BeaconPackage.*
+import com.marvelmind.BeaconPackage.Nothing
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 import kotlin.experimental.xor
@@ -47,29 +49,26 @@ class ResolutionCoordinate(private val list: List<Byte>) {
             .let(::DataInputStream)
 }
 
-data class Package(val code: Int, val payload: List<Byte>) {
-    companion object {
-        val nothing = Package(-1, emptyList())
-        val failed = Package(Int.MAX_VALUE, emptyList())
-    }
+sealed class BeaconPackage {
+    object Nothing : BeaconPackage()
+    object Failed : BeaconPackage()
+    data class Data(val code: Int, val payload: List<Byte>) : BeaconPackage()
 }
 
-/**
- * MarvelMind 移动节点网络层解析器
- */
-fun parse(buffer: List<Byte>): ParseInfo<Package> {
+/** MarvelMind 移动节点网络层解析器 */
+fun engine(): ParseEngine<Byte, BeaconPackage> = ParseEngine { buffer ->
     val size = buffer.size
     // 找到一个帧头
     var begin = (0 until size - 1).find { i ->
         buffer[i] == DestinationAddress && buffer[i + 1] == PacketType
-    } ?: return ParseInfo(
+    } ?: return@ParseEngine ParseInfo(
         nextHead =
         if (buffer.last() == DestinationAddress)
             size - 1
         else
             size,
         nextBegin = size,
-        result = Package.nothing
+        result = Nothing
     )
     // 确定帧长度
     val `package` =
@@ -77,20 +76,18 @@ fun parse(buffer: List<Byte>): ParseInfo<Package> {
             ?.let { it + 7 + buffer[it + 4] }
             ?.takeIf { it in 1 until size }
             ?.let { buffer.subList(begin, it) }
-        ?: return ParseInfo(begin, size, Package.nothing)
+        ?: return@ParseEngine ParseInfo(begin, size, Nothing)
     // crc 校验
     val result =
         if (crc16Check(`package`)) {
             val payload = ArrayList<Byte>(`package`.size - 7)
             payload.addAll(`package`.subList(5, `package`.size - 2))
             begin += `package`.size
-            Package(`package`[3].toIntUnsigned() * 256 + `package`[2].toIntUnsigned(), payload)
+            Data(`package`[3].toIntUnsigned() * 256 + `package`[2].toIntUnsigned(), payload)
         } else {
             begin += 2
-            Package.failed
+            Failed
         }
     // 找到下一个帧头
-    return ParseInfo(begin, begin, result)
+    return@ParseEngine ParseInfo(begin, begin, result)
 }
-
-fun engine() = ParseEngine(::parse)

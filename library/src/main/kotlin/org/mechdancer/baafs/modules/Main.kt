@@ -6,10 +6,7 @@ import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.baafs.modules.LinkMode.Direct
@@ -17,6 +14,9 @@ import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.console.parser.buildParser
+import org.mechdancer.console.parser.display
+import org.mechdancer.console.parser.feedback
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
@@ -41,6 +41,7 @@ fun main() {
     val beaconOnMap = channel<Stamped<Vector2D>>()
     val commandToObstacle = channel<NonOmnidirectional>()
     val commandToRobot = channel<NonOmnidirectional>()
+    val parser = buildParser { }
     // 任务
     try {
         runBlocking(Dispatchers.Default) {
@@ -83,16 +84,26 @@ fun main() {
                 }
                 painter = remote
             }
-            val parsing = startPathFollower(
+            startPathFollower(
                 robotOnMap = robotOnMap,
-                commandOut = commandToObstacle)
+                commandOut = commandToObstacle,
+                consoleParser = parser)
 
             coroutineContext[Job]
                 ?.children
                 ?.filter { it.isActive }
                 ?.toList()
                 ?.run { println("running coroutines: $size") }
-            parsing.start()
+
+            launch {
+                while (isActive) {
+                    print(">> ")
+                    withContext(Dispatchers.Default) { readLine() }
+                        ?.let(parser::invoke)
+                        ?.map(::feedback)
+                        ?.forEach(::display)
+                }
+            }
         }
     } catch (e: ApplicationException) {
         System.err.println(e.message)
