@@ -63,8 +63,11 @@ try {
             beaconOnMap = beaconOnMap
         ) {
             port = null
+            retryInterval = 100L
+            retryTimes = 3
             openTimeout = 1000L
             dataTimeout = 2000L
+            delayLimit = 400L
         }
         println("done")
 
@@ -105,8 +108,9 @@ try {
         }
 
         parser["coroutines count"] = { coroutineContext[Job]?.children?.count() }
-        while (isActive) parser.parseFromConsole()
+        GlobalScope.launch { while (isActive) parser.parseFromConsole() }
     }
+} catch (e: CancellationException) {
 } catch (e: ApplicationException) {
     System.err.println(e.message)
 } catch (e: Throwable) {

@@ -12,7 +12,6 @@ import org.mechdancer.common.Stamped
 import org.mechdancer.common.Stamped.Companion.stamp
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.exceptions.DeviceNotExistException
-import java.util.concurrent.atomic.AtomicLong
 
 @BuilderDslMarker
 class ChassisModuleBuilderDsl private constructor() {
@@ -61,7 +60,6 @@ class ChassisModuleBuilderDsl private constructor() {
             }.invokeOnCompletion { odometry.close() }
             // 启动指令接收
             launch {
-                val i = AtomicLong()
                 val logger = SimpleLogger("ChassisCommand")
                 val watchDog = WatchDog(parameters.controlTimeout)
                 for ((v, w) in command) {
