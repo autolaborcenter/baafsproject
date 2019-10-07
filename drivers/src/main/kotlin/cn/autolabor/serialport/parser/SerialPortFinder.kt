@@ -69,7 +69,7 @@ class SerialPortFinder<T> private constructor() {
                             while (!result && System.currentTimeMillis() - time < timeoutMs)
                                 port.readBytes(array, array.size.toLong())
                                     .takeIf { it > 0 }
-                                    ?.let { array.asList().subList(0, it) }
+                                    ?.let(array::take)
                                     ?.let { list -> engine(list) { result = result || predicate(it) } }
                             // 返回
                             if (!result) port.closePort()

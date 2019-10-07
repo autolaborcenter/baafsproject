@@ -59,8 +59,11 @@ fun main() {
                 beaconOnMap = beaconOnMap
             ) {
                 port = null
+                retryInterval = 100L
+                retryTimes = 3
                 openTimeout = 1000L
-                dataTimeout = 6000L
+                dataTimeout = 2000L
+                delayLimit = 400L
             }
             println("done")
 
