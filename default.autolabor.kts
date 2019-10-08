@@ -23,7 +23,6 @@ import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
-import kotlin.concurrent.thread
 import kotlin.math.PI
 
 ServerManager.setSetup(object : DefaultSetup() {
@@ -35,7 +34,6 @@ val remote by lazy {
         .apply {
             openAllNetworks()
             println(networksInfo())
-            thread(isDaemon = true) { while (true) invoke() }
         }
 }
 
@@ -86,7 +84,7 @@ try {
             robotOnMap = robotOnMap
         ) {
             filter {
-                beaconOnRobot = vector2DOf(-.037, 0)
+                beaconOnRobot = vector2DOf(-.01, 0)
                 beaconWeight = .15 * count
             }
             painter = remote

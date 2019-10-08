@@ -23,7 +23,6 @@ import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
-import kotlin.concurrent.thread
 import kotlin.math.PI
 
 @ExperimentalCoroutinesApi
@@ -37,7 +36,6 @@ fun main() {
             .apply {
                 openAllNetworks()
                 println(networksInfo())
-                thread(isDaemon = true) { while (true) invoke() }
             }
     }
 

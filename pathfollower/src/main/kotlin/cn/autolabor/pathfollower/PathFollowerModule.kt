@@ -140,6 +140,7 @@ class PathFollowerModule(
     private suspend fun goStraight(distance: Double) {
         val (p0, _) = robotOnOdometry.receive().data
         for ((_, pose) in robotOnOdometry) {
+            if (internalMode !is Mode.Follow) break
             if ((pose.p - p0).norm() > distance) break
             drive(.1, 0)
         }
@@ -157,6 +158,7 @@ class PathFollowerModule(
         val delta = abs(value)
         val w = value.sign * follower.maxAngularSpeed
         for ((_, pose) in robotOnOdometry) {
+            if (internalMode !is Mode.Follow) break
             if (abs(pose.d.asRadian() - d0.asRadian()) > delta) break
             drive(0, w)
         }

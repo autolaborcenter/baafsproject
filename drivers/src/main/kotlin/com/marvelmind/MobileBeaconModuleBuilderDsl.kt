@@ -121,10 +121,16 @@ class MobileBeaconModuleBuilderDsl private constructor() {
 
         private fun write(array: List<Byte>) {
             engine(array) { pack ->
+                scope.launch {
+                    if (!watchDog.feed()) {
+                        logger.log("data timeout, close port to reboot")
+                        port.closePort()
+                    }
+                }
                 when (pack) {
-                    Nothing -> logger.log("nothing")
-                    Failed  -> logger.log("failed")
-                    is Data -> {
+                    is Nothing -> logger.log("nothing[${pack.dropped.joinToString(" ")}]")
+                    is Failed  -> logger.log("failed[${pack.dropped.joinToString(" ")}]")
+                    is Data    -> {
                         val (code, payload) = pack
                         if (code != COORDINATE_CODE)
                             logger.log("code = $code")
@@ -136,15 +142,7 @@ class MobileBeaconModuleBuilderDsl private constructor() {
                             val delay = value.delay
                             logger.log("delay = $delay, x = $x, y = $y")
                             delay.takeIf { it in 1 until delayLimit }
-                                ?.let {
-                                    scope.launch { beaconOnMap.send(Stamped(now - it, vector2DOf(x, y))) }
-                                    scope.launch {
-                                        if (!watchDog.feed()) {
-                                            logger.log("data timeout, close port to reboot")
-                                            port.closePort()
-                                        }
-                                    }
-                                }
+                                ?.let { scope.launch { beaconOnMap.send(Stamped(now - it, vector2DOf(x, y))) } }
                         }
                     }
                 }
