@@ -27,10 +27,6 @@ class MobileBeaconModuleBuilderDsl private constructor() {
     var delayLimit: Long = 400L
 
     companion object {
-        private const val NAME = "marvelmind mobile beacon"
-        private const val BUFFER_SIZE = 32
-        private const val COORDINATE_CODE = 0x11
-
         fun CoroutineScope.startMobileBeacon(
             beaconOnMap: SendChannel<Stamped<Vector2D>>,
             block: MobileBeaconModuleBuilderDsl.() -> Unit = {}
@@ -124,12 +120,12 @@ class MobileBeaconModuleBuilderDsl private constructor() {
                 scope.launch {
                     if (!watchDog.feed()) {
                         logger.log("data timeout, close port to reboot")
-                        port.closePort()
+                        withContext(dispatcher) { port.closePort() }
                     }
                 }
                 when (pack) {
-                    is Nothing -> logger.log("nothing[${pack.dropped.joinToString(" ")}]")
-                    is Failed  -> logger.log("failed[${pack.dropped.joinToString(" ")}]")
+                    is Nothing -> logger.log("nothing${pack.dropped.toHexString()}")
+                    is Failed  -> logger.log("failed${pack.dropped.toHexString()}")
                     is Data    -> {
                         val (code, payload) = pack
                         if (code != COORDINATE_CODE)
@@ -147,6 +143,15 @@ class MobileBeaconModuleBuilderDsl private constructor() {
                     }
                 }
             }
+        }
+
+        private companion object {
+            private const val NAME = "marvelmind mobile beacon"
+            private const val BUFFER_SIZE = 32
+            private const val COORDINATE_CODE = 0x11
+
+            fun ByteArray.toHexString() =
+                "[${joinToString(" ") { Integer.toHexString(it.toInt()) }}]"
         }
     }
 }

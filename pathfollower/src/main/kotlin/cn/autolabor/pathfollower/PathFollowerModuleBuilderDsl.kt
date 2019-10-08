@@ -14,18 +14,19 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.console.parser.Parser
+import org.mechdancer.geometry.angle.Angle
+import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.paintFrame3
 import org.mechdancer.paintPoses
 import org.mechdancer.remote.presets.RemoteHub
 import java.io.File
-import kotlin.math.PI
 
 @BuilderDslMarker
 class PathFollowerModuleBuilderDsl private constructor() {
     // 路径记录间隔
     var pathInterval: Double = .05
     // 原地转方向分界
-    var directionLimit: Double = -2 * PI / 3
+    var directionLimit: Angle = (-120).toDegree()
     // 日志配置
     var logger: SimpleLogger? = SimpleLogger("PathFollowerModule")
     // 绘图配置

@@ -1,8 +1,9 @@
-package org.mechdancer.baafs.modules
+package cn.autolabor.baafs
 
 import cn.autolabor.FilterTwistTask
 import cn.autolabor.ObstacleDetectionTask
 import cn.autolabor.PoseDetectionTask
+import cn.autolabor.baafs.LinkMode.Direct
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.message.navigation.Msg2DOdometry
 import cn.autolabor.message.navigation.Msg2DTwist
@@ -14,7 +15,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
-import org.mechdancer.baafs.modules.LinkMode.Direct
 import org.mechdancer.common.Velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
 
@@ -29,11 +29,11 @@ fun CoroutineScope.startObstacleAvoiding(
     ServerManager.me().runCatching {
         loadConfig("conf/obstacle.conf")
         if (mode == Direct) {
-            register(cn.autolabor.baafs.FaselaseTask("FaselaseTaskFront"))
-            register(cn.autolabor.baafs.FaselaseTask("FaselaseTaskBack"))
+            register(FaselaseTask("FaselaseTaskFront"))
+            register(FaselaseTask("FaselaseTaskBack"))
         }
-        register(cn.autolabor.baafs.LaserFilterTask("LaserFilterFront"))
-        register(cn.autolabor.baafs.LaserFilterTask("LaserFilterBack"))
+        register(LaserFilterTask("LaserFilterFront"))
+        register(LaserFilterTask("LaserFilterBack"))
         register(ObstacleDetectionTask("ObstacleDetectionTask"))
         register(PoseDetectionTask("PoseDetectionTask"))
         register(FilterTwistTask("FilterTwistTask"))

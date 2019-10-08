@@ -1,6 +1,7 @@
-package org.mechdancer.baafs.modules
+package cn.autolabor.baafs
 
 import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
+import cn.autolabor.baafs.LinkMode.Direct
 import cn.autolabor.core.server.DefaultSetup
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
@@ -12,7 +13,6 @@ import kotlinx.coroutines.*
 import org.mechdancer.YChannel
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
-import org.mechdancer.baafs.modules.LinkMode.Direct
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Odometry.Companion.odometry
@@ -86,7 +86,7 @@ fun main() {
                 robotOnMap = robotOnMap
             ) {
                 filter {
-                    beaconOnRobot = vector2DOf(-.037, 0)
+                    beaconOnRobot = vector2DOf(-.01, 0)
                     beaconWeight = .15 * count
                 }
                 painter = remote
@@ -105,7 +105,7 @@ fun main() {
                     minTipAngle = PI / 3
                     minTurnAngle = PI / 12
                     maxJumpCount = 20
-                    maxLinearSpeed = .1
+                    maxLinearSpeed = .12
                     maxAngularSpeed = .4
                 }
             }

@@ -35,7 +35,7 @@ dependencies {
     // 打包任务
     tasks["copyJar"].dependsOn(name)
     tasks.register<Jar>(name) {
-        manifest { attributes("Main-Class" to "org.mechdancer.baafs.modules.MainKt") }
+        manifest { attributes("Main-Class" to "cn.autolabor.baafs.MainKt") }
         group = JavaBasePlugin.BUILD_TASK_NAME
         description = "pack jar to run program directly"
         archiveClassifier.set(name)

@@ -16,6 +16,7 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.paintPoses
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.RemoteHub
@@ -33,16 +34,13 @@ class PathFollowerModule(
     private val robotOnOdometry: ReceiveChannel<Stamped<Odometry>>,
     private val commandOut: SendChannel<NonOmnidirectional>,
     private val follower: VirtualLightSensorPathFollower,
-    private val directionLimit: Double,
+    directionLimit: Angle,
     pathInterval: Double,
     val logger: SimpleLogger?,
     val painter: RemoteHub?
 ) {
     val path = PathManager(pathInterval)
-
-    init {
-        logger?.period = 1
-    }
+    private val turnDirection = directionLimit.asRadian()
 
     private var internalMode: Mode = Idle
         set(value) {
@@ -147,19 +145,17 @@ class PathFollowerModule(
     }
 
     private suspend fun turn(angle: Double) {
-        val (_, d0) = robotOnOdometry.receive().data
-        val value = angle.let {
-            when {
-                directionLimit < 0 && it < directionLimit -> it + 2 * PI
-                directionLimit > 0 && it > directionLimit -> it - 2 * PI
-                else                                      -> it
-            }
+        val d0 = robotOnOdometry.receive().data.d.asRadian()
+        val value = when (turnDirection) {
+            in angle..0.0 -> angle + 2 * PI
+            in 0.0..angle -> angle - 2 * PI
+            else          -> angle
         }
         val delta = abs(value)
         val w = value.sign * follower.maxAngularSpeed
         for ((_, pose) in robotOnOdometry) {
             if (internalMode !is Mode.Follow) break
-            if (abs(pose.d.asRadian() - d0.asRadian()) > delta) break
+            if (abs(pose.d.asRadian() - d0) > delta) break
             drive(0, w)
         }
     }
