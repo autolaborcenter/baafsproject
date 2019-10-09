@@ -20,6 +20,7 @@ import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
+import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
@@ -44,8 +45,9 @@ fun main() {
     val robotOnMap = channel<Stamped<Odometry>>()
     val beaconOnMap = channel<Stamped<Vector2D>>()
     val commandToObstacle = channel<NonOmnidirectional>()
+    val exceptions = channel<ExceptionMessage<*>>()
+    val commandToSwitch = channel<NonOmnidirectional>()
     val commandToRobot = channel<NonOmnidirectional>()
-    val parser = buildParser { }
     // 任务
     try {
         runBlocking(Dispatchers.Default) {
@@ -62,12 +64,13 @@ fun main() {
 
             println("trying to connect to marvelmind mobile beacon...")
             startMobileBeacon(
-                beaconOnMap = beaconOnMap
+                beaconOnMap = beaconOnMap,
+                exceptions = exceptions
             ) {
                 port = null
                 retryInterval = 100L
-                retryTimes = 3
                 connectionTimeout = 2000L
+                parseTimeout = 2000L
                 dataTimeout = 2000L
                 delayLimit = 400L
             }
@@ -77,8 +80,12 @@ fun main() {
             startObstacleAvoiding(
                 mode = Direct,
                 commandIn = commandToObstacle,
-                commandOut = commandToRobot)
+                commandOut = commandToSwitch)
             println("done")
+
+            val parser = buildParser {
+                this["coroutines count"] = { coroutineContext[Job]?.children?.count() }
+            }
 
             startLocationFusion(
                 robotOnOdometry = robotOnOdometry.outputs[0],
@@ -109,8 +116,11 @@ fun main() {
                     maxAngularSpeed = .4
                 }
             }
+            startExceptionServer(
+                exceptions = exceptions,
+                commandIn = commandToSwitch,
+                commandOut = commandToRobot)
 
-            parser["coroutines count"] = { coroutineContext[Job]?.children?.count() }
             GlobalScope.launch { while (isActive) parser.parseFromConsole() }
         }
     } catch (e: CancellationException) {
