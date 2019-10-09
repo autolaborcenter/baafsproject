@@ -9,6 +9,7 @@ import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPat
 import cn.autolabor.pathfollower.parseFromConsole
 import cn.autolabor.pathfollower.shape.Circle
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
+import kotlinx.coroutines.*
 import org.mechdancer.YChannel
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
@@ -64,7 +65,7 @@ try {
             port = null
             retryInterval = 100L
             retryTimes = 3
-            openTimeout = 1000L
+            connectionTimeout = 2000L
             dataTimeout = 2000L
             delayLimit = 400L
         }
@@ -95,7 +96,7 @@ try {
             consoleParser = parser
         ) {
             pathInterval = .05
-            directionLimit = (-120).toDegree().asRadian()
+            directionLimit = (-120).toDegree()
             follower {
                 sensorPose = odometry(.275, 0)
                 lightRange = Circle(.3)

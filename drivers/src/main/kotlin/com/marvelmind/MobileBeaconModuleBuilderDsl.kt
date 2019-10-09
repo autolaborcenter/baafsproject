@@ -22,7 +22,7 @@ class MobileBeaconModuleBuilderDsl private constructor() {
     // 数据接收参数
     var retryInterval: Long = 100L
     var retryTimes: Int = 3
-    var openTimeout: Long = 1000L
+    var connectionTimeout: Long = 2000L
     var dataTimeout: Long = 2000L
     var delayLimit: Long = 400L
 
@@ -34,7 +34,7 @@ class MobileBeaconModuleBuilderDsl private constructor() {
             MobileBeaconModuleBuilderDsl()
                 .apply(block)
                 .apply {
-                    require(openTimeout > 0)
+                    require(connectionTimeout > 0)
                     require(retryTimes > 0)
                     require(retryInterval > 0)
                     require(dataTimeout > retryTimes * retryInterval)
@@ -45,7 +45,7 @@ class MobileBeaconModuleBuilderDsl private constructor() {
                         scope = this@startMobileBeacon,
                         beaconOnMap = beaconOnMap,
                         name = port,
-                        openTimeout = openTimeout,
+                        connectionTimeout = connectionTimeout,
                         dataTimeout = dataTimeout,
                         retryInterval = retryInterval,
                         retryTimes = retryTimes,
@@ -59,8 +59,8 @@ class MobileBeaconModuleBuilderDsl private constructor() {
         private val scope: CoroutineScope,
         private val beaconOnMap: SendChannel<Stamped<Vector2D>>,
         name: String?,
-        openTimeout: Long,
         dataTimeout: Long,
+        connectionTimeout: Long,
         private val retryInterval: Long,
         private val retryTimes: Int,
         private val delayLimit: Long
@@ -71,15 +71,17 @@ class MobileBeaconModuleBuilderDsl private constructor() {
         private val port =
             SerialPortFinder.findSerialPort(name, engine) {
                 baudRate = 115200
-                timeoutMs = openTimeout
+                timeoutMs = dataTimeout
                 bufferSize = BUFFER_SIZE
                 condition { it is Data && it.code == COORDINATE_CODE }
             } ?: throw DeviceNotExistException(NAME)
 
         // 单开线程以执行阻塞读取
         private val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
-        // 数据超时
-        private val watchDog = WatchDog(dataTimeout)
+        // 连接监视
+        private val connectionWatchDog = WatchDog(connectionTimeout)
+        // 数据监视
+        private val locationWatchDog = WatchDog(dataTimeout)
 
         init {
             scope.launch {
@@ -118,7 +120,7 @@ class MobileBeaconModuleBuilderDsl private constructor() {
         private fun write(array: List<Byte>) {
             engine(array) { pack ->
                 scope.launch {
-                    if (!watchDog.feed()) {
+                    if (!connectionWatchDog.feed()) {
                         logger.log("data timeout, close port to reboot")
                         withContext(dispatcher) { port.closePort() }
                     }
@@ -138,7 +140,15 @@ class MobileBeaconModuleBuilderDsl private constructor() {
                             val delay = value.delay
                             logger.log("delay = $delay, x = $x, y = $y")
                             delay.takeIf { it in 1 until delayLimit }
-                                ?.let { scope.launch { beaconOnMap.send(Stamped(now - it, vector2DOf(x, y))) } }
+                                ?.let {
+                                    scope.launch { beaconOnMap.send(Stamped(now - it, vector2DOf(x, y))) }
+                                    scope.launch {
+                                        if (!locationWatchDog.feed()) {
+                                            logger.log("data timeout, close port to reboot")
+                                            withContext(dispatcher) { port.closePort() }
+                                        }
+                                    }
+                                }
                         }
                     }
                 }

@@ -31,7 +31,7 @@ private fun crc16Check(list: List<Byte>): Boolean {
     return byteH == 0.toByte() && byteL == 0.toByte()
 }
 
-class ResolutionCoordinate(private val list: ByteArray) {
+internal class ResolutionCoordinate(private val list: ByteArray) {
     val timeStamp get() = build(0, 4)
     val x get() = build(4, 4).readInt()
     val y get() = build(8, 4).readInt()
@@ -48,44 +48,40 @@ class ResolutionCoordinate(private val list: ByteArray) {
             .let(::DataInputStream)
 }
 
-sealed class BeaconPackage {
+internal sealed class BeaconPackage {
     data class Nothing(val dropped: ByteArray) : BeaconPackage()
     data class Failed(val dropped: ByteArray) : BeaconPackage()
     data class Data(val code: Int, val payload: ByteArray) : BeaconPackage()
 }
 
 /** MarvelMind 移动节点网络层解析器 */
-fun engine(): ParseEngine<Byte, BeaconPackage> = ParseEngine { buffer ->
+internal fun engine(): ParseEngine<Byte, BeaconPackage> = ParseEngine { buffer ->
     val size = buffer.size
     // 找到一个帧头
     var begin = (0 until size - 1).find { i ->
         buffer[i] == DestinationAddress && buffer[i + 1] == PacketType
     } ?: return@ParseEngine (if (buffer.last() == DestinationAddress) size - 1 else size)
         .let { drop ->
-            ParseInfo(
-                nextHead = drop,
-                nextBegin = size,
-                result = Nothing(buffer.subList(0, drop).toByteArray())
-            )
+            ParseInfo(nextHead = drop,
+                      nextBegin = size,
+                      result = Nothing(buffer.subList(0, drop).toByteArray()))
         }
     // 确定帧长度
     val `package` = (begin + 7)
-        .takeIf { it < size }
-        ?.let { it + buffer[begin + 4] }
-        ?.takeIf { it < size }
-        ?.let { buffer.subList(begin, it) }
-        ?: return@ParseEngine ParseInfo(
-            nextHead = begin,
-            nextBegin = size,
-            result = Nothing(buffer.subList(0, begin).toByteArray()))
+                        .takeIf { it < size }
+                        ?.let { it + buffer[begin + 4] }
+                        ?.takeIf { it in 1 until size }
+                        ?.let { buffer.subList(begin, it) }
+                    ?: return@ParseEngine ParseInfo(
+                        nextHead = begin,
+                        nextBegin = size,
+                        result = Nothing(buffer.subList(0, begin).toByteArray()))
     // crc 校验
     val result =
         if (crc16Check(`package`)) {
             begin += `package`.size
-            Data(
-                code = `package`[3].toIntUnsigned() * 256 + `package`[2].toIntUnsigned(),
-                payload = `package`.subList(5, `package`.size - 2).toByteArray()
-            )
+            Data(code = `package`[3].toIntUnsigned() * 256 + `package`[2].toIntUnsigned(),
+                 payload = `package`.subList(5, `package`.size - 2).toByteArray())
         } else {
             begin += 2
             Failed(buffer.subList(0, begin).toByteArray())

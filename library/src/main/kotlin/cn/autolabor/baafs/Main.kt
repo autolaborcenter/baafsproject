@@ -67,7 +67,7 @@ fun main() {
                 port = null
                 retryInterval = 100L
                 retryTimes = 3
-                openTimeout = 1000L
+                connectionTimeout = 2000L
                 dataTimeout = 2000L
                 delayLimit = 400L
             }
@@ -98,7 +98,7 @@ fun main() {
                 consoleParser = parser
             ) {
                 pathInterval = .05
-                directionLimit = (-120).toDegree().asRadian()
+                directionLimit = (-120).toDegree()
                 follower {
                     sensorPose = odometry(.275, 0)
                     lightRange = Circle(.3)
