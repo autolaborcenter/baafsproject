@@ -86,7 +86,6 @@ fun main() {
             val parser = buildParser {
                 this["coroutines count"] = { coroutineContext[Job]?.children?.count() }
             }
-
             startLocationFusion(
                 robotOnOdometry = robotOnOdometry.outputs[0],
                 beaconOnMap = beaconOnMap,
@@ -115,11 +114,13 @@ fun main() {
                     maxLinearSpeed = .12
                     maxAngularSpeed = .4
                 }
+                painter = remote
             }
             startExceptionServer(
                 exceptions = exceptions,
                 commandIn = commandToSwitch,
-                commandOut = commandToRobot)
+                commandOut = commandToRobot,
+                parser = parser)
 
             GlobalScope.launch { while (isActive) parser.parseFromConsole() }
         }

@@ -6,6 +6,7 @@ import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
 import org.mechdancer.SimpleLogger
 import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.console.parser.Parser
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
@@ -15,17 +16,19 @@ import java.util.concurrent.ConcurrentSkipListSet
 fun CoroutineScope.startExceptionServer(
     exceptions: ReceiveChannel<ExceptionMessage<*>>,
     commandIn: ReceiveChannel<NonOmnidirectional>,
-    commandOut: SendChannel<NonOmnidirectional>
+    commandOut: SendChannel<NonOmnidirectional>,
+    parser: Parser
 ) {
     val set = ConcurrentSkipListSet<RecoverableException>()
     val logger = SimpleLogger("exceptions")
+    parser["exceptions"] = { synchronized(set) { set.joinToString("\n") } }
     launch {
         for (exception in exceptions) {
             val what = exception.what
             when (exception) {
                 is Occurred<*>  -> {
                     if (set.add(what))
-                        logger.log("${what::class.simpleName}: ${what.message}")
+                        logger.log(what)
                 }
                 is Recovered<*> -> {
                     if (set.remove(exception.what))

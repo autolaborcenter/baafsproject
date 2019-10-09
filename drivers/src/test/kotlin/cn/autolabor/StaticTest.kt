@@ -1,5 +1,6 @@
 package cn.autolabor
 
+import com.marvelmind.MobileBeaconException
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -8,6 +9,7 @@ import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.channel
 import org.mechdancer.common.Stamped
+import org.mechdancer.exceptions.ExceptionMessage
 import kotlin.math.sqrt
 
 // 静止状态下 marvelmind 标签定位相当准确
@@ -17,8 +19,10 @@ import kotlin.math.sqrt
 fun main() = runBlocking<Unit>(Dispatchers.Default) {
     // 话题
     val beaconOnMap = channel<Stamped<Vector2D>>()
+    val exceptions = channel<ExceptionMessage<MobileBeaconException>>()
     // 任务
-    startMobileBeacon(beaconOnMap = beaconOnMap)
+    startMobileBeacon(beaconOnMap = beaconOnMap,
+                      exceptions = exceptions)
     val list = mutableListOf<Vector2D>()
     launch {
         for ((_, p) in beaconOnMap) {
@@ -27,6 +31,10 @@ fun main() = runBlocking<Unit>(Dispatchers.Default) {
             val sigmaY = list.asSequence().map { it.y - list.first().y }.sigma()
             println("$sigmaX $sigmaY")
         }
+    }
+    launch {
+        for (e in exceptions)
+            println(e)
     }
 }
 
