@@ -28,6 +28,7 @@ class MobileBeaconModuleBuilderDsl private constructor() {
     var parseTimeout: Long = 2000L
     var dataTimeout: Long = 2000L
     var delayLimit: Long = 400L
+    var maxSpeed: Double = 0.2
 
     companion object {
         fun CoroutineScope.startMobileBeacon(
@@ -43,6 +44,7 @@ class MobileBeaconModuleBuilderDsl private constructor() {
                     require(parseTimeout > 0)
                     require(dataTimeout > 0)
                     require(delayLimit > 1)
+                    require(maxSpeed > 0)
                 }
                 .run {
                     MarvelmindMobilBeacon(
@@ -54,7 +56,8 @@ class MobileBeaconModuleBuilderDsl private constructor() {
                         parseTimeout = parseTimeout,
                         dataTimeout = dataTimeout,
                         retryInterval = retryInterval,
-                        delayLimit = delayLimit)
+                        delayLimit = delayLimit,
+                        maxSpeed = maxSpeed)
                 }
         }
     }
@@ -69,7 +72,8 @@ class MobileBeaconModuleBuilderDsl private constructor() {
         parseTimeout: Long,
         dataTimeout: Long,
         private val retryInterval: Long,
-        private val delayLimit: Long
+        private val delayLimit: Long,
+        private val maxSpeed: Double
     ) {
         private val logger = SimpleLogger(NAME)
         private val buffer = ByteArray(BUFFER_SIZE)
@@ -88,6 +92,7 @@ class MobileBeaconModuleBuilderDsl private constructor() {
         private val connectionWatchDog = WatchDog(connectionTimeout)
         private val parseWatchDog = WatchDog(parseTimeout)
         private val dataWatchDog = WatchDog(dataTimeout)
+        // 状态
 
         init {
             scope.launch {
@@ -122,7 +127,7 @@ class MobileBeaconModuleBuilderDsl private constructor() {
                         if (!port.isOpen) exceptions.send(Occurred(DisconnectedException))
                     }
                     else     -> {
-                        exceptions.send(Recovered(DisconnectedException))
+                        connectionWatchDog.feedOrThrow(DisconnectedException)
                         return buffer.take(size)
                     }
                 }
@@ -133,10 +138,6 @@ class MobileBeaconModuleBuilderDsl private constructor() {
 
         private fun write(array: List<Byte>) {
             engine(array) { pack ->
-                scope.launch {
-                    if (!connectionWatchDog.feed())
-                        withContext(dispatcher) { port.closePort() }
-                }
                 when (pack) {
                     is Nothing -> logger.log("nothing${pack.dropped.toHexString()}")
                     is Failed  -> logger.log("failed${pack.dropped.toHexString()}")
