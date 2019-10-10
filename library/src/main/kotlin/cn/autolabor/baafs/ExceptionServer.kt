@@ -27,8 +27,10 @@ fun CoroutineScope.startExceptionServer(
             synchronized(set) {
                 when (exception) {
                     is Occurred<*>  -> {
-                        if (set.add(what))
+                        if (set.add(what)) {
+                            System.err.println(what)
                             logger.log(what)
+                        }
                     }
                     is Recovered<*> -> {
                         if (set.remove(exception.what))

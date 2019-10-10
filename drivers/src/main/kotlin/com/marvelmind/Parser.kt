@@ -62,26 +62,28 @@ internal fun engine(): ParseEngine<Byte, BeaconPackage> = ParseEngine { buffer -
         buffer[i] == DestinationAddress && buffer[i + 1] == PacketType
     } ?: return@ParseEngine (if (buffer.last() == DestinationAddress) size - 1 else size)
         .let { drop ->
-            ParseInfo(nextHead = drop,
-                      nextBegin = size,
-                      result = Nothing(buffer.subList(0, drop).toByteArray()))
+            ParseInfo(
+                nextHead = drop,
+                nextBegin = size,
+                result = Nothing(buffer.subList(0, drop).toByteArray()))
         }
     // 确定帧长度
     val `package` = (begin + 7)
-                        .takeIf { it < size }
-                        ?.let { it + buffer[begin + 4] }
-                        ?.takeIf { it in 1 until size }
-                        ?.let { buffer.subList(begin, it) }
-                    ?: return@ParseEngine ParseInfo(
-                        nextHead = begin,
-                        nextBegin = size,
-                        result = Nothing(buffer.subList(0, begin).toByteArray()))
+        .takeIf { it < size }
+        ?.let { it + buffer[begin + 4].toIntUnsigned() }
+        ?.takeIf { it < size }
+        ?.let { buffer.subList(begin, it) }
+        ?: return@ParseEngine ParseInfo(
+            nextHead = begin,
+            nextBegin = size,
+            result = Nothing(buffer.subList(0, begin).toByteArray()))
     // crc 校验
     val result =
         if (crc16Check(`package`)) {
             begin += `package`.size
-            Data(code = `package`[3].toIntUnsigned() * 256 + `package`[2].toIntUnsigned(),
-                 payload = `package`.subList(5, `package`.size - 2).toByteArray())
+            Data(
+                code = `package`[3].toIntUnsigned() * 256 + `package`[2].toIntUnsigned(),
+                payload = `package`.subList(5, `package`.size - 2).toByteArray())
         } else {
             begin += 2
             Failed(buffer.subList(0, begin).toByteArray())

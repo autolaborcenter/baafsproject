@@ -3,7 +3,6 @@ package cn.autolabor.baafs
 import cn.autolabor.FilterTwistTask
 import cn.autolabor.ObstacleDetectionTask
 import cn.autolabor.PoseDetectionTask
-import cn.autolabor.baafs.LinkMode.Direct
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.message.navigation.Msg2DOdometry
 import cn.autolabor.message.navigation.Msg2DTwist
@@ -18,17 +17,15 @@ import kotlinx.coroutines.launch
 import org.mechdancer.common.Velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
 
-enum class LinkMode { Direct, Framework }
-
 @ExperimentalCoroutinesApi
 fun CoroutineScope.startObstacleAvoiding(
-    mode: LinkMode,
+    launchLidar: Boolean,
     commandIn: ReceiveChannel<NonOmnidirectional>,
     commandOut: SendChannel<NonOmnidirectional>
 ) {
     ServerManager.me().runCatching {
         loadConfig("conf/obstacle.conf")
-        if (mode == Direct) {
+        if (launchLidar) {
             register(FaselaseTask("FaselaseTaskFront"))
             register(FaselaseTask("FaselaseTaskBack"))
         }

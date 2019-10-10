@@ -1,7 +1,6 @@
 package cn.autolabor.baafs
 
 import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
-import cn.autolabor.baafs.LinkMode.Direct
 import cn.autolabor.core.server.DefaultSetup
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
@@ -25,6 +24,7 @@ import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
 import kotlin.math.PI
+import kotlin.system.exitProcess
 
 @ExperimentalCoroutinesApi
 fun main() {
@@ -78,7 +78,7 @@ fun main() {
 
             println("trying to connect to faselase lidars...")
             startObstacleAvoiding(
-                mode = Direct,
+                launchLidar = true,
                 commandIn = commandToObstacle,
                 commandOut = commandToSwitch)
             println("done")
@@ -133,4 +133,5 @@ fun main() {
     } finally {
         println("program stopped")
     }
+    exitProcess(0)
 }

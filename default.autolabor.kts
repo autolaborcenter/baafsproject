@@ -1,7 +1,6 @@
 package cn.autolabor.baafs
 
 import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
-import cn.autolabor.baafs.LinkMode.Direct
 import cn.autolabor.core.server.DefaultSetup
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
@@ -9,6 +8,7 @@ import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPat
 import cn.autolabor.pathfollower.parseFromConsole
 import cn.autolabor.pathfollower.shape.Circle
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
+import kotlinx.coroutines.*
 import org.mechdancer.YChannel
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
@@ -24,6 +24,7 @@ import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
 import kotlin.math.PI
+import kotlin.system.exitProcess
 
 ServerManager.setSetup(object : DefaultSetup() {
     override fun start() = Unit
@@ -75,7 +76,7 @@ try {
 
         println("trying to connect to faselase lidars...")
         startObstacleAvoiding(
-            mode = Direct,
+            launchLidar = true,
             commandIn = commandToObstacle,
             commandOut = commandToSwitch)
         println("done")
@@ -130,3 +131,4 @@ try {
 } finally {
     println("program stopped")
 }
+exitProcess(0)

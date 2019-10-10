@@ -21,8 +21,9 @@ fun main() = runBlocking<Unit>(Dispatchers.Default) {
     val beaconOnMap = channel<Stamped<Vector2D>>()
     val exceptions = channel<ExceptionMessage<MobileBeaconException>>()
     // 任务
-    startMobileBeacon(beaconOnMap = beaconOnMap,
-                      exceptions = exceptions)
+    startMobileBeacon(
+        beaconOnMap = beaconOnMap,
+        exceptions = exceptions)
     val list = mutableListOf<Vector2D>()
     launch {
         for ((_, p) in beaconOnMap) {
@@ -34,7 +35,8 @@ fun main() = runBlocking<Unit>(Dispatchers.Default) {
     }
     launch {
         for (e in exceptions)
-            println(e)
+            if (e is ExceptionMessage.Occurred<*>)
+                println(e.what)
     }
 }
 
