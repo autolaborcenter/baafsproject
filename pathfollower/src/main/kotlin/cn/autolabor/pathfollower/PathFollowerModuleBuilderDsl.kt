@@ -77,7 +77,6 @@ class PathFollowerModuleBuilderDsl private constructor() {
             consoleParser: Parser,
             block: PathFollowerModuleBuilderDsl.() -> Unit = {}
         ) {
-            val file = File("path.txt")
             val module = pathFollowerModule(
                 robotOnMap = robotOnMap,
                 robotOnOdometry = robotOnOdometry,
@@ -104,22 +103,28 @@ class PathFollowerModuleBuilderDsl private constructor() {
                     }
                 }
 
-                this["save"] = {
+                this["save @name"] = {
+                    val name = get(1).toString()
                     with(module.path) {
-                        saveTo(file)
+                        saveTo(File(name))
                         module.painter?.paintPoses("路径", get())
-                        "$size nodes saved"
+                        "$size nodes saved to $name"
                     }
                 }
-                this["load"] = {
-                    module.mode = Idle
-                    with(module.path) {
-                        loadFrom(file)
-                        module.painter?.paintPoses("路径", get())
-                        "$size nodes loaded"
+                this["load @name"] = {
+                    val name = get(1).toString()
+                    val file = File(name)
+                    if (!file.exists())
+                        "path not exist"
+                    else {
+                        module.mode = Idle
+                        with(module.path) {
+                            loadFrom(file)
+                            module.painter?.paintPoses("路径", get())
+                            "$size nodes loaded"
+                        }
                     }
                 }
-                this["delete"] = { file.writeText(""); "path file deleted" }
 
                 this["go"] = {
                     module.mode = Follow(loop = false)
