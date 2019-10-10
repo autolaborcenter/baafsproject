@@ -11,7 +11,6 @@ import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import org.mechdancer.exceptions.RecoverableException
-import java.util.concurrent.ConcurrentSkipListSet
 
 fun CoroutineScope.startExceptionServer(
     exceptions: ReceiveChannel<ExceptionMessage<*>>,
@@ -19,20 +18,22 @@ fun CoroutineScope.startExceptionServer(
     commandOut: SendChannel<NonOmnidirectional>,
     parser: Parser
 ) {
-    val set = ConcurrentSkipListSet<RecoverableException>()
+    val set = mutableSetOf<RecoverableException>()
     val logger = SimpleLogger("exceptions")
     parser["exceptions"] = { synchronized(set) { set.joinToString("\n") } }
     launch {
         for (exception in exceptions) {
             val what = exception.what
-            when (exception) {
-                is Occurred<*>  -> {
-                    if (set.add(what))
-                        logger.log(what)
-                }
-                is Recovered<*> -> {
-                    if (set.remove(exception.what))
-                        logger.log("${what::class.simpleName}: recovered")
+            synchronized(set) {
+                when (exception) {
+                    is Occurred<*>  -> {
+                        if (set.add(what))
+                            logger.log(what)
+                    }
+                    is Recovered<*> -> {
+                        if (set.remove(exception.what))
+                            logger.log("${what::class.simpleName}: recovered")
+                    }
                 }
             }
         }
