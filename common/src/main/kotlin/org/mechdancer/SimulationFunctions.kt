@@ -2,6 +2,7 @@ package org.mechdancer
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.delay
@@ -9,6 +10,8 @@ import org.mechdancer.common.Stamped
 import org.mechdancer.simulation.prefabs.OneStepTransferRandomDrivingBuilderDSL.Companion.oneStepTransferRandomDriving
 import java.math.BigDecimal
 import java.text.DecimalFormat
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.system.measureTimeMillis
 
 /** 构造新随机行驶驱动器 */
@@ -53,6 +56,23 @@ fun <T> speedSimulation(
                 delay(dt * -speed - cost)
             }
             else      -> throw IllegalArgumentException("speed cannot be zero")
+        }
+    }
+
+@ExperimentalCoroutinesApi
+suspend fun <T> Sequence<Stamped<T>>.play(
+    context: CoroutineContext = EmptyCoroutineContext,
+    speed: Double = 1.0
+) =
+    GlobalScope.produce(context) {
+        var last = Long.MAX_VALUE
+        for ((t, value) in this@play) {
+            ((t - last) / speed)
+                .toLong()
+                .takeIf { it > 10 }
+                ?.also { delay(it) }
+            last = t
+            send(Stamped(t, value))
         }
     }
 
