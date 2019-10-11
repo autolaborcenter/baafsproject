@@ -109,8 +109,8 @@ try {
                 minTipAngle = PI / 3
                 minTurnAngle = PI / 12
                 maxJumpCount = 20
-                maxLinearSpeed = .12
-                maxAngularSpeed = .4
+                maxLinearSpeed = .06
+                maxAngularSpeed = .2
             }
             painter = remote
         }

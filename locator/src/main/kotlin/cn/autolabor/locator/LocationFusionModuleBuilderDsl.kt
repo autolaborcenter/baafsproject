@@ -40,9 +40,10 @@ class LocationFusionModuleBuilderDsl private constructor() {
                 .apply(block)
                 .run {
                     painter?.run {
-                        filter.stepFeedback.add { (measureWeight, particleWeight) ->
+                        filter.stepFeedback.add { (measureWeight, particleWeight, inconsistency) ->
                             paint("定位权重", measureWeight)
                             paint("粒子权重", particleWeight)
+                            paint("不一致性", inconsistency)
                         }
                     }
                     // 使用定位数据

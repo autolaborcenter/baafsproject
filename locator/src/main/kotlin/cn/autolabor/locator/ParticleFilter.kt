@@ -56,10 +56,7 @@ class ParticleFilter(
     data class StepState(
         val measureWeight: Double,
         val particleWeight: Double,
-        val measure: Vector2D,
-        val state: Odometry,
-        val locatorExpectation: Odometry,
-        val robotExpectation: Odometry)
+        val inconsistency: Double)
 
     override fun measureMaster(item: Stamped<Odometry>) =
         matcher.add1(item).let {
@@ -163,10 +160,9 @@ class ParticleFilter(
                     expectation = Odometry(eRobot, eAngle)
                     @Temporary(DELETE)
                     val stepState = StepState(
-                        measureWeight, weightsSum,
-                        measure, state,
-                        Odometry(eP, eAngle),
-                        Odometry(eRobot, eAngle))
+                        measureWeight = measureWeight,
+                        particleWeight = weightsSum,
+                        inconsistency = inconsistency)
                     synchronized(stepFeedback) {
                         for (callback in stepFeedback) callback(stepState)
                     }
