@@ -125,12 +125,13 @@ class ParticleFilter(
                         }
                     // 计算粒子总权重，若过低，直接重新初始化
                     val weightsSum = weights.sum()
-                    // 平时不要随便重新初始化似乎更稳定
-                    // .takeIf { it > 0.1 * count }
-                    // ?: run {
-                    //     initialize(measure, state)
-                    //     return@forEach
-                    // }
+                                         // 平时不要随便重新初始化似乎更稳定
+                                         // .takeIf { it > 0.1 * count }
+                                         // ?: run {
+                                         //     initialize(measure, state)
+                                         //     return@forEach
+                                         // }
+                                         .takeIf { it >= 1 } ?: return@forEach
                     // 计算期望
                     var eP = vector2DOfZero()
                     var eD = vector2DOfZero()
