@@ -1,9 +1,9 @@
 package cn.autolabor.locator
 
 import cn.autolabor.utilities.ClampMatcher
-import org.mechdancer.Temporary
-import org.mechdancer.Temporary.Operation.DELETE
-import org.mechdancer.Temporary.Operation.REDUCE
+import org.mechdancer.DebugTemporary
+import org.mechdancer.DebugTemporary.Operation.DELETE
+import org.mechdancer.DebugTemporary.Operation.REDUCE
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
@@ -44,15 +44,15 @@ class ParticleFilter(
     private val matcher = ClampMatcher<Stamped<Odometry>, Stamped<Vector2D>>()
 
     // 过程记录器
-    @Temporary(DELETE)
+    @DebugTemporary(DELETE)
     val stepFeedback = mutableListOf<(StepState) -> Unit>()
 
     // 粒子：位姿 - 寿命
-    @Temporary(REDUCE)
+    @DebugTemporary(REDUCE)
     var particles = emptyList<Pair<Odometry, Int>>()
 
     // 过程参数渗透
-    @Temporary(DELETE)
+    @DebugTemporary(DELETE)
     data class StepState(
         val measureWeight: Double,
         val particleWeight: Double,
@@ -158,7 +158,7 @@ class ParticleFilter(
                     // 猜测真实位姿
                     val eRobot = Transformation.fromPose(eP, eAngle)(-locatorOnRobot).to2D()
                     expectation = Odometry(eRobot, eAngle)
-                    @Temporary(DELETE)
+                    @DebugTemporary(DELETE)
                     val stepState = StepState(
                         measureWeight = measureWeight,
                         particleWeight = weightsSum,

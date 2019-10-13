@@ -48,6 +48,26 @@ class PathFollowerModule(
             logger?.log("mode = $value")
         }
 
+    var progress: Double
+        get() =
+            onFollowing("progress") { follower.progress }
+        set(value) {
+            onFollowing("progress") { follower.progress = value }
+        }
+
+    var isEnabled = false
+        get() =
+            onFollowing("enabled") { field }
+        set(value) {
+            onFollowing("enabled") { field = value }
+        }
+
+    private fun <T> onFollowing(what: String, block: () -> T): T {
+        if (internalMode !is Mode.Follow)
+            throw RuntimeException("cannot get or set $what unless in follow mode")
+        return block()
+    }
+
     var mode
         get() = internalMode
         set(value) {
@@ -71,7 +91,6 @@ class PathFollowerModule(
                         if (path.size < 2) return
 
                         follower.setPath(path.get())
-                        isEnabled = false
 
                         internalMode = value
                         scope.launch { follow() }
@@ -79,11 +98,6 @@ class PathFollowerModule(
                     Idle           -> Unit
                 }
             }
-        }
-
-    var isEnabled = false
-        set(value) {
-            if (internalMode is Mode.Follow) field = value
         }
 
     private suspend fun record() {
@@ -94,6 +108,7 @@ class PathFollowerModule(
     }
 
     private suspend fun follow() {
+        isEnabled = false
         for ((_, pose) in robotOnMap) {
             val m = internalMode
             if (m !is Mode.Follow) break
@@ -152,7 +167,7 @@ class PathFollowerModule(
             else          -> angle
         }
         val delta = abs(value)
-        val w = value.sign * follower.maxAngularSpeed
+        val w = value.sign * follower.maxOmegaRad
         for ((_, pose) in robotOnOdometry) {
             if (internalMode !is Mode.Follow) break
             if (abs(pose.d.asRadian() - d0) > delta) break

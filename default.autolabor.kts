@@ -21,9 +21,9 @@ import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.geometry.angle.toDegree
+import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
-import kotlin.math.PI
 import kotlin.system.exitProcess
 
 ServerManager.setSetup(object : DefaultSetup() {
@@ -106,11 +106,11 @@ try {
             follower {
                 sensorPose = odometry(.275, 0)
                 lightRange = Circle(.3)
-                minTipAngle = PI / 3
-                minTurnAngle = PI / 12
+                minTipAngle = 60.toDegree()
+                minTurnAngle = 15.toDegree()
                 maxJumpCount = 20
-                maxLinearSpeed = .06
-                maxAngularSpeed = .2
+                maxLinearSpeed = .12
+                maxAngularSpeed = .4.toRad()
             }
             painter = remote
         }

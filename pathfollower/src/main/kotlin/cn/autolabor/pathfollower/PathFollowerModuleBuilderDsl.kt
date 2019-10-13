@@ -14,12 +14,14 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.console.parser.Parser
+import org.mechdancer.console.parser.numbers
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.paintFrame3
 import org.mechdancer.paintPoses
 import org.mechdancer.remote.presets.RemoteHub
 import java.io.File
+import java.text.DecimalFormat
 
 @BuilderDslMarker
 class PathFollowerModuleBuilderDsl private constructor() {
@@ -126,6 +128,28 @@ class PathFollowerModuleBuilderDsl private constructor() {
                     }
                 }
 
+                val formatter = DecimalFormat("0.00")
+                val formatProgress = {
+                    "progress = ${formatter.format(module.progress * 100)}%"
+                }
+                this["progress"] = {
+                    module.runCatching {
+                        formatProgress()
+                    }.getOrElse { it.message }
+                }
+                this["progress = @num"] = {
+                    module.runCatching {
+                        progress = numbers.single()
+                        formatProgress()
+                    }.getOrElse { it.message }
+                }
+                this["progress = @num%"] = {
+                    module.runCatching {
+                        progress = numbers.single() / 100
+                        formatProgress()
+                    }.getOrElse { it.message }
+                }
+
                 this["go"] = {
                     module.mode = Follow(loop = false)
                     "current mode: ${module.mode}"
@@ -135,8 +159,10 @@ class PathFollowerModuleBuilderDsl private constructor() {
                     "current mode: ${module.mode}"
                 }
                 this["\'"] = {
-                    module.isEnabled = !module.isEnabled
-                    if (module.isEnabled) "!" else "?"
+                    module.runCatching {
+                        isEnabled = !isEnabled
+                        if (isEnabled) "continue" else "paused"
+                    }.getOrElse { it.message }
                 }
 
                 this["state"] = { module.mode }
