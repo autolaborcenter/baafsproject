@@ -63,8 +63,5 @@ class SimpleLogger(vararg names: String) {
                 .also { if (!it.exists()) it.mkdir() }
                 .toPath()
         }
-
-        inline fun <reified T> logger(name: String) =
-            SimpleLogger(T::class.java.simpleName, name)
     }
 }

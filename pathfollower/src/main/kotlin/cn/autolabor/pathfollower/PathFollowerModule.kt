@@ -136,7 +136,10 @@ class PathFollowerModule(
                 }
             }
             painter?.run {
-                paintVectors("传感器区域", follower.sensor.areaShape)
+                follower.sensor.areaShape
+                    .takeIf(Collection<*>::isNotEmpty)
+                    ?.let { it + it.first() }
+                    ?.also { paintVectors("传感器区域", it) }
                 paintPoses("尖点", listOf(follower.tip))
             }
         }
