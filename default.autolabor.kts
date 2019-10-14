@@ -1,7 +1,6 @@
 package cn.autolabor.baafs
 
 import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
-import cn.autolabor.PM1.odometry
 import cn.autolabor.core.server.DefaultSetup
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
@@ -20,6 +19,7 @@ import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
+import org.mechdancer.exceptions.startExceptionServer
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.networksInfo
@@ -99,6 +99,7 @@ try {
             robotOnMap = robotOnMap,
             robotOnOdometry = robotOnOdometry.outputs[1],
             commandOut = commandToObstacle,
+            exceptions = exceptions,
             consoleParser = parser
         ) {
             pathInterval = .05
