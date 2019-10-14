@@ -51,7 +51,7 @@ subprojects {
     dependencies {
         // 子项目自动依赖重要数学和定义库
         implementation("org.mechdancer", "linearalgebra", "+")
-        implementation(files("../libs/simulator-0.0.1.jar"))
+        implementation(files("../libs/simulator-0.0.2.jar"))
     }
 }
 

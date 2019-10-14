@@ -13,6 +13,7 @@ import org.mechdancer.remote.modules.multicast.multicastListener
 import org.mechdancer.remote.presets.remoteHub
 import org.mechdancer.remote.protocol.SimpleInputStream
 import org.mechdancer.simulation.Chassis
+import org.mechdancer.simulation.speedSimulation
 import org.mechdancer.struct.StructBuilderDSL
 import java.io.DataInputStream
 import java.util.concurrent.atomic.AtomicReference
@@ -85,7 +86,7 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
                         launch { for ((v, w) in commands) command.set(Velocity.velocity(0.2 * v, 0.8 * w)) }
                         launch { for (v in commandToRobot) command.set(v) }
                         // 运行仿真
-                        speedSimulation(this, T0, 1000L / frequency, speed) {
+                        speedSimulation(T0, 1000L / frequency, speed) {
                             command.get()
                         }.consumeEach { (t, v) ->
                             //  计算机器人位姿增量

@@ -19,10 +19,8 @@ import org.mechdancer.common.filters.Differential
 import org.mechdancer.common.toPose
 import org.mechdancer.common.toTransformation
 import org.mechdancer.remote.presets.RemoteHub
-import org.mechdancer.simulation.Chassis
-import org.mechdancer.simulation.DifferentialOdometry
+import org.mechdancer.simulation.*
 import org.mechdancer.simulation.DifferentialOdometry.Key
-import org.mechdancer.simulation.Encoder
 import org.mechdancer.simulation.random.Normal
 import org.mechdancer.struct.StructBuilderDSL
 import kotlin.random.Random
@@ -98,8 +96,9 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                     // 里程计采样计数
                     var odometryTimes = 0L
                     // 位姿增量计算
-                    val differential = Differential(robot.what.get(),
-                                                    T0) { _, old, new -> new minusState old }
+                    val differential = Differential(
+                        robot.what.get(),
+                        T0) { _, old, new -> new minusState old }
                     // 话题
                     val robotOnOdometry = channel<Stamped<Odometry>>()
                     val beaconOnMap = channel<Stamped<Vector2D>>()
@@ -122,8 +121,8 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                             }
                         }
                         // 运行仿真
-                        speedSimulation(this,
-                                        T0, 1000L / frequency, speed) { random.next() }
+                        speedSimulation(
+                            T0, 1000L / frequency, speed) { random.next() }
                             .consumeEach { (t, v) ->
                                 //  计算机器人位姿增量
                                 actual = robot.what.drive(v, t)
@@ -139,8 +138,9 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                                         .toTransformation()(beaconOnRobot)
                                         .to2D()
                                         .let {
-                                            it + vector2DOf(Normal.next(.0, beaconSigma),
-                                                            Normal.next(.0, beaconSigma))
+                                            it + vector2DOf(
+                                                Normal.next(.0, beaconSigma),
+                                                Normal.next(.0, beaconSigma))
                                         }
                                         .also { beacon ->
                                             painter?.paint(BEACON_TAG, beacon.x, beacon.y)

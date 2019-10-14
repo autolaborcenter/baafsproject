@@ -131,6 +131,7 @@ fun main() {
         System.err.println("program terminate because of ${e::class.simpleName}")
         e.printStackTrace()
     } finally {
+        Thread.sleep(400L)
         println("program stopped")
     }
     exitProcess(0)
