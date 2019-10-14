@@ -16,6 +16,9 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.exceptions.ExceptionMessage
+import org.mechdancer.exceptions.ExceptionMessage.Occurred
+import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.paintPoses
 import org.mechdancer.paintVectors
@@ -33,6 +36,7 @@ class PathFollowerModule(
     private val robotOnMap: ReceiveChannel<Stamped<Odometry>>,
     private val robotOnOdometry: ReceiveChannel<Stamped<Odometry>>,
     private val commandOut: SendChannel<NonOmnidirectional>,
+    private val exceptions: SendChannel<ExceptionMessage<FollowFailedException>>,
     private val follower: VirtualLightSensorPathFollower,
     directionLimit: Angle,
     pathInterval: Double,
@@ -114,27 +118,30 @@ class PathFollowerModule(
             if (m !is Mode.Follow) break
             val command = follower(pose)
             logger?.log(command)
-            when (command) {
-                is Follow -> {
-                    val (v, w) = command
-                    drive(v, w)
-                }
-                is Turn   -> {
-                    val (angle) = command
-                    stop()
-                    turn(angle)
-                    stop()
-                }
-                is Error  -> Unit
-                is Finish -> {
-                    if (m.loop)
-                        follower.setPath(path.get())
-                    else {
+            if (command !is Error) {
+                exceptions.send(Recovered(FollowFailedException))
+                when (command) {
+                    is Follow -> {
+                        val (v, w) = command
+                        drive(v, w)
+                    }
+                    is Turn   -> {
+                        val (angle) = command
                         stop()
-                        internalMode = Idle
+                        turn(angle)
+                        stop()
+                    }
+                    is Finish -> {
+                        if (m.loop)
+                            follower.setPath(path.get())
+                        else {
+                            stop()
+                            internalMode = Idle
+                        }
                     }
                 }
-            }
+            } else
+                exceptions.send(Occurred(FollowFailedException))
             painter?.run {
                 follower.sensor.areaShape
                     .takeIf(Collection<*>::isNotEmpty)

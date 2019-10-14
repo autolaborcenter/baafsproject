@@ -52,9 +52,11 @@ class ChassisModuleBuilderDsl private constructor() {
                     }
             // 启动里程计发送
             launch {
+                val logger = SimpleLogger("ChassisOdometry")
                 while (isActive) {
-                    val (x, y, theta) = PM1.odometry
-                    odometry.send(stamp(Odometry.odometry(x, y, theta)))
+                    val (t, data) = PM1.odometry
+                    odometry.send(stamp(data))
+                    logger.log(t, data.p.x, data.p.y, data.d.asRadian())
                     delay(parameters.period)
                 }
             }.invokeOnCompletion { odometry.close() }

@@ -20,6 +20,7 @@ import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
+import org.mechdancer.exceptions.startExceptionServer
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.networksInfo
@@ -101,6 +102,7 @@ fun main() {
                 robotOnMap = robotOnMap,
                 robotOnOdometry = robotOnOdometry.outputs[1],
                 commandOut = commandToObstacle,
+                exceptions = exceptions,
                 consoleParser = parser
             ) {
                 pathInterval = .05
@@ -111,8 +113,8 @@ fun main() {
                     minTipAngle = 60.toDegree()
                     minTurnAngle = 15.toDegree()
                     maxJumpCount = 20
-                    maxLinearSpeed = .12
-                    maxAngularSpeed = .4.toRad()
+                    maxLinearSpeed = .09
+                    maxAngularSpeed = .3.toRad()
                 }
                 painter = remote
             }

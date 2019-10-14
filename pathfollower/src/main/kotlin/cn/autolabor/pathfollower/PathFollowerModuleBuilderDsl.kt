@@ -15,6 +15,7 @@ import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.console.parser.Parser
 import org.mechdancer.console.parser.numbers
+import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.paintFrame3
@@ -48,6 +49,7 @@ class PathFollowerModuleBuilderDsl private constructor() {
             robotOnMap: ReceiveChannel<Stamped<Odometry>>,
             robotOnOdometry: ReceiveChannel<Stamped<Odometry>>,
             commandOut: SendChannel<NonOmnidirectional>,
+            exceptions: SendChannel<ExceptionMessage<FollowFailedException>>,
             block: PathFollowerModuleBuilderDsl.() -> Unit = {}
         ) =
             PathFollowerModuleBuilderDsl()
@@ -60,6 +62,7 @@ class PathFollowerModuleBuilderDsl private constructor() {
                         robotOnMap = robotOnMap,
                         robotOnOdometry = robotOnOdometry,
                         commandOut = commandOut,
+                        exceptions = exceptions,
                         follower = pathFollower(followerConfig),
                         pathInterval = pathInterval,
                         directionLimit = directionLimit,
@@ -76,6 +79,7 @@ class PathFollowerModuleBuilderDsl private constructor() {
             robotOnMap: ReceiveChannel<Stamped<Odometry>>,
             robotOnOdometry: ReceiveChannel<Stamped<Odometry>>,
             commandOut: SendChannel<NonOmnidirectional>,
+            exceptions: SendChannel<ExceptionMessage<FollowFailedException>>,
             consoleParser: Parser,
             block: PathFollowerModuleBuilderDsl.() -> Unit = {}
         ) {
@@ -83,6 +87,7 @@ class PathFollowerModuleBuilderDsl private constructor() {
                 robotOnMap = robotOnMap,
                 robotOnOdometry = robotOnOdometry,
                 commandOut = commandOut,
+                exceptions = exceptions,
                 block = block)
             with(consoleParser) {
                 this["cancel"] = {

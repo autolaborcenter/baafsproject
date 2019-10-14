@@ -1,6 +1,7 @@
 package cn.autolabor.baafs
 
 import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
+import cn.autolabor.PM1.odometry
 import cn.autolabor.core.server.DefaultSetup
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
@@ -8,7 +9,6 @@ import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPat
 import cn.autolabor.pathfollower.parseFromConsole
 import cn.autolabor.pathfollower.shape.Circle
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
-import kotlinx.coroutines.*
 import org.mechdancer.YChannel
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
@@ -109,8 +109,8 @@ try {
                 minTipAngle = 60.toDegree()
                 minTurnAngle = 15.toDegree()
                 maxJumpCount = 20
-                maxLinearSpeed = .12
-                maxAngularSpeed = .4.toRad()
+                maxLinearSpeed = .09
+                maxAngularSpeed = .3.toRad()
             }
             painter = remote
         }

@@ -7,8 +7,11 @@ import org.mechdancer.*
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity
+import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.console.parser.Parser
+import org.mechdancer.exceptions.ExceptionMessage
+import org.mechdancer.exceptions.startExceptionServer
 import org.mechdancer.remote.modules.multicast.multicastListener
 import org.mechdancer.remote.presets.remoteHub
 import org.mechdancer.remote.protocol.SimpleInputStream
@@ -42,6 +45,7 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
             PathFollowerModuleDebugerBuilderDsl()
                 .apply(block)
                 .run {
+                    val dt = 1000L / frequency
                     // 里程计周期
                     val odometryPeriod = 1000L / odometryFrequency
                     // 机器人机械结构
@@ -69,7 +73,9 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
                     }
                     // 话题
                     val robotOnMap = channel<Stamped<Odometry>>()
+                    val commandToSwitch = channel<NonOmnidirectional>()
                     val commandToRobot = channel<NonOmnidirectional>()
+                    val exceptions = channel<ExceptionMessage<*>>()
                     val command = AtomicReference(Velocity.velocity(.0, .0))
                     val parser = Parser()
                     runBlocking {
@@ -77,16 +83,28 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
                         startPathFollower(
                             robotOnMap = robotOnMap,
                             robotOnOdometry = robotOnMap,
-                            commandOut = commandToRobot,
+                            commandOut = commandToSwitch,
+                            exceptions = exceptions,
                             consoleParser = parser
                         ) {
                             painter = remote
                         }
+                        startExceptionServer(
+                            exceptions = exceptions,
+                            commandIn = commandToSwitch,
+                            commandOut = commandToRobot,
+                            parser = parser)
                         launch { while (isActive) parser.parseFromConsole() }
                         launch { for ((v, w) in commands) command.set(Velocity.velocity(0.2 * v, 0.8 * w)) }
-                        launch { for (v in commandToRobot) command.set(v) }
+                        launch {
+                            val watchDog = WatchDog(3 * dt)
+                            for (v in commandToRobot) {
+                                command.set(v)
+                                launch { if (!watchDog.feed()) command.set(velocity(0, 0)) }
+                            }
+                        }
                         // 运行仿真
-                        speedSimulation(T0, 1000L / frequency, speed) {
+                        speedSimulation(T0, dt, speed) {
                             command.get()
                         }.consumeEach { (t, v) ->
                             //  计算机器人位姿增量

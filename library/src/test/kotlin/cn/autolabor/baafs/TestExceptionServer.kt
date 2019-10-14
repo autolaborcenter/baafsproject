@@ -13,6 +13,7 @@ import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import org.mechdancer.exceptions.RecoverableException
+import org.mechdancer.exceptions.startExceptionServer
 import org.mechdancer.remote.modules.tcpconnection.connectionListener
 import org.mechdancer.remote.modules.tcpconnection.listenString
 import org.mechdancer.remote.modules.tcpconnection.say

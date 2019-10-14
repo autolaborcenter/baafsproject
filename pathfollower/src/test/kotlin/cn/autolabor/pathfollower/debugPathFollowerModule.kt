@@ -4,4 +4,4 @@ import cn.autolabor.pathfollower.PathFollowerModuleDebugerBuilderDsl.Companion.d
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 @ExperimentalCoroutinesApi
-fun main() = debugPathFollowerModule { speed = 10 }
+fun main() = debugPathFollowerModule { speed = 1 }

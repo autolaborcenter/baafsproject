@@ -66,17 +66,23 @@ internal constructor(
         set(value) {
             require(value in 0.0..1.0) { "progress should be in [0, 1]" }
             pass = (value * path.size).toInt()
+            searchAll = true
         }
 
+    // 允许搜索全部路径
+    private var searchAll = false
+
     operator fun invoke(pose: Odometry): FollowCommand {
+        if (pass == 0) searchAll = true
         val (begin, end) =
-            when (pass) {
-                0    -> path.size
-                else -> min(pass + maxJumpCount, path.size)
+            when {
+                searchAll -> path.size
+                else      -> min(pass + maxJumpCount, path.size)
             }.let { limit ->
                 val range = sensor.findLocal(pose, subPath(pass, limit))
                 (pass + range.first) to (pass + range.last)
             }
+        searchAll = false
         // 特殊情况提前退出
         when {
             begin > end                           ->
