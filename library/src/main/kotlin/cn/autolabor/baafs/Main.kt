@@ -5,6 +5,7 @@ import cn.autolabor.core.server.DefaultSetup
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
+import cn.autolabor.pathfollower.algorithm.Proportion
 import cn.autolabor.pathfollower.parseFromConsole
 import cn.autolabor.pathfollower.shape.Circle
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
@@ -109,6 +110,7 @@ fun main() {
                 directionLimit = (-120).toDegree()
                 follower {
                     sensorPose = odometry(.275, 0)
+                    controller = Proportion(1.25)
                     lightRange = Circle(.3)
                     minTipAngle = 60.toDegree()
                     minTurnAngle = 15.toDegree()

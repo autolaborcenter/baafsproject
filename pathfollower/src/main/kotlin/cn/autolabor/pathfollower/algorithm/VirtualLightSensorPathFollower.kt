@@ -9,6 +9,7 @@ import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.plus
 import org.mechdancer.algebra.function.vector.times
 import org.mechdancer.common.Odometry
+import org.mechdancer.common.filters.Filter
 import org.mechdancer.geometry.angle.*
 import kotlin.math.*
 
@@ -28,7 +29,7 @@ class VirtualLightSensorPathFollower
 internal constructor(
     @DebugTemporary(REDUCE)
     val sensor: VirtualLightSensor,
-    private val controller: Controller = Controller.unit,
+    private val controller: Filter<Double, Double>,
     minTipAngle: Angle,
     minTurnAngle: Angle,
     private val maxJumpCount: Int,
@@ -50,11 +51,11 @@ internal constructor(
     /** 设置目标路径 */
     fun setPath(path: List<Odometry>) {
         this.path = listOf(path.first() to 2.0) +
-                    (1 until path.size).map { i ->
-                        val v0 = path[i - 1].d.toVector()
-                        val v1 = path[i].d.toVector()
-                        path[i] to (v0 dot v1)
-                    }
+                (1 until path.size).map { i ->
+                    val v0 = path[i - 1].d.toVector()
+                    val v1 = path[i].d.toVector()
+                    path[i] to (v0 dot v1)
+                }
         // 重置状态
         pass = 0
         controller.clear()
@@ -85,7 +86,7 @@ internal constructor(
         searchAll = false
         // 特殊情况提前退出
         when {
-            begin > end                           ->
+            begin > end ->
                 return when {
                     abs(pre) > minTurnRad -> Turn(pre)
                     else                  -> Error
@@ -98,9 +99,9 @@ internal constructor(
         pass = begin
         // 利用缓存识别尖点
         return (next.asSequence()
-                    .mapIndexed { i, item -> item to i }
-                    .firstOrNull { (it, _) -> it.second < cosMinTip }
-                ?: next.last() to next.lastIndex)
+            .mapIndexed { i, item -> item to i }
+            .firstOrNull { (it, _) -> it.second < cosMinTip }
+            ?: next.last() to next.lastIndex)
             // 处理尖点
             .also { (item, i) ->
                 val (tip, _) = item
@@ -123,8 +124,9 @@ internal constructor(
             }.second
             .let { sensor(pose, subPath(pass, pass + it)) }
             .let {
-                Follow(v = maxLinearSpeed,
-                       w = controller(input = it).run { sign * min(maxOmegaRad, absoluteValue) })
+                Follow(
+                    v = maxLinearSpeed,
+                    w = controller.update(new = it).run { sign * min(maxOmegaRad, absoluteValue) })
             }
     }
 

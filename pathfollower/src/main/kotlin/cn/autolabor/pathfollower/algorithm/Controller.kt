@@ -1,16 +1,13 @@
 package cn.autolabor.pathfollower.algorithm
 
-/**
- * 控制器
- */
-interface Controller {
-    operator fun invoke(time: Long? = null, input: Double): Double
+import org.mechdancer.common.filters.Filter
 
-    fun clear() {}
+object UnitController : Filter<Double, Double> {
+    override fun update(new: Double, time: Long?) = new
+    override fun clear() = Unit
+}
 
-    companion object {
-        val unit = object : Controller {
-            override fun invoke(time: Long?, input: Double) = input
-        }
-    }
+class Proportion(private val k: Double) : Filter<Double, Double> {
+    override fun update(new: Double, time: Long?) = k * new
+    override fun clear() = Unit
 }
