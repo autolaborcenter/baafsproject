@@ -1,10 +1,10 @@
 package com.faselase
 
-import cn.autolabor.Resource
 import cn.autolabor.serialport.parser.SerialPortFinder
 import org.mechdancer.common.Polar
 import org.mechdancer.common.Stamped
 import org.mechdancer.exceptions.DeviceNotExistException
+import java.io.Closeable
 import java.util.*
 import kotlin.math.PI
 
@@ -15,8 +15,7 @@ import kotlin.math.PI
 class Resource(
     name: String? = null,
     private val callback: (List<Stamped<Polar>>) -> Unit
-) : Resource {
-
+) : Closeable {
     private val engine = engine()
     private val port =
         //  启动时发送开始旋转指令
@@ -32,9 +31,9 @@ class Resource(
     private var offset = .0
     private var last = .0
 
-    override val info: String get() = port.descriptivePortName
+    val info: String get() = port.descriptivePortName
 
-    override operator fun invoke() {
+    operator fun invoke() {
         synchronized(port) {
             port.takeIf { it.isOpen }?.readBytes(buffer, buffer.size.toLong())
         }?.takeIf { it > 0 }

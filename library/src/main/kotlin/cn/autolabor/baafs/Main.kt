@@ -21,7 +21,7 @@ import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
-import org.mechdancer.exceptions.startExceptionServer
+import org.mechdancer.exceptions.ExceptionServer
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.networksInfo
@@ -85,8 +85,10 @@ fun main() {
                 commandOut = commandToSwitch)
             println("done")
 
+            val exceptionServer = ExceptionServer()
             val parser = buildParser {
-                this["coroutines count"] = { coroutineContext[Job]?.children?.count() }
+                this["coroutines"] = { coroutineContext[Job]?.children?.count() }
+                this["exceptions"] = { exceptionServer.get().joinToString("\n") }
             }
             startLocationFusion(
                 robotOnOdometry = robotOnOdometry.outputs[0],
@@ -120,11 +122,12 @@ fun main() {
                 }
                 painter = remote
             }
-            startExceptionServer(
-                exceptions = exceptions,
-                commandIn = commandToSwitch,
-                commandOut = commandToRobot,
-                parser = parser)
+            launch {
+                for (command in commandToSwitch)
+                    if (exceptionServer.isEmpty())
+                        commandToRobot.send(command)
+                commandToRobot.close()
+            }
 
             GlobalScope.launch { while (isActive) parser.parseFromConsole() }
         }

@@ -45,45 +45,44 @@ sealed class LidarPack {
     data class Data(val rho: Double, val theta: Double) : LidarPack()
 }
 
-fun parser(buffer: List<Byte>): ParseInfo<LidarPack> {
-    val size = buffer.size
-    var begin =
-        buffer
-            .indexOfFirst { it >= 0 }
-            .takeIf { it >= 0 }
-        ?: return ParseInfo(size, size, LidarPack.Failed)
+fun engine() =
+    ParseEngine<Byte, LidarPack> { buffer: List<Byte> ->
+        val size = buffer.size
+        var begin =
+            buffer
+                .indexOfFirst { it >= 0 }
+                .takeIf { it >= 0 }
+            ?: return@ParseEngine ParseInfo(size, size, LidarPack.Failed)
 
-    val `package` =
-        (begin + 4)
-            .takeIf { it < size }
-            ?.let { buffer.subList(begin, it) }
-        ?: return ParseInfo(begin, size, LidarPack.Failed)
+        val `package` =
+            (begin + 4)
+                .takeIf { it < size }
+                ?.let { buffer.subList(begin, it) }
+            ?: return@ParseEngine ParseInfo(begin, size, LidarPack.Failed)
 
-    val result =
-        if (crcCheck(`package`)) {
-            begin += 4
+        val result =
+            if (crcCheck(`package`)) {
+                begin += 4
 
-            val rho = k_rho * (`package`[0].takeBits(0b00001111, 8)
-                or `package`[1].takeBits(0b01111111, 1)
-                or `package`[2].takeBits(0b01000000, -6))
-            val theta = k_theta * (`package`[2].takeBits(0b00111111, 7)
-                or `package`[3].takeBits(0b01111111, 0))
+                val rho = k_rho * (`package`[0].takeBits(0b00001111, 8)
+                    or `package`[1].takeBits(0b01111111, 1)
+                    or `package`[2].takeBits(0b01000000, -6))
+                val theta = k_theta * (`package`[2].takeBits(0b00111111, 7)
+                    or `package`[3].takeBits(0b01111111, 0))
 
-            when {
-                theta !in 0.0..2 * PI -> LidarPack.Failed
-                rho !in 0.15..10.0    -> LidarPack.Nothing(theta)
-                else                  -> LidarPack.Data(rho, theta)
+                when {
+                    theta !in 0.0..2 * PI -> LidarPack.Failed
+                    rho !in 0.15..10.0    -> LidarPack.Nothing(theta)
+                    else                  -> LidarPack.Data(rho, theta)
+                }
+            } else {
+                begin += 1
+                LidarPack.Failed
             }
-        } else {
-            begin += 1
-            LidarPack.Failed
-        }
-    val (nextBegin, passed) =
-        (begin until size)
-            .find { buffer[it] >= 0 }
-            ?.let { it to it + 1 }
-        ?: size to size
-    return ParseInfo(nextBegin, passed, result)
-}
-
-fun engine() = ParseEngine<Byte, LidarPack> { parser(it) }
+        val (nextBegin, passed) =
+            (begin until size)
+                .find { buffer[it] >= 0 }
+                ?.let { it to it + 1 }
+            ?: size to size
+        return@ParseEngine ParseInfo(nextBegin, passed, result)
+    }

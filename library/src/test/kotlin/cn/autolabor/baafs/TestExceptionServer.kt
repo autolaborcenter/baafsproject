@@ -1,21 +1,13 @@
 package cn.autolabor.baafs
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import org.mechdancer.channel
-import org.mechdancer.common.Velocity.Companion.velocity
-import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.console.parser.feedback
-import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
+import org.mechdancer.exceptions.ExceptionServer
 import org.mechdancer.exceptions.RecoverableException
-import org.mechdancer.exceptions.startExceptionServer
-import org.mechdancer.remote.modules.tcpconnection.connectionListener
-import org.mechdancer.remote.modules.tcpconnection.listenString
+import org.mechdancer.remote.modules.tcpconnection.dialogListener
+import org.mechdancer.remote.modules.tcpconnection.listen
 import org.mechdancer.remote.modules.tcpconnection.say
 import org.mechdancer.remote.presets.remoteHub
 import org.mechdancer.remote.resources.TcpCmd
@@ -24,62 +16,44 @@ import kotlin.concurrent.thread
 object TestExceptionServer {
     @ExperimentalStdlibApi
     @JvmStatic
-    fun main(args: Array<String>) = runBlocking<Unit>(Dispatchers.Default) {
-        val exceptions = channel<ExceptionMessage<*>>()
-        val commandToFilter = channel<NonOmnidirectional>()
-        val commandToRobot = channel<NonOmnidirectional>()
+    fun main(args: Array<String>) {
+        val exceptionServer = ExceptionServer()
         val parser = buildParser {
             this["throw"] = {
-                this@runBlocking.launch { exceptions.send(Occurred(RecoverableException("e"))) }
+                exceptionServer.update(Occurred(RecoverableException("e")))
                 "."
             }
             this["recover"] = {
-                this@runBlocking.launch { exceptions.send(Recovered(RecoverableException("e"))) }
+                exceptionServer.update(Recovered(RecoverableException("e")))
                 "."
             }
-        }
-
-        startExceptionServer(
-            exceptions = exceptions,
-            commandIn = commandToFilter,
-            commandOut = commandToRobot,
-            parser = parser)
-
-        launch {
-            while (true) {
-                commandToFilter.send(velocity(.1, 0))
-                delay(1000)
+            this["exceptions"] = {
+                var i = 0
+                exceptionServer.get().joinToString("\n") { "${++i}. $it" }
             }
-        }
-        launch {
-            for (command in commandToRobot)
-                println(command)
         }
 
         remoteHub("command server") {
             inAddition {
-                connectionListener { client, I ->
-                    client
-                        .endsWith("client") // 只接受名称符合规则的连接
-                        .also {
-                            if (it) {
-                                while (true) {
-                                    val msg = I.listenString()
-                                    println("- hear $msg")
-                                    parser(msg)
-                                        .map(::feedback)
-                                        .single()
-                                        .second
-                                        .run { I.say(toString()) }
-                                }
-                            }
-                        }
+                dialogListener { _, payload ->
+                    payload
+                        .decodeToString()
+                        .let(parser::invoke)
+                        .map(::feedback)
+                        .joinToString("\n") { (_, msg) -> msg.toString() }
+                        .encodeToByteArray()
                 }
             }
         }.apply {
             openAllNetworks()
             thread(isDaemon = true) { while (true) invoke() }
             thread(isDaemon = true) { while (true) accept() }
+        }
+
+        var i = 0
+        while (true) {
+            if (exceptionServer.isEmpty()) println(i++)
+            Thread.sleep(1000)
         }
     }
 }
@@ -92,13 +66,10 @@ object ExceptionClient {
             openAllNetworks()
             thread(isDaemon = true) { while (true) invoke() }
             while (true) {
-                while (null == connect("command server", TcpCmd.COMMON) {
-                        while (true) {
-                            val msg = readLine()!!
-                            it.say(msg)
-                            if (msg == "over") break
-                            println(it.listenString())
-                        }
+                val msg = readLine()!!
+                while (null == connect("command server", TcpCmd.Dialog) {
+                        it.say(msg.encodeToByteArray())
+                        println(it.listen().decodeToString())
                     }) Thread.sleep(100)
             }
         }
