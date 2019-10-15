@@ -51,11 +51,12 @@ class SimpleLogger(vararg names: String) {
     companion object {
         // 日志
         // 运行目录下创建log文件夹
-        private val logPath: String =
+        private val logPath: String by lazy {
             File(System.getProperty("user.dir"), "log")
                 .also { if (!it.exists()) it.mkdir() }
                 .toPath()
                 .toString()
+        }
 
         // log文件夹下创建本次运行的文件夹
         private val currentLogPath: Path by lazy {

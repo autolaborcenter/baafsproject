@@ -4,6 +4,8 @@ import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
 import cn.autolabor.core.server.DefaultSetup
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
+import cn.autolabor.message.navigation.Msg2DOdometry
+import cn.autolabor.message.navigation.Msg2DPose
 import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
 import cn.autolabor.pathfollower.algorithm.Proportion
 import cn.autolabor.pathfollower.parseFromConsole
@@ -44,7 +46,7 @@ fun main() {
 
     // 话题
     val robotOnOdometry = YChannel<Stamped<Odometry>>()
-    val robotOnMap = channel<Stamped<Odometry>>()
+    val robotOnMap = YChannel<Stamped<Odometry>>()
     val beaconOnMap = channel<Stamped<Vector2D>>()
     val commandToObstacle = channel<NonOmnidirectional>()
     val exceptions = channel<ExceptionMessage<*>>()
@@ -93,7 +95,7 @@ fun main() {
             startLocationFusion(
                 robotOnOdometry = robotOnOdometry.outputs[0],
                 beaconOnMap = beaconOnMap,
-                robotOnMap = robotOnMap
+                robotOnMap = robotOnMap.input
             ) {
                 filter {
                     beaconOnRobot = vector2DOf(-.01, 0)
@@ -102,7 +104,7 @@ fun main() {
                 painter = remote
             }
             startPathFollower(
-                robotOnMap = robotOnMap,
+                robotOnMap = robotOnMap.outputs[0],
                 robotOnOdometry = robotOnOdometry.outputs[1],
                 commandOut = commandToObstacle,
                 exceptions = exceptions,
@@ -127,6 +129,11 @@ fun main() {
                     if (exceptionServer.isEmpty())
                         commandToRobot.send(command)
                 commandToRobot.close()
+            }
+            val topic = "pose".handler<Msg2DOdometry>()
+            launch {
+                for ((_, pose) in robotOnMap.outputs[1])
+                    topic.pushSubData(Msg2DOdometry(Msg2DPose(pose.p.x, pose.p.y, pose.d.asRadian()), null))
             }
 
             GlobalScope.launch { while (isActive) parser.parseFromConsole() }
