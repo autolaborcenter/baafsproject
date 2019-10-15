@@ -1,11 +1,13 @@
 package cn.autolabor.baafs
 
 import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
-import cn.autolabor.baafs.LinkMode.Direct
 import cn.autolabor.core.server.DefaultSetup
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
+import cn.autolabor.message.navigation.Msg2DOdometry
+import cn.autolabor.message.navigation.Msg2DPose
 import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
+import cn.autolabor.pathfollower.algorithm.Proportion
 import cn.autolabor.pathfollower.parseFromConsole
 import cn.autolabor.pathfollower.shape.Circle
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
@@ -20,10 +22,13 @@ import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
+import org.mechdancer.exceptions.ExceptionMessage
+import org.mechdancer.exceptions.ExceptionServer
 import org.mechdancer.geometry.angle.toDegree
+import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
-import kotlin.math.PI
+import kotlin.system.exitProcess
 
 ServerManager.setSetup(object : DefaultSetup() {
     override fun start() = Unit
@@ -39,11 +44,12 @@ val remote by lazy {
 
 // 话题
 val robotOnOdometry = YChannel<Stamped<Odometry>>()
-val robotOnMap = channel<Stamped<Odometry>>()
+val robotOnMap = YChannel<Stamped<Odometry>>()
 val beaconOnMap = channel<Stamped<Vector2D>>()
 val commandToObstacle = channel<NonOmnidirectional>()
+val exceptions = channel<ExceptionMessage<*>>()
+val commandToSwitch = channel<NonOmnidirectional>()
 val commandToRobot = channel<NonOmnidirectional>()
-val parser = buildParser { }
 // 任务
 try {
     runBlocking(Dispatchers.Default) {
@@ -60,12 +66,13 @@ try {
 
         println("trying to connect to marvelmind mobile beacon...")
         startMobileBeacon(
-            beaconOnMap = beaconOnMap
+            beaconOnMap = beaconOnMap,
+            exceptions = exceptions
         ) {
             port = null
             retryInterval = 100L
-            retryTimes = 3
             connectionTimeout = 2000L
+            parseTimeout = 2000L
             dataTimeout = 2000L
             delayLimit = 400L
         }
@@ -73,15 +80,20 @@ try {
 
         println("trying to connect to faselase lidars...")
         startObstacleAvoiding(
-            mode = Direct,
+            launchLidar = true,
             commandIn = commandToObstacle,
-            commandOut = commandToRobot)
+            commandOut = commandToSwitch)
         println("done")
 
+        val exceptionServer = ExceptionServer()
+        val parser = buildParser {
+            this["coroutines"] = { coroutineContext[Job]?.children?.count() }
+            this["exceptions"] = { exceptionServer.get().joinToString("\n") }
+        }
         startLocationFusion(
             robotOnOdometry = robotOnOdometry.outputs[0],
             beaconOnMap = beaconOnMap,
-            robotOnMap = robotOnMap
+            robotOnMap = robotOnMap.input
         ) {
             filter {
                 beaconOnRobot = vector2DOf(-.01, 0)
@@ -90,25 +102,38 @@ try {
             painter = remote
         }
         startPathFollower(
-            robotOnMap = robotOnMap,
+            robotOnMap = robotOnMap.outputs[0],
             robotOnOdometry = robotOnOdometry.outputs[1],
             commandOut = commandToObstacle,
+            exceptions = exceptions,
             consoleParser = parser
         ) {
             pathInterval = .05
             directionLimit = (-120).toDegree()
             follower {
                 sensorPose = odometry(.275, 0)
+                controller = Proportion(1.25)
                 lightRange = Circle(.3)
-                minTipAngle = PI / 3
-                minTurnAngle = PI / 12
+                minTipAngle = 60.toDegree()
+                minTurnAngle = 15.toDegree()
                 maxJumpCount = 20
-                maxLinearSpeed = .12
-                maxAngularSpeed = .4
+                maxLinearSpeed = .09
+                maxAngularSpeed = .3.toRad()
             }
+            painter = remote
+        }
+        launch {
+            for (command in commandToSwitch)
+                if (exceptionServer.isEmpty())
+                    commandToRobot.send(command)
+            commandToRobot.close()
+        }
+        val topic = "pose".handler<Msg2DOdometry>()
+        launch {
+            for ((_, pose) in robotOnMap.outputs[1])
+                topic.pushSubData(Msg2DOdometry(Msg2DPose(pose.p.x, pose.p.y, pose.d.asRadian()), null))
         }
 
-        parser["coroutines count"] = { coroutineContext[Job]?.children?.count() }
         GlobalScope.launch { while (isActive) parser.parseFromConsole() }
     }
 } catch (e: CancellationException) {
@@ -118,5 +143,7 @@ try {
     System.err.println("program terminate because of ${e::class.simpleName}")
     e.printStackTrace()
 } finally {
+    Thread.sleep(400L)
     println("program stopped")
 }
+exitProcess(0)

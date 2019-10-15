@@ -16,6 +16,9 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.exceptions.ExceptionMessage
+import org.mechdancer.exceptions.ExceptionMessage.Occurred
+import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.paintPoses
 import org.mechdancer.paintVectors
@@ -33,6 +36,7 @@ class PathFollowerModule(
     private val robotOnMap: ReceiveChannel<Stamped<Odometry>>,
     private val robotOnOdometry: ReceiveChannel<Stamped<Odometry>>,
     private val commandOut: SendChannel<NonOmnidirectional>,
+    private val exceptions: SendChannel<ExceptionMessage<FollowFailedException>>,
     private val follower: VirtualLightSensorPathFollower,
     directionLimit: Angle,
     pathInterval: Double,
@@ -47,6 +51,26 @@ class PathFollowerModule(
             field = value
             logger?.log("mode = $value")
         }
+
+    var progress: Double
+        get() =
+            onFollowing("progress") { follower.progress }
+        set(value) {
+            onFollowing("progress") { follower.progress = value }
+        }
+
+    var isEnabled = false
+        get() =
+            onFollowing("enabled") { field }
+        set(value) {
+            onFollowing("enabled") { field = value }
+        }
+
+    private fun <T> onFollowing(what: String, block: () -> T): T {
+        if (internalMode !is Mode.Follow)
+            throw RuntimeException("cannot get or set $what unless in follow mode")
+        return block()
+    }
 
     var mode
         get() = internalMode
@@ -71,7 +95,6 @@ class PathFollowerModule(
                         if (path.size < 2) return
 
                         follower.setPath(path.get())
-                        isEnabled = false
 
                         internalMode = value
                         scope.launch { follow() }
@@ -79,11 +102,6 @@ class PathFollowerModule(
                     Idle           -> Unit
                 }
             }
-        }
-
-    var isEnabled = false
-        set(value) {
-            if (internalMode is Mode.Follow) field = value
         }
 
     private suspend fun record() {
@@ -94,34 +112,41 @@ class PathFollowerModule(
     }
 
     private suspend fun follow() {
+        isEnabled = false
         for ((_, pose) in robotOnMap) {
             val m = internalMode
             if (m !is Mode.Follow) break
             val command = follower(pose)
             logger?.log(command)
-            when (command) {
-                is Follow -> {
-                    val (v, w) = command
-                    drive(v, w)
-                }
-                is Turn   -> {
-                    val (angle) = command
-                    stop()
-                    turn(angle)
-                    stop()
-                }
-                is Error  -> Unit
-                is Finish -> {
-                    if (m.loop)
-                        follower.setPath(path.get())
-                    else {
+            if (command !is Error) {
+                exceptions.send(Recovered(FollowFailedException))
+                when (command) {
+                    is Follow -> {
+                        val (v, w) = command
+                        drive(v, w)
+                    }
+                    is Turn   -> {
+                        val (angle) = command
                         stop()
-                        internalMode = Idle
+                        turn(angle)
+                        stop()
+                    }
+                    is Finish -> {
+                        if (m.loop)
+                            follower.setPath(path.get())
+                        else {
+                            stop()
+                            internalMode = Idle
+                        }
                     }
                 }
-            }
+            } else
+                exceptions.send(Occurred(FollowFailedException))
             painter?.run {
-                paintVectors("传感器区域", follower.sensor.areaShape)
+                follower.sensor.areaShape
+                    .takeIf(Collection<*>::isNotEmpty)
+                    ?.let { it + it.first() }
+                    ?.also { paintVectors("传感器区域", it) }
                 paintPoses("尖点", listOf(follower.tip))
             }
         }
@@ -152,7 +177,7 @@ class PathFollowerModule(
             else          -> angle
         }
         val delta = abs(value)
-        val w = value.sign * follower.maxAngularSpeed
+        val w = value.sign * follower.maxOmegaRad
         for ((_, pose) in robotOnOdometry) {
             if (internalMode !is Mode.Follow) break
             if (abs(pose.d.asRadian() - d0) > delta) break

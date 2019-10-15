@@ -3,6 +3,8 @@ package cn.autolabor
 import com.sun.jna.Library
 import com.sun.jna.Pointer
 import com.sun.jna.ptr.DoubleByReference
+import org.mechdancer.common.Odometry
+import org.mechdancer.common.Stamped
 import org.mechdancer.exceptions.ApplicationException
 import java.lang.reflect.Proxy
 
@@ -77,7 +79,7 @@ object PM1 {
     /**
      * 获取里程计数据
      */
-    val odometry: Triple<Double, Double, Double>
+    val odometry: Stamped<Odometry>
         @JvmStatic
         get() {
             val stamp = DoubleByReference()
@@ -91,7 +93,8 @@ object PM1 {
                 s.pointer, sa.pointer,
                 x.pointer, y.pointer, theta.pointer
             ))
-            return Triple(x.value, y.value, theta.value)
+            return Stamped((stamp.value * 1000).toLong(),
+                           Odometry.odometry(x.value, y.value, theta.value))
         }
 
     /**

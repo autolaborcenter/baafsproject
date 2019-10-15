@@ -7,10 +7,10 @@ import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.dependency.must
-import org.mechdancer.displayOnConsole
 import org.mechdancer.remote.presets.remoteHub
 import org.mechdancer.remote.resources.MulticastSockets
 import org.mechdancer.remote.resources.Networks
+import org.mechdancer.simulation.displayOnConsole
 import kotlin.concurrent.thread
 
 @ExperimentalCoroutinesApi
