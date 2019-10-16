@@ -6,6 +6,7 @@ import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.message.navigation.Msg2DOdometry
 import cn.autolabor.message.navigation.Msg2DPose
+import cn.autolabor.module.networkhub.UDPMulticastBroadcaster
 import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
 import cn.autolabor.pathfollower.algorithm.Proportion
 import cn.autolabor.pathfollower.parseFromConsole
@@ -33,7 +34,9 @@ import kotlin.system.exitProcess
 @ExperimentalCoroutinesApi
 fun main() {
     ServerManager.setSetup(object : DefaultSetup() {
-        override fun start() = Unit
+        override fun start() {
+            ServerManager.me().register(UDPMulticastBroadcaster())
+        }
     })
 
     val remote by lazy {
@@ -130,8 +133,8 @@ fun main() {
                         commandToRobot.send(command)
                 commandToRobot.close()
             }
-            val topic = "pose".handler<Msg2DOdometry>()
             launch {
+                val topic = "fusion".handler<Msg2DOdometry>()
                 for ((_, pose) in robotOnMap.outputs[1])
                     topic.pushSubData(Msg2DOdometry(Msg2DPose(pose.p.x, pose.p.y, pose.d.asRadian()), null))
             }
