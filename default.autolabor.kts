@@ -135,11 +135,11 @@ try {
                     commandToRobot.send(command)
             commandToRobot.close()
         }
-        launch {
-            val topic = "fusion".handler<Msg2DOdometry>()
-            for ((_, pose) in robotOnMap.outputs[1])
-                topic.pushSubData(Msg2DOdometry(Msg2DPose(pose.p.x, pose.p.y, pose.d.asRadian()), null))
-        }
+//        launch {
+//            val topic = "fusion".handler<Msg2DOdometry>()
+//            for ((_, pose) in robotOnMap.outputs[1])
+//                topic.pushSubData(Msg2DOdometry(Msg2DPose(pose.p.x, pose.p.y, pose.d.asRadian()), null))
+//        }
 
         GlobalScope.launch { while (isActive) parser.parseFromConsole() }
     }

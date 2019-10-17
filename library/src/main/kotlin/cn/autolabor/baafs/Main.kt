@@ -4,8 +4,6 @@ import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
 import cn.autolabor.core.server.DefaultSetup
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
-import cn.autolabor.message.navigation.Msg2DOdometry
-import cn.autolabor.message.navigation.Msg2DPose
 import cn.autolabor.module.networkhub.UDPMulticastBroadcaster
 import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
 import cn.autolabor.pathfollower.algorithm.Proportion
@@ -137,11 +135,11 @@ fun main() {
                         commandToRobot.send(command)
                 commandToRobot.close()
             }
-            launch {
-                val topic = "fusion".handler<Msg2DOdometry>()
-                for ((_, pose) in robotOnMap.outputs[1])
-                    topic.pushSubData(Msg2DOdometry(Msg2DPose(pose.p.x, pose.p.y, pose.d.asRadian()), null))
-            }
+//            launch {
+//                val topic = "fusion".handler<Msg2DOdometry>()
+//                for ((_, pose) in robotOnMap.outputs[1])
+//                    topic.pushSubData(Msg2DOdometry(Msg2DPose(pose.p.x, pose.p.y, pose.d.asRadian()), null))
+//            }
 
             GlobalScope.launch { while (isActive) parser.parseFromConsole() }
         }

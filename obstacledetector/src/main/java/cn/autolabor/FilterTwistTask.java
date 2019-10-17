@@ -59,6 +59,7 @@ public class FilterTwistTask extends AbstractTask {
                     if (null == twist) {
                         count += 1;
                         if (count >= runToStopCount) {
+                            System.err.println("obstacle detected!");
                             status = StatusType.stop;
                             count = 0;
                         }
@@ -70,6 +71,7 @@ public class FilterTwistTask extends AbstractTask {
                     if (null != twist) {
                         count += 1;
                         if (count >= stopToRunCount) {
+                            System.out.println("obstacle disappeared!");
                             status = StatusType.run;
                             count = 0;
                         }
