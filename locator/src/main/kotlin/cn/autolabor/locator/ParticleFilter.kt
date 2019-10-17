@@ -1,9 +1,9 @@
 package cn.autolabor.locator
 
 import cn.autolabor.utilities.ClampMatcher
-import org.mechdancer.Temporary
-import org.mechdancer.Temporary.Operation.DELETE
-import org.mechdancer.Temporary.Operation.REDUCE
+import org.mechdancer.DebugTemporary
+import org.mechdancer.DebugTemporary.Operation.DELETE
+import org.mechdancer.DebugTemporary.Operation.REDUCE
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
@@ -32,32 +32,31 @@ import kotlin.math.min
  *   * 运行中对粒子寿命的统计最大取值为 [maxAge]
  *   * 对死亡的粒子重采样时方向按标准差 [sigma] 进行随机
  */
-class ParticleFilter(private val count: Int,
-                     private val locatorOnRobot: Vector2D,
-                     private val locatorWeight: Double,
-                     private val maxInterval: Long,
-                     private val maxInconsistency: Double,
-                     private val maxAge: Int,
-                     private val sigma: Double
+class ParticleFilter(
+    private val count: Int,
+    private val locatorOnRobot: Vector2D,
+    private val locatorWeight: Double,
+    private val maxInterval: Long,
+    private val maxInconsistency: Double,
+    private val maxAge: Int,
+    private val sigma: Double
 ) : Mixer<Stamped<Odometry>, Stamped<Vector2D>, Stamped<Odometry>> {
     private val matcher = ClampMatcher<Stamped<Odometry>, Stamped<Vector2D>>()
 
     // 过程记录器
-    @Temporary(DELETE)
+    @DebugTemporary(DELETE)
     val stepFeedback = mutableListOf<(StepState) -> Unit>()
 
     // 粒子：位姿 - 寿命
-    @Temporary(REDUCE)
+    @DebugTemporary(REDUCE)
     var particles = emptyList<Pair<Odometry, Int>>()
 
     // 过程参数渗透
-    @Temporary(DELETE)
-    data class StepState(val measureWeight: Double,
-                         val particleWeight: Double,
-                         val measure: Vector2D,
-                         val state: Odometry,
-                         val locatorExpectation: Odometry,
-                         val robotExpectation: Odometry)
+    @DebugTemporary(DELETE)
+    data class StepState(
+        val measureWeight: Double,
+        val particleWeight: Double,
+        val inconsistency: Double)
 
     override fun measureMaster(item: Stamped<Odometry>) =
         matcher.add1(item).let {
@@ -69,6 +68,9 @@ class ParticleFilter(private val count: Int,
         matcher.add2(item).also {
             update()
         }
+
+    override operator fun get(item: Stamped<Odometry>) =
+        stateSave?.let { (_, pose) -> Stamped(item.time, expectation plusDelta (item.data minusState pose)) }
 
     private var stateSave: Pair<Vector2D, Odometry>? = null
     private var expectation = Odometry()
@@ -122,12 +124,15 @@ class ParticleFilter(private val count: Int,
                             age.ageWeight() * (1 - min(1.0, (odometry.p - measure).norm() / maxInconsistency))
                         }
                     // 计算粒子总权重，若过低，直接重新初始化
-                    val weightsSum = weights.sum().takeIf { it > 0.1 * count }
-                                     ?: run {
-                                         initialize(measure, state)
-                                         return@forEach
-                                     }
-                    // 计算期望和方差
+                    val weightsSum = weights.sum()
+                                         // 平时不要随便重新初始化似乎更稳定
+                                         // .takeIf { it > 0.1 * count }
+                                         // ?: run {
+                                         //     initialize(measure, state)
+                                         //     return@forEach
+                                         // }
+                                         .takeIf { it >= 1 } ?: return@forEach
+                    // 计算期望
                     var eP = vector2DOfZero()
                     var eD = vector2DOfZero()
                     locators.forEachIndexed { i, (odometry, _) ->
@@ -140,7 +145,7 @@ class ParticleFilter(private val count: Int,
                     eD /= weightsSum
                     val eAngle = eD.toAngle()
                     val angle = eAngle.asRadian()
-                    // 计算方向标准差，对偏差较大的粒子进行随机方向的重采样
+                    // 对偏差较大的粒子进行随机方向的重采样
                     particles = particles.mapIndexed { i, item ->
                         if ((locators[i].first.p - measure).norm() > 0.05) {
                             val newAge = item.second - 2
@@ -154,11 +159,11 @@ class ParticleFilter(private val count: Int,
                     // 猜测真实位姿
                     val eRobot = Transformation.fromPose(eP, eAngle)(-locatorOnRobot).to2D()
                     expectation = Odometry(eRobot, eAngle)
-                    @Temporary(DELETE)
-                    val stepState = StepState(measureWeight, weightsSum,
-                                              measure, state,
-                                              Odometry(eP, eAngle),
-                                              Odometry(eRobot, eAngle))
+                    @DebugTemporary(DELETE)
+                    val stepState = StepState(
+                        measureWeight = measureWeight,
+                        particleWeight = weightsSum,
+                        inconsistency = inconsistency)
                     synchronized(stepFeedback) {
                         for (callback in stepFeedback) callback(stepState)
                     }
@@ -179,10 +184,6 @@ class ParticleFilter(private val count: Int,
             Odometry(p, d) to 0
         }
     }
-
-    override operator fun get(item: Stamped<Odometry>) =
-        stateSave?.second
-            ?.let { Stamped(item.time, expectation plusDelta (item.data minusState it)) }
 
     private companion object {
         // 里程计线性可加性（用于加权平均）

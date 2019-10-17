@@ -11,12 +11,11 @@ buildScan {
 //    publishAlways()
 }
 
-version = "1.0-SNAPSHOT"
-
 // 包括主项目的构建脚本
 allprojects {
     apply(plugin = "kotlin")
     group = "cn.autolabor"
+    version = "v0.0.9"
     repositories {
         mavenCentral()
         jcenter()
@@ -28,52 +27,65 @@ allprojects {
         sourceCompatibility = "1.8"
         targetCompatibility = "1.8"
     }
-    // 源码导出任务
-    val sourceTaskName = "sourcesJar"
-    task<Jar>(sourceTaskName) {
-        archiveClassifier.set("sources")
-        group = "build"
-
-        from(sourceSets["main"].allSource)
+    dependencies {
+        // 自动依赖 kotlin 标准库
+        implementation(kotlin("stdlib-jdk8"))
+        // 单元测试
+        testImplementation("junit", "junit", "+")
+        testImplementation(kotlin("test-junit"))
     }
-    tasks["jar"].dependsOn(sourceTaskName)
+    // 源码导出任务
+    with("sourcesJar") {
+        tasks["jar"].dependsOn(this)
+        tasks.register<Jar>(this) {
+            archiveClassifier.set("sources")
+            group = "build"
+
+            from(sourceSets["main"].allSource)
+        }
+    }
 }
 
 // 排除主项目的构建脚本
 subprojects {
     dependencies {
-        // 子项目自动依赖 kotlin 标准库
-        implementation(kotlin("stdlib-jdk8"))
         // 子项目自动依赖重要数学和定义库
-        implementation(files("../libs/simulator-0.0.1.jar"))
         implementation("org.mechdancer", "linearalgebra", "+")
-        // 单元测试
-        testImplementation("junit", "junit", "+")
-        testImplementation(kotlin("test-junit"))
+        implementation(files("../libs/simulator-0.0.2.jar"))
     }
 }
 
 // 主项目依赖项
 dependencies {
-    // 导出 kotlin 标准库
-    api(kotlin("stdlib-jdk8"))
-    // 导出子模块
-    api(project(":common"))           // 日志器和临时成员注解
-    api(project(":drivers"))          // 传感器驱动
-    api(project(":locator"))          // 定位融合
-    api(project(":obstacledetector")) // 障碍物检测与规避
-    api(project(":pathfollower"))     // 循线控制算法
-    api(project(":painter"))          // 调试与绘图功能
-    // 导出外部依赖
-    api(fileTree("libs"))
-    api("org.mechdancer", "linearalgebra", "+")
-    api("org.jetbrains.kotlinx", "kotlinx-coroutines-core", "+")
-    api("net.java.dev.jna", "jna", "+")
-    // 单元测试
-    testImplementation("junit", "junit", "+")
-    testImplementation(kotlin("test-junit"))
-    // 其他测试
-    testImplementation("com.google.protobuf", "protobuf-java", "2.6.1")
-    testImplementation("org.zeromq", "jeromq", "0.5.1")
-    testImplementation(fileTree("libs-test"))
+    implementation(kotlin("scripting-common"))
+    implementation(kotlin("scripting-jvm"))
+    implementation(kotlin("scripting-jvm-host"))
+    implementation(kotlin("main-kts"))
+    implementation(project(":library"))
+}
+
+"scripting-application".let { name ->
+    // 打包任务
+    tasks["build"].dependsOn(name)
+    tasks.register<Jar>(name) {
+        manifest { attributes("Main-Class" to "MainKt") }
+        group = JavaBasePlugin.BUILD_TASK_NAME
+        description = "pack jar to run script"
+        archiveClassifier.set(name)
+        from(sourceSets.main.get().output,
+             configurations.runtimeClasspath.get()
+                 .map { if (it.isDirectory) it else zipTree(it) })
+    }
+}
+
+"copyConfiguration".let { name ->
+    tasks["build"].dependsOn(name)
+    tasks.register<Copy>(name) {
+        group = JavaBasePlugin.BUILD_TASK_NAME
+        description = "copy configuration files to target direction"
+        from("$rootDir")
+        include("conf/**")
+        include("*.autolabor.kts")
+        into("$buildDir/libs")
+    }
 }

@@ -6,9 +6,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.concurrent.thread
 
-/**
- * 具有[name]名字的日志器
- */
+/** 简易日志器 */
 class SimpleLogger(vararg names: String) {
     private val buffer = StringBuilder()
     private val name = "${names.joinToString("_")}.txt"
@@ -53,11 +51,12 @@ class SimpleLogger(vararg names: String) {
     companion object {
         // 日志
         // 运行目录下创建log文件夹
-        private val logPath: String =
+        private val logPath: String by lazy {
             File(System.getProperty("user.dir"), "log")
                 .also { if (!it.exists()) it.mkdir() }
                 .toPath()
                 .toString()
+        }
 
         // log文件夹下创建本次运行的文件夹
         private val currentLogPath: Path by lazy {
@@ -65,8 +64,5 @@ class SimpleLogger(vararg names: String) {
                 .also { if (!it.exists()) it.mkdir() }
                 .toPath()
         }
-
-        inline fun <reified T> logger(name: String) =
-            SimpleLogger(T::class.java.simpleName, name)
     }
 }

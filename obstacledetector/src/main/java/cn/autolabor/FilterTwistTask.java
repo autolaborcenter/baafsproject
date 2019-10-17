@@ -8,6 +8,7 @@ import cn.autolabor.message.navigation.Msg2DPose;
 import cn.autolabor.message.navigation.Msg2DTwist;
 import cn.autolabor.message.navigation.MsgPolygon;
 import org.mechdancer.SimpleLogger;
+import org.mechdancer.exceptions.DataTimeoutException;
 
 import java.util.List;
 
@@ -30,6 +31,17 @@ public class FilterTwistTask extends AbstractTask {
     private int lidarTimeout;
     @TaskParameter(name = "lidarTopic", value = "scan_out")
     private String lidarTopic;
+    private int count = 0;
+    private SimpleLogger logger = new SimpleLogger("Filter_Twist_logger");
+    @InjectMessage(topic = "${cmdTopicOutput}")
+    private MessageHandle<Msg2DOdometry> twistOutHandle;
+    @InjectMessage(topic = "${lidarTopic}")
+    private MessageHandle<List<MsgPolygon>> lidarMessageHandle;
+    private PoseDetectionTask poseDetectionTask;
+
+    public FilterTwistTask(String... name) {
+        super(name);
+    }
 
     @SubscribeMessage(topic = "${cmdTopicInput}")
     @TaskFunction(name = "filterTwist")
@@ -39,7 +51,7 @@ public class FilterTwistTask extends AbstractTask {
             if (timeDiff >= lidarTimeout) {
                 logger.log(String.format("Lidar timeout : %d", timeDiff));
                 twistOutHandle.pushSubData(new Msg2DOdometry(new Msg2DPose(0, 0, 0), new Msg2DTwist(0, 0, 0)));
-                return;
+                throw new DataTimeoutException("faselase lidar");
             }
             Msg2DTwist twist = smartChoice ? poseDetectionTask.smartChoiceTwist(msg.getTwist()) : poseDetectionTask.choiceTwist(msg.getTwist(), true);
             switch (status) {
@@ -67,31 +79,17 @@ public class FilterTwistTask extends AbstractTask {
                     break;
             }
             Msg2DOdometry out = new Msg2DOdometry(new Msg2DPose(0, 0, 0),
-                    status.equals(StatusType.stop)
-                            ? new Msg2DTwist(0, 0, 0)
-                            : msg.getTwist());
+                status.equals(StatusType.stop)
+                    ? new Msg2DTwist(0, 0, 0)
+                    : msg.getTwist());
 
             logger.log(String.format("count : %2d  result : %-5s | in -> v : %-5.4f, w : %-5.4f | out -> v : %-5.4f, w : %-5.4f |",
-                    count,
-                    status.equals(StatusType.stop) ? "stop" : "run ",
-                    msg.getTwist().getX(), msg.getTwist().getYaw(),
-                    out.getTwist().getX(), out.getTwist().getYaw()));
+                count,
+                status.equals(StatusType.stop) ? "stop" : "run ",
+                msg.getTwist().getX(), msg.getTwist().getYaw(),
+                out.getTwist().getX(), out.getTwist().getYaw()));
             twistOutHandle.pushSubData(out);
         }
-    }
-    private int count = 0;
-    private SimpleLogger logger = new SimpleLogger("Filter_Twist_logger");
-
-    @InjectMessage(topic = "${cmdTopicOutput}")
-    private MessageHandle<Msg2DOdometry> twistOutHandle;
-
-    @InjectMessage(topic = "${lidarTopic}")
-    private MessageHandle<List<MsgPolygon>> lidarMessageHandle;
-
-    private PoseDetectionTask poseDetectionTask;
-
-    public FilterTwistTask(String... name) {
-        super(name);
     }
 
     @FilterTask

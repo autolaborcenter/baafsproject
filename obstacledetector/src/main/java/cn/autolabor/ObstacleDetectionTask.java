@@ -24,6 +24,10 @@ import static cn.autolabor.GeometricUtil.convexHull;
 @TaskProperties(name = "ObstacleDetectionTask")
 public class ObstacleDetectionTask extends AbstractTask {
 
+    @InjectMessage(topic = "obstacle_points")
+    MessageHandle<List<Msg2DPoint>> obstaclePointsHandle;
+    @InjectMessage(topic = "${obstaclesTopic}")
+    MessageHandle<List<MsgPolygon>> obstaclesHandle;
     @TaskParameter(name = "clusterMinPoints", value = "2")
     private int clusterMinPoints;
     @TaskParameter(name = "clusterMaxPoints", value = "30")
@@ -37,10 +41,6 @@ public class ObstacleDetectionTask extends AbstractTask {
     private List<String> lidarTopics;
     @TaskParameter(name = "timeout", value = "50")
     private double timeout;
-    @InjectMessage(topic = "obstacle_points")
-    MessageHandle<List<Msg2DPoint>> obstaclePointsHandle;
-    @InjectMessage(topic = "${obstaclesTopic}")
-    MessageHandle<List<MsgPolygon>> obstaclesHandle;
     @TaskParameter(name = "obstaclesTopic", value = "obstacles")
     private String obstaclesTopic;
 
@@ -54,15 +54,15 @@ public class ObstacleDetectionTask extends AbstractTask {
         clusterMaxDistance2 = clusterMaxDistance * clusterMaxDistance;
         //noinspection unchecked
         ((Map<String, Map>) ServerManager.me().getConfig("urdf", baseLinkFrame))
-                .forEach((key, value) -> {
-                    LidarInfo lidarInfo = new LidarInfo(
-                            (Double) value.get("x"),
-                            (Double) value.get("y"),
-                            (Double) value.get("theta"),
-                            (Boolean) value.get("reverse")
-                    );
-                    lidarInfos.put(key, lidarInfo);
-                });
+            .forEach((key, value) -> {
+                LidarInfo lidarInfo = new LidarInfo(
+                    (Double) value.get("x"),
+                    (Double) value.get("y"),
+                    (Double) value.get("theta"),
+                    (Boolean) value.get("reverse")
+                );
+                lidarInfos.put(key, lidarInfo);
+            });
         lidarTopics.forEach(topic -> ServerManager.me().getOrCreateMessageHandle(topic, new TypeNode(MsgLidar.class)).addCallback(this, "mergeLidarData", new MessageSourceType[]{}));
     }
 
@@ -87,20 +87,20 @@ public class ObstacleDetectionTask extends AbstractTask {
     public void updateObstaclePoints() {
         // 雷达数据转障碍物点
         List<Msg2DPoint> obstaclePoints =
-                lidarData
-                        .values()
-                        .stream()
-                        .flatMap(value -> {
-                            LidarInfo info = lidarInfos.get(value.getHeader().getCoordinate());
-                            return IntStream
-                                    .range(0, value.getAngles().size())
-                                    .mapToObj(i ->
-                                            info.transform(
-                                                    value.getAngles().get(i),
-                                                    value.getDistances().get(i)
-                                            ));
-                        })
-                        .collect(Collectors.toList());
+            lidarData
+                .values()
+                .stream()
+                .flatMap(value -> {
+                    LidarInfo info = lidarInfos.get(value.getHeader().getCoordinate());
+                    return IntStream
+                        .range(0, value.getAngles().size())
+                        .mapToObj(i ->
+                            info.transform(
+                                value.getAngles().get(i),
+                                value.getDistances().get(i)
+                            ));
+                })
+                .collect(Collectors.toList());
 
         obstaclePointsHandle.pushSubData(obstaclePoints);
 
@@ -208,11 +208,11 @@ public class ObstacleDetectionTask extends AbstractTask {
         @Override
         public String toString() {
             return "LidarInfo{" +
-                    "x=" + x +
-                    ", y=" + y +
-                    ", theta=" + theta +
-                    ", reverse=" + reverse +
-                    '}';
+                "x=" + x +
+                ", y=" + y +
+                ", theta=" + theta +
+                ", reverse=" + reverse +
+                '}';
         }
     }
 }

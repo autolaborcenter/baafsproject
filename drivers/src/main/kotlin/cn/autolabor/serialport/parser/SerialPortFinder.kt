@@ -19,7 +19,7 @@ class SerialPortFinder<T> private constructor() {
     /**
      * 查找超时时间
      */
-    var timeoutMs: Int = 1000
+    var timeoutMs: Long = 1000L
 
     /**
      * 发送激活码
@@ -69,7 +69,7 @@ class SerialPortFinder<T> private constructor() {
                             while (!result && System.currentTimeMillis() - time < timeoutMs)
                                 port.readBytes(array, array.size.toLong())
                                     .takeIf { it > 0 }
-                                    ?.let { array.asList().subList(0, it) }
+                                    ?.let(array::take)
                                     ?.let { list -> engine(list) { result = result || predicate(it) } }
                             // 返回
                             if (!result) port.closePort()
