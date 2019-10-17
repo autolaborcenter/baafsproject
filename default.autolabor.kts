@@ -116,7 +116,7 @@ try {
             follower {
                 sensorPose = odometry(.275, 0)
                 controller = Proportion(1.25)
-                lightRange = Circle(.3)
+                lightRange = Circle(.3, 128)
                 minTipAngle = 60.toDegree()
                 minTurnAngle = 15.toDegree()
                 maxJumpCount = 20
@@ -124,6 +124,10 @@ try {
                 maxAngularSpeed = .3.toRad()
             }
             painter = remote
+        }
+        launch {
+            for (e in exceptions)
+                exceptionServer.update(e)
         }
         launch {
             for (command in commandToSwitch)
