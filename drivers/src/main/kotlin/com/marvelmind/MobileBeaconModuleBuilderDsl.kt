@@ -9,6 +9,7 @@ import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.BuilderDslMarker
 import org.mechdancer.SimpleLogger
 import org.mechdancer.WatchDog
+import org.mechdancer.algebra.function.vector.div
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Stamped
@@ -136,6 +137,12 @@ class MobileBeaconModuleBuilderDsl private constructor() {
             }
         }
 
+        private suspend fun onceException(what: Boolean, e: MobileBeaconException): Boolean {
+            exceptions.send(if (what) Occurred(e) else Recovered(e))
+            return what
+        }
+
+        private var memory = Triple(0, 0, 0)
         private fun write(array: List<Byte>) {
             engine(array) { pack ->
                 when (pack) {
@@ -149,15 +156,21 @@ class MobileBeaconModuleBuilderDsl private constructor() {
                         else {
                             val now = System.currentTimeMillis()
                             val value = ResolutionCoordinate(payload)
-                            val x = value.x / 1000.0
-                            val y = value.y / 1000.0
+                            val x = value.x
+                            val y = value.y
+                            val z = value.z
                             val delay = value.delay
-                            logger.log("delay = $delay, x = $x, y = $y")
-                            delay.takeIf { it in 1 until delayLimit }
-                                ?.let {
-                                    scope.launch { beaconOnMap.send(Stamped(now - it, vector2DOf(x, y))) }
-                                    dataWatchDog.feedOrThrow(DataTimeoutException)
-                                }
+                            logger.log("delay = $delay, x = ${x / 1000.0}, y = ${y / 1000.0}")
+                            scope.launch {
+                                if (onceException(delay !in 1 until delayLimit, NegativeDelayException))
+                                    return@launch
+
+                                val last = memory
+                                memory = Triple(x, y, z)
+                                if (onceException(memory == last, DataBeStaticException))
+                                    return@launch
+                                beaconOnMap.send(Stamped(now - delay, vector2DOf(x, y) / 1000.0))
+                            }
                         }
                     }
                 }

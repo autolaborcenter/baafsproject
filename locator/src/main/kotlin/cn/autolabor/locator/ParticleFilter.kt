@@ -4,6 +4,7 @@ import cn.autolabor.utilities.ClampMatcher
 import org.mechdancer.DebugTemporary
 import org.mechdancer.DebugTemporary.Operation.DELETE
 import org.mechdancer.DebugTemporary.Operation.REDUCE
+import org.mechdancer.algebra.doubleEquals
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
@@ -99,11 +100,12 @@ class ParticleFilter(
                         }
                     // 从原始测量量计算增量
                     val deltaState = state minusState lastState
-                    val deltaMeasure = measure - lastMeasure
-                    stateSave = measure to state
-                    // 计算不一致性，若过于不一致则放弃更新
-                    val lengthM = deltaMeasure.norm()
+                    val lengthM = measure euclid lastMeasure
                     val lengthS = (deltaState.toTransformation()(locatorOnRobot) - locatorOnRobot).norm()
+                    stateSave = measure to state
+                    // 过滤定位卡顿
+                    if (doubleEquals(lengthM, .0) && !doubleEquals(lengthS, .0)) return@forEach
+                    // 计算不一致性，若过于不一致则放弃更新
                     val inconsistency = abs(lengthM - lengthS).takeIf { it < maxInconsistency } ?: return@forEach
                     // 计算校准权重：定位器本身的可靠性与此次测量的可靠性相乘
                     val measureWeight = locatorWeight * mapOf(
@@ -125,13 +127,13 @@ class ParticleFilter(
                         }
                     // 计算粒子总权重，若过低，直接重新初始化
                     val weightsSum = weights.sum()
-                                         // 平时不要随便重新初始化似乎更稳定
-                                         // .takeIf { it > 0.1 * count }
-                                         // ?: run {
-                                         //     initialize(measure, state)
-                                         //     return@forEach
-                                         // }
-                                         .takeIf { it >= 1 } ?: return@forEach
+                        // 平时不要随便重新初始化似乎更稳定
+                        // .takeIf { it > 0.1 * count }
+                        // ?: run {
+                        //     initialize(measure, state)
+                        //     return@forEach
+                        // }
+                        .takeIf { it >= 1 } ?: return@forEach
                     // 计算期望
                     var eP = vector2DOfZero()
                     var eD = vector2DOfZero()
