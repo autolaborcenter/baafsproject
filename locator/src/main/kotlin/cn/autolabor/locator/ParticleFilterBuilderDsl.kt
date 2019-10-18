@@ -16,15 +16,15 @@ class ParticleFilterBuilderDsl {
     var beaconOnRobot: Vector2D = vector2DOfZero()
     // 信标最大权重
     var beaconWeight: Double? = null
-        get() = field ?: 0.5 * count
+        get() = field ?: .5 * count
     // 夹逼配对最大间隔
     var maxInterval: Long = 500L
     // 融合双方最大不一致性
-    var maxInconsistency: Double = 0.2
+    var maxInconsistency: Double = .10
     // 例子最大寿命
     var maxAge: Int = 50
     // 重采样方向标准差
-    var sigma: Double = 0.1 * PI
+    var sigma: Double = .10 * PI
 
     companion object {
         /** 构造粒子滤波器 */

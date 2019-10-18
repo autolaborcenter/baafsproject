@@ -5,7 +5,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.vector2DOf
-import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.dependency.must
 import org.mechdancer.remote.presets.remoteHub
 import org.mechdancer.remote.resources.MulticastSockets
@@ -20,16 +19,17 @@ fun main() = debugParticleFilter {
     frequency = 50L
     // 里程计配置
     odometryFrequency = 20.0
-    leftWheel = vector2DOf(0, +.205)
-    rightWheel = vector2DOf(0, -.205)
+    leftWheel = vector2DOf(0, +.2)
+    rightWheel = vector2DOf(0, -.2)
     wheelsWidthMeasure = 0.4
     // 定位配置
-    beaconFrequency = 7.0
+    beaconFrequency = 4.0
     beaconSigma = 1E-3
-    beacon = vector2DOf(-0.05, 0)
+    beacon = vector2DOf(-.05, 0)
     // 滤波器配置
     particleFilter {
-        beaconOnRobot = vector2DOfZero()
+        beaconOnRobot = vector2DOf(-.05, 0)
+        maxInconsistency = .05
     }
     // 数据分析
     analyze { t, actual, odometry ->

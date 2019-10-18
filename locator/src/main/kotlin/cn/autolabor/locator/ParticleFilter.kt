@@ -4,7 +4,6 @@ import cn.autolabor.utilities.ClampMatcher
 import org.mechdancer.DebugTemporary
 import org.mechdancer.DebugTemporary.Operation.DELETE
 import org.mechdancer.DebugTemporary.Operation.REDUCE
-import org.mechdancer.algebra.doubleEquals
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
@@ -104,7 +103,7 @@ class ParticleFilter(
                     val lengthS = (deltaState.toTransformation()(locatorOnRobot) - locatorOnRobot).norm()
                     stateSave = measure to state
                     // 过滤定位卡顿
-                    if (doubleEquals(lengthM, .0) && !doubleEquals(lengthS, .0)) return@forEach
+                    // if (doubleEquals(lengthM, .0) && !doubleEquals(lengthS, .0)) return@forEach
                     // 计算不一致性，若过于不一致则放弃更新
                     val inconsistency = abs(lengthM - lengthS).takeIf { it < maxInconsistency } ?: return@forEach
                     // 计算校准权重：定位器本身的可靠性与此次测量的可靠性相乘
@@ -115,31 +114,29 @@ class ParticleFilter(
                         2 to 1 - min(1.0, inconsistency / maxInconsistency)
                     ).run { toList().sumByDouble { (k, value) -> k * value } / keys.sum() }
                     // 更新粒子群
-                    particles =
-                        particles.map { (p, age) -> (p plusDelta deltaState) to min(age + 1, maxAge) }
+                    particles = particles.map { (p, age) -> (p plusDelta deltaState) to age }
                     // 计算每个粒子对应的校准器坐标
-                    val locators =
-                        particles.map { (p, age) -> Odometry(p.toTransformation()(locatorOnRobot).to2D(), p.d) to age }
+                    val beacons = particles.map { (p, _) -> Odometry(p.toTransformation()(locatorOnRobot).to2D(), p.d) }
+                    val distances = beacons.map { (p, _) -> p euclid measure }
+                    val ages = particles.zip(distances) { (_, age), distance ->
+                        if (distance < maxInconsistency) min(maxAge, age + 1) else age - 1
+                    }
                     // 计算粒子权重
-                    val weights = locators
-                        .map { (odometry, age) ->
-                            age.ageWeight() * (1 - min(1.0, (odometry.p - measure).norm() / maxInconsistency))
-                        }
+                    val weights = ages.zip(distances) { age, distance ->
+                        (maxAge + age).toDouble() / (2 * maxAge) * (1 - min(1.0, distance / maxInconsistency))
+                    }
                     // 计算粒子总权重，若过低，直接重新初始化
                     val weightsSum = weights.sum()
-                        // 平时不要随便重新初始化似乎更稳定
-                        // .takeIf { it > 0.1 * count }
-                        // ?: run {
-                        //     initialize(measure, state)
-                        //     return@forEach
-                        // }
-                        .takeIf { it >= 1 } ?: return@forEach
+                                         .takeIf { it > 1 }
+                                     ?: run {
+                                         if (ages.max()!! < 3)
+                                             initialize(measure, state)
+                                         return@forEach
+                                     }
                     // 计算期望
                     var eP = vector2DOfZero()
                     var eD = vector2DOfZero()
-                    locators.forEachIndexed { i, (odometry, _) ->
-                        val (p, d) = odometry
-                        val k = weights[i]
+                    beacons.zip(weights) { (p, d), k ->
                         eP += p * k
                         eD += d.toVector() * k
                     }
@@ -148,15 +145,12 @@ class ParticleFilter(
                     val eAngle = eD.toAngle()
                     val angle = eAngle.asRadian()
                     // 对偏差较大的粒子进行随机方向的重采样
-                    particles = particles.mapIndexed { i, item ->
-                        if ((locators[i].first.p - measure).norm() > 0.05) {
-                            val newAge = item.second - 2
-                            if (newAge < 0) {
-                                val d = Normal.next(angle, sigma).toRad()
-                                val p = Transformation.fromPose(measure, d)(-locatorOnRobot).to2D()
-                                Odometry(p, d) to 0
-                            } else item.copy(second = newAge)
-                        } else item
+                    particles = particles.zip(ages) { (p, _), age ->
+                        if (age < 1) {
+                            val d = Normal.next(angle, sigma).toRad()
+                            Odometry(p = Transformation.fromPose(measure, d)(-locatorOnRobot).to2D(),
+                                     d = d) to 1
+                        } else p to age
                     }
                     // 猜测真实位姿
                     val eRobot = Transformation.fromPose(eP, eAngle)(-locatorOnRobot).to2D()
