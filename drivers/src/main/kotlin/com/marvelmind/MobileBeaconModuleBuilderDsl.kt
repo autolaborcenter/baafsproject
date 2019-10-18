@@ -137,11 +137,6 @@ class MobileBeaconModuleBuilderDsl private constructor() {
             }
         }
 
-        private suspend fun onceException(what: Boolean, e: MobileBeaconException): Boolean {
-            exceptions.send(if (what) Occurred(e) else Recovered(e))
-            return what
-        }
-
         private var memory = Triple(0, 0, 0)
         private fun write(array: List<Byte>) {
             engine(array) { pack ->
@@ -161,15 +156,16 @@ class MobileBeaconModuleBuilderDsl private constructor() {
                             val z = value.z
                             val delay = value.delay
                             logger.log("delay = $delay, x = ${x / 1000.0}, y = ${y / 1000.0}")
-                            scope.launch {
-                                if (onceException(delay !in 1 until delayLimit, NegativeDelayException))
-                                    return@launch
 
-                                val last = memory
-                                memory = Triple(x, y, z)
-                                if (onceException(memory == last, DataBeStaticException))
-                                    return@launch
+                            if (delay !in 1 until delayLimit) return@engine
+
+                            val last = memory
+                            memory = Triple(x, y, z)
+                            if (memory == last) return@engine
+
+                            scope.launch {
                                 beaconOnMap.send(Stamped(now - delay, vector2DOf(x, y) / 1000.0))
+                                dataWatchDog.feedOrThrow(DataTimeoutException)
                             }
                         }
                     }
