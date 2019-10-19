@@ -8,7 +8,6 @@ import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
 import org.mechdancer.*
 import org.mechdancer.algebra.implement.vector.Vector2D
-import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.remote.presets.RemoteHub
@@ -40,10 +39,15 @@ class LocationFusionModuleBuilderDsl private constructor() {
                 .apply(block)
                 .run {
                     painter?.run {
-                        filter.stepFeedback.add { (measureWeight, particleWeight, inconsistency) ->
+                        filter.stepFeedback.add { (measureWeight, particleWeight, inconsistency, quality) ->
                             paint("定位权重", measureWeight)
                             paint("粒子权重", particleWeight)
                             paint("不一致性", inconsistency)
+
+                            val (age, p, d) = quality
+                            paint("稳定性质量", age)
+                            paint("位置一致性质量", p)
+                            paint("方向一致性质量", d)
                         }
                     }
                     // 使用定位数据
@@ -66,7 +70,6 @@ class LocationFusionModuleBuilderDsl private constructor() {
                                         paintPose("粒子滤波", data)
                                         with(filter.particles) {
                                             paintPoses("粒子群", map { (p, _) -> p })
-                                            paintVectors("粒子寿命", mapIndexed { i, (_, a) -> vector2DOf(i, a) })
                                         }
                                     }
                                 }

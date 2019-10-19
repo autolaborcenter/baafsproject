@@ -16,6 +16,7 @@ import org.mechdancer.geometry.transformation.Transformation
 import org.mechdancer.simulation.random.Normal
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.min
 
 /**
@@ -50,13 +51,19 @@ class ParticleFilter(
     // 粒子：位姿 - 寿命
     @DebugTemporary(REDUCE)
     var particles = emptyList<Pair<Odometry, Int>>()
+        private set
+
+    // 质量状态
+    var quality = Stamped(0L, FusionQuality.zero)
+        private set
 
     // 过程参数渗透
     @DebugTemporary(DELETE)
     data class StepState(
         val measureWeight: Double,
         val particleWeight: Double,
-        val inconsistency: Double)
+        val inconsistency: Double,
+        val quality: FusionQuality)
 
     override fun measureMaster(item: Stamped<Odometry>) =
         matcher.add1(item).let {
@@ -81,20 +88,22 @@ class ParticleFilter(
                 // 匹配 ↑
                 // 插值 ↓
                 .mapNotNull { (measure, before, after) ->
+                    val (t, m) = measure
                     (after.time - before.time)
                         // 一对匹配项间隔不应该超过间隔范围
                         .takeIf { it in 1..maxInterval }
                         ?.let { interval ->
-                            val k = (measure.time - before.time).toDouble() / interval
-                            measure.data to before.data * k + after.data * (1 - k)
+                            val k = (t - before.time).toDouble() / interval
+                            Stamped(t, m to before.data * k + after.data * (1 - k))
                         }
                 }
                 // 计算
-                .forEach { (measure, state) ->
+                .forEach { (t, pair) ->
+                    val (measure, state) = pair
                     // 判断第一帧
                     val (lastMeasure, lastState) =
                         stateSave ?: run {
-                            initialize(measure, state)
+                            initialize(t, measure, state)
                             return@forEach
                         }
                     // 从原始测量量计算增量
@@ -107,15 +116,10 @@ class ParticleFilter(
                     // 计算不一致性，若过于不一致则放弃更新
                     val inconsistency = abs(lengthM - lengthS).takeIf { it < maxInconsistency } ?: return@forEach
                     // 计算校准权重：定位器本身的可靠性与此次测量的可靠性相乘
-                    val measureWeight = locatorWeight * mapOf(
-                        // 校准值变化大本身就意味着不可靠
-                        1 to 1 - min(1.0, lengthM / maxInconsistency),
-                        // 校准值与测量值越不一致，意味着校准值越不可靠
-                        2 to 1 - min(1.0, inconsistency / maxInconsistency)
-                    ).run { toList().sumByDouble { (k, value) -> k * value } / keys.sum() }
+                    val measureWeight = locatorWeight * (1 - min(1.0, inconsistency / maxInconsistency))
                     // 更新粒子群
                     particles = particles.map { (p, age) -> (p plusDelta deltaState) to age }
-                    // 计算每个粒子对应的校准器坐标
+                    // 计算每个粒子对应的信标坐标
                     val beacons = particles.map { (p, _) -> Odometry(p.toTransformation()(locatorOnRobot).to2D(), p.d) }
                     val distances = beacons.map { (p, _) -> p euclid measure }
                     val ages = particles.zip(distances) { (_, age), distance ->
@@ -130,7 +134,7 @@ class ParticleFilter(
                                          .takeIf { it > 1 }
                                      ?: run {
                                          if (ages.max()!! < 3)
-                                             initialize(measure, state)
+                                             initialize(t, measure, state)
                                          return@forEach
                                      }
                     // 计算期望
@@ -152,6 +156,8 @@ class ParticleFilter(
                                      d = d) to 1
                         } else p to age
                     }
+                    // 计算定位质量
+                    quality = Stamped(t, particles.qualityBy(maxAge, maxInconsistency))
                     // 猜测真实位姿
                     val eRobot = Transformation.fromPose(eP, eAngle)(-locatorOnRobot).to2D()
                     expectation = Odometry(eRobot, eAngle)
@@ -159,7 +165,8 @@ class ParticleFilter(
                     val stepState = StepState(
                         measureWeight = measureWeight,
                         particleWeight = weightsSum,
-                        inconsistency = inconsistency)
+                        inconsistency = inconsistency,
+                        quality = quality.data)
                     synchronized(stepFeedback) {
                         for (callback in stepFeedback) callback(stepState)
                     }
@@ -167,12 +174,10 @@ class ParticleFilter(
         }
     }
 
-    // 来自寿命的权重增益
-    private fun Int.ageWeight() = (maxAge + this).toDouble() / (2 * maxAge)
-
     // 重新初始化
-    private fun initialize(measure: Vector2D, state: Odometry) {
+    private fun initialize(t: Long, measure: Vector2D, state: Odometry) {
         stateSave = measure to state
+        quality = Stamped(t, FusionQuality.zero)
         val step = 2 * PI / count
         particles = List(count) {
             val d = (it * step).toRad()
@@ -189,5 +194,27 @@ class ParticleFilter(
         // 里程计线性可数乘（用于加权平均）
         operator fun Odometry.plus(other: Odometry) =
             Odometry(p + other.p, d rotate other.d)
+
+        fun List<Pair<Odometry, Int>>.qualityBy(
+            maxAge: Int,
+            maxInconsistent: Double
+        ): FusionQuality {
+            var ageSum = 0
+            var location = vector2DOfZero()
+            var direction = vector2DOfZero()
+            for ((pose, age) in this) {
+                val (p, d) = pose
+                ageSum += age
+                location += p
+                direction += d.toVector()
+            }
+            val size = size
+            val eP = location / size
+            return FusionQuality(
+                age = ageSum.toDouble() / (size * maxAge),
+                location = max(.0, 1 - sumByDouble { (pose, _) -> pose.p euclid eP } / (size * maxInconsistent)),
+                direction = direction.norm() / size
+            )
+        }
     }
 }

@@ -9,7 +9,7 @@ import kotlin.math.PI
  * 粒子滤波器构建器
  */
 @BuilderDslMarker
-class ParticleFilterBuilderDsl {
+class ParticleFilterBuilderDsl private constructor() {
     // 粒子数
     var count: Int = 128
     // 信标位置

@@ -25,11 +25,13 @@ fun main() = debugParticleFilter {
     // 定位配置
     beaconFrequency = 4.0
     beaconSigma = 1E-3
+    beaconDelay = 170L
     beacon = vector2DOf(-.05, 0)
     // 滤波器配置
     particleFilter {
         beaconOnRobot = vector2DOf(-.05, 0)
         maxInconsistency = .05
+        beaconWeight = .15 * count
     }
     // 数据分析
     analyze { t, actual, odometry ->

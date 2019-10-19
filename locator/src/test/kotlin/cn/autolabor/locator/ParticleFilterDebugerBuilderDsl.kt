@@ -34,6 +34,7 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
     // 定位配置
     var beaconFrequency = 7.0
     var beaconSigma = 1E-3
+    var beaconDelay = 170L
     var beacon = vector2DOfZero()
     // 里程计配置
     var odometryFrequency = 20.0
