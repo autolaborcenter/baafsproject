@@ -25,22 +25,31 @@ fun main() = debugParticleFilter {
     beacon = vector2DOf(-.05, 0)
     // 定位异常配置
     beaconErrors {
+        // 快速恢复的局外点
         error {
             pStart = .05
             pStop = .75
             range = 1.5
         }
+        // 持续性的偏移
         error {
             pStart = .2
             pStop = .2
             range = .025
+        }
+        // 远且持久的移动(劫持)
+        error {
+            pStart = .01
+            pStop = .02
+            range = 1.0
         }
     }
     // 滤波器配置
     particleFilter {
         beaconOnRobot = vector2DOf(-.05, 0)
         maxInconsistency = .05
-        beaconWeight = .01 * count
+        convergence { (age, _, d) -> age > .4 && d > .95 }
+        divergence { (age, _, d) -> age < .1 && d < .4 }
     }
     // 数据分析
     analyze { t, actual, odometry ->

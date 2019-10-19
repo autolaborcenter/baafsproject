@@ -4,6 +4,7 @@ import cn.autolabor.utilities.ClampMatcher
 import org.mechdancer.DebugTemporary
 import org.mechdancer.DebugTemporary.Operation.DELETE
 import org.mechdancer.DebugTemporary.Operation.REDUCE
+import org.mechdancer.Schmitt
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
@@ -40,7 +41,8 @@ class ParticleFilter(
     private val maxInterval: Long,
     private val maxInconsistency: Double,
     private val maxAge: Int,
-    private val sigma: Double
+    private val sigma: Double,
+    private val predicate: Schmitt<FusionQuality>
 ) : Mixer<Stamped<Odometry>, Stamped<Vector2D>, Stamped<Odometry>> {
     private val matcher = ClampMatcher<Stamped<Odometry>, Stamped<Vector2D>>()
 
@@ -77,13 +79,13 @@ class ParticleFilter(
 
     override operator fun get(item: Stamped<Odometry>): Stamped<Odometry> {
         val (t, p) = item
-        val (e, b) = predicting
+        val (e, b) = predictingMemory
         return Stamped(t, e plusDelta (p minusState b))
     }
 
-    private var memoryStepByStep: Pair<Vector2D, Odometry>? = null
-    private lateinit var memory: Odometry
-    private var predicting = Odometry() to Odometry()
+    private var stepMemory: Pair<Vector2D, Odometry>? = null
+    private lateinit var updatingMemory: Odometry
+    private var predictingMemory = Odometry() to Odometry()
 
     @Synchronized
     private fun update() {
@@ -103,8 +105,8 @@ class ParticleFilter(
             .mapNotNull { stamped ->
                 val (t, pair) = stamped
                 val (measure, state) = pair
-                val last = memoryStepByStep
-                memoryStepByStep = pair
+                val last = stepMemory
+                stepMemory = pair
                 // 判断第一帧
                 if (last == null) {
                     initialize(t, measure, state)
@@ -124,8 +126,8 @@ class ParticleFilter(
             .forEach { (stamped, measureWeight) ->
                 val (t, pair) = stamped
                 val (measure, state) = pair
-                val last = memory
-                memory = state
+                val last = updatingMemory
+                updatingMemory = state
                 // 更新粒子群
                 particles = particles.map { (p, age) -> (p plusDelta (state minusState last)) to age }
                 // 计算每个粒子对应的信标坐标
@@ -167,7 +169,7 @@ class ParticleFilter(
                 // 计算定位质量
                 quality = Stamped(t, particles.qualityBy(maxAge, maxInconsistency))
                 // 猜测真实位姿
-                predicting = robotPoseBy(eP, eAngle) to state
+                if (predicate.update(quality.data)) predictingMemory = robotPoseBy(eP, eAngle) to state
                 @DebugTemporary(DELETE)
                 synchronized(stepFeedback) {
                     for (callback in stepFeedback)
@@ -184,7 +186,7 @@ class ParticleFilter(
 
     // 重新初始化
     private fun initialize(t: Long, measure: Vector2D, state: Odometry) {
-        memory = state
+        updatingMemory = state
         quality = Stamped(t, FusionQuality.zero)
         val step = 2 * PI / count
         particles = List(count) {

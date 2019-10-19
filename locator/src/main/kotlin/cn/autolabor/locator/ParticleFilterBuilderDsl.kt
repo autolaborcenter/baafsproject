@@ -1,6 +1,7 @@
 package cn.autolabor.locator
 
 import org.mechdancer.BuilderDslMarker
+import org.mechdancer.Schmitt
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import kotlin.math.PI
@@ -25,6 +26,19 @@ class ParticleFilterBuilderDsl private constructor() {
     var maxAge: Int = 50
     // 重采样方向标准差
     var sigma: Double = .10 * PI
+    // 收敛判定
+    private var convergence: (FusionQuality) -> Boolean = { true }
+    private var divergence: (FusionQuality) -> Boolean = { false }
+
+    // 收敛条件
+    fun convergence(block: (FusionQuality) -> Boolean) {
+        convergence = block
+    }
+
+    // 发散条件
+    fun divergence(block: (FusionQuality) -> Boolean) {
+        divergence = block
+    }
 
     companion object {
         /** 构造粒子滤波器 */
@@ -46,7 +60,10 @@ class ParticleFilterBuilderDsl private constructor() {
                                    maxInterval = maxInterval,
                                    maxInconsistency = maxInconsistency,
                                    maxAge = maxAge,
-                                   sigma = sigma)
+                                   sigma = sigma,
+                                   predicate = Schmitt(
+                                       positive = convergence,
+                                       negative = divergence))
                 }
     }
 }
