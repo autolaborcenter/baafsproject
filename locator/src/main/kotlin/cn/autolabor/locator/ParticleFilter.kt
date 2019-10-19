@@ -46,7 +46,7 @@ class ParticleFilter(
 
     // 过程记录器
     @DebugTemporary(DELETE)
-    val stepFeedback = mutableListOf<(StepState) -> Unit>()
+    val stepFeedback = mutableListOf<(Stamped<StepState>) -> Unit>()
 
     // 粒子：位姿 - 寿命
     @DebugTemporary(REDUCE)
@@ -62,7 +62,6 @@ class ParticleFilter(
     data class StepState(
         val measureWeight: Double,
         val particleWeight: Double,
-        val inconsistency: Double,
         val quality: FusionQuality)
 
     override fun measureMaster(item: Stamped<Odometry>) =
@@ -76,107 +75,115 @@ class ParticleFilter(
             update()
         }
 
-    override operator fun get(item: Stamped<Odometry>) =
-        stateSave?.let { (_, pose) -> Stamped(item.time, expectation plusDelta (item.data minusState pose)) }
+    override operator fun get(item: Stamped<Odometry>): Stamped<Odometry> {
+        val (t, p) = item
+        val (e, b) = predicting
+        return Stamped(t, e plusDelta (p minusState b))
+    }
 
-    private var stateSave: Pair<Vector2D, Odometry>? = null
-    private var expectation = Odometry()
+    private var memoryStepByStep: Pair<Vector2D, Odometry>? = null
+    private lateinit var memory: Odometry
+    private var predicting = Odometry() to Odometry()
 
+    @Synchronized
     private fun update() {
-        synchronized(particles) {
-            generateSequence(matcher::match2)
-                // 匹配 ↑
-                // 插值 ↓
-                .mapNotNull { (measure, before, after) ->
-                    val (t, m) = measure
-                    (after.time - before.time)
-                        // 一对匹配项间隔不应该超过间隔范围
-                        .takeIf { it in 1..maxInterval }
-                        ?.let { interval ->
-                            val k = (t - before.time).toDouble() / interval
-                            Stamped(t, m to before.data * k + after.data * (1 - k))
-                        }
-                }
-                // 计算
-                .forEach { (t, pair) ->
-                    val (measure, state) = pair
-                    // 判断第一帧
-                    val (lastMeasure, lastState) =
-                        stateSave ?: run {
-                            initialize(t, measure, state)
-                            return@forEach
-                        }
-                    // 从原始测量量计算增量
+        generateSequence(matcher::match2)
+            // 匹配 ↑
+            // 插值 ↓
+            .mapNotNull { (measure, before, after) ->
+                val (t, m) = measure
+                (after.time - before.time)
+                    // 一对匹配项间隔不应该超过间隔范围
+                    .takeIf { it in 1..maxInterval }
+                    ?.let { interval ->
+                        val k = (t - before.time).toDouble() / interval
+                        Stamped(t, m to before.data * k + after.data * (1 - k))
+                    }
+            }
+            .mapNotNull { stamped ->
+                val (t, pair) = stamped
+                val (measure, state) = pair
+                val last = memoryStepByStep
+                memoryStepByStep = pair
+                // 判断第一帧
+                if (last == null) {
+                    initialize(t, measure, state)
+                    null
+                } else {
+                    val (lastMeasure, lastState) = last
                     val deltaState = state minusState lastState
                     val lengthM = measure euclid lastMeasure
-                    val lengthS = (deltaState.toTransformation()(locatorOnRobot) - locatorOnRobot).norm()
-                    stateSave = measure to state
-                    // 过滤定位卡顿
-                    // if (doubleEquals(lengthM, .0) && !doubleEquals(lengthS, .0)) return@forEach
-                    // 计算不一致性，若过于不一致则放弃更新
-                    val inconsistency = abs(lengthM - lengthS).takeIf { it < maxInconsistency } ?: return@forEach
-                    // 计算校准权重：定位器本身的可靠性与此次测量的可靠性相乘
-                    val measureWeight = locatorWeight * (1 - min(1.0, inconsistency / maxInconsistency))
-                    // 更新粒子群
-                    particles = particles.map { (p, age) -> (p plusDelta deltaState) to age }
-                    // 计算每个粒子对应的信标坐标
-                    val beacons = particles.map { (p, _) -> Odometry(p.toTransformation()(locatorOnRobot).to2D(), p.d) }
-                    val distances = beacons.map { (p, _) -> p euclid measure }
-                    val ages = particles.zip(distances) { (_, age), distance ->
-                        if (distance < maxInconsistency) min(maxAge, age + 1) else age - 1
-                    }
-                    // 计算粒子权重
-                    val weights = ages.zip(distances) { age, distance ->
-                        (maxAge + age).toDouble() / (2 * maxAge) * (1 - min(1.0, distance / maxInconsistency))
-                    }
-                    // 计算粒子总权重，若过低，直接重新初始化
-                    val weightsSum = weights.sum()
-                                         .takeIf { it > 1 }
-                                     ?: run {
-                                         if (ages.max()!! < 3)
-                                             initialize(t, measure, state)
-                                         return@forEach
-                                     }
-                    // 计算期望
-                    var eP = vector2DOfZero()
-                    var eD = vector2DOfZero()
-                    beacons.zip(weights) { (p, d), k ->
-                        eP += p * k
-                        eD += d.toVector() * k
-                    }
-                    eP = (eP + measure * measureWeight) / (weightsSum + measureWeight)
-                    eD /= weightsSum
-                    val eAngle = eD.toAngle()
-                    val angle = eAngle.asRadian()
-                    // 对偏差较大的粒子进行随机方向的重采样
-                    particles = particles.zip(ages) { (p, _), age ->
-                        if (age < 1) {
-                            val d = Normal.next(angle, sigma).toRad()
-                            Odometry(p = Transformation.fromPose(measure, d)(-locatorOnRobot).to2D(),
-                                     d = d) to 1
-                        } else p to age
-                    }
-                    // 计算定位质量
-                    quality = Stamped(t, particles.qualityBy(maxAge, maxInconsistency))
-                    // 猜测真实位姿
-                    val eRobot = Transformation.fromPose(eP, eAngle)(-locatorOnRobot).to2D()
-                    expectation = Odometry(eRobot, eAngle)
-                    @DebugTemporary(DELETE)
-                    val stepState = StepState(
-                        measureWeight = measureWeight,
-                        particleWeight = weightsSum,
-                        inconsistency = inconsistency,
-                        quality = quality.data)
-                    synchronized(stepFeedback) {
-                        for (callback in stepFeedback) callback(stepState)
-                    }
+                    val lengthS = deltaState.toTransformation()(locatorOnRobot) euclid locatorOnRobot
+                    // 计算不一致性
+                    abs(lengthM - lengthS)
+                        .takeIf { it < maxInconsistency }
+                        ?.let { stamped to locatorWeight * (1 - it / maxInconsistency) }
                 }
-        }
+            }
+            // 计算
+            .forEach { (stamped, measureWeight) ->
+                val (t, pair) = stamped
+                val (measure, state) = pair
+                val last = memory
+                memory = state
+                // 更新粒子群
+                particles = particles.map { (p, age) -> (p plusDelta (state minusState last)) to age }
+                // 计算每个粒子对应的信标坐标
+                val beacons = particles.map { (p, _) -> Odometry(p.toTransformation()(locatorOnRobot).to2D(), p.d) }
+                val distances = beacons.map { (p, _) -> p euclid measure }
+                val ages = particles.zip(distances) { (_, age), distance ->
+                    if (distance < maxInconsistency) min(maxAge, age + 1) else age - 1
+                }
+                // 计算粒子权重
+                val weights = ages.zip(distances) { age, distance ->
+                    (.5 + age.toDouble() / (2 * maxAge)) * (1 - min(1.0, distance / maxInconsistency))
+                }
+                // 计算粒子总权重，若过低，直接重新初始化
+                val weightsSum = weights.sum()
+                                     .takeIf { it > 1 }
+                                 ?: run {
+                                     particles = particles.zip(ages) { (p, _), age -> p to max(age, 0) }
+                                     if (ages.max()!! < 5) initialize(t, measure, state)
+                                     return@forEach
+                                 }
+                // 计算期望
+                var eP = vector2DOfZero()
+                var eD = vector2DOfZero()
+                beacons.zip(weights) { (p, d), k ->
+                    eP += p * k
+                    eD += d.toVector() * k
+                }
+                eP = (eP + measure * measureWeight) / (weightsSum + measureWeight)
+                eD /= weightsSum
+                val eAngle = eD.toAngle()
+                val angle = eAngle.asRadian()
+                // 对偏差较大的粒子进行随机方向的重采样
+                particles = particles.zip(ages) { (p, _), age ->
+                    if (age < 1) {
+                        val d = Normal.next(angle, sigma).toRad()
+                        Odometry(p = Transformation.fromPose(measure, d)(-locatorOnRobot).to2D(),
+                                 d = d) to 1
+                    } else p to age
+                }
+                // 计算定位质量
+                quality = Stamped(t, particles.qualityBy(maxAge, maxInconsistency))
+                // 猜测真实位姿
+                predicting = Odometry(p = Transformation.fromPose(eP, eAngle)(-locatorOnRobot).to2D(),
+                                      d = eAngle) to state
+                @DebugTemporary(DELETE)
+                synchronized(stepFeedback) {
+                    for (callback in stepFeedback)
+                        callback(Stamped(t, StepState(
+                            measureWeight = measureWeight,
+                            particleWeight = weightsSum,
+                            quality = quality.data)))
+                }
+            }
     }
 
     // 重新初始化
     private fun initialize(t: Long, measure: Vector2D, state: Odometry) {
-        stateSave = measure to state
+        memory = state
         quality = Stamped(t, FusionQuality.zero)
         val step = 2 * PI / count
         particles = List(count) {

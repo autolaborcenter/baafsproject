@@ -39,15 +39,16 @@ class LocationFusionModuleBuilderDsl private constructor() {
                 .apply(block)
                 .run {
                     painter?.run {
-                        filter.stepFeedback.add { (measureWeight, particleWeight, inconsistency, quality) ->
-                            paint("定位权重", measureWeight)
-                            paint("粒子权重", particleWeight)
-                            paint("不一致性", inconsistency)
+                        filter.stepFeedback.add { (t, state) ->
+                            val time = t.toDouble()
+                            val (measureWeight, particleWeight, quality) = state
+                            paint("定位权重", time, measureWeight)
+                            paint("粒子权重", time, particleWeight)
 
                             val (age, p, d) = quality
-                            paint("稳定性质量", age)
-                            paint("位置一致性质量", p)
-                            paint("方向一致性质量", d)
+                            paint("稳定性质量", time, age)
+                            paint("位置一致性质量", time, p)
+                            paint("方向一致性质量", time, d)
                         }
                     }
                     // 使用定位数据
