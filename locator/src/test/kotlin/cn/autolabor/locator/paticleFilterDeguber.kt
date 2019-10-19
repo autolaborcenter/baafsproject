@@ -11,7 +11,7 @@ import org.mechdancer.simulation.displayOnConsole
 @ExperimentalCoroutinesApi
 fun main() = debugParticleFilter {
     // 仿真配置
-    speed = 1
+    speed = 2
     frequency = 50L
     // 里程计配置
     odometryFrequency = 20.0
@@ -24,14 +24,23 @@ fun main() = debugParticleFilter {
     beaconDelay = 170L
     beacon = vector2DOf(-.05, 0)
     // 定位异常配置
-    pBeaconError = .05
-    pBeaconRecover = .8
-    beaconErrorRange = 1.5
+    beaconErrors {
+        error {
+            pStart = .05
+            pStop = .75
+            range = 1.5
+        }
+        error {
+            pStart = .2
+            pStop = .2
+            range = .025
+        }
+    }
     // 滤波器配置
     particleFilter {
         beaconOnRobot = vector2DOf(-.05, 0)
         maxInconsistency = .05
-        beaconWeight = .15 * count
+        beaconWeight = .01 * count
     }
     // 数据分析
     analyze { t, actual, odometry ->

@@ -159,17 +159,15 @@ class ParticleFilter(
                 val angle = eAngle.asRadian()
                 // 对偏差较大的粒子进行随机方向的重采样
                 particles = particles.zip(ages) { (p, _), age ->
-                    if (age < 1) {
-                        val d = Normal.next(angle, sigma).toRad()
-                        Odometry(p = Transformation.fromPose(measure, d)(-locatorOnRobot).to2D(),
-                                 d = d) to 1
-                    } else p to age
+                    if (age < 1)
+                        robotPoseBy(measure, Normal.next(angle, sigma).toRad()) to 0
+                    else
+                        p to age
                 }
                 // 计算定位质量
                 quality = Stamped(t, particles.qualityBy(maxAge, maxInconsistency))
                 // 猜测真实位姿
-                predicting = Odometry(p = Transformation.fromPose(eP, eAngle)(-locatorOnRobot).to2D(),
-                                      d = eAngle) to state
+                predicting = robotPoseBy(eP, eAngle) to state
                 @DebugTemporary(DELETE)
                 synchronized(stepFeedback) {
                     for (callback in stepFeedback)
@@ -180,6 +178,9 @@ class ParticleFilter(
                 }
             }
     }
+
+    private fun robotPoseBy(p: Vector2D, d: Angle) =
+        Odometry(Transformation.fromPose(p, d)(-locatorOnRobot).to2D(), d)
 
     // 重新初始化
     private fun initialize(t: Long, measure: Vector2D, state: Odometry) {

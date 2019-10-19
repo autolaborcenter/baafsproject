@@ -5,11 +5,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.*
-import org.mechdancer.algebra.core.rowView
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.function.vector.plus
-import org.mechdancer.algebra.function.vector.times
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
@@ -19,15 +17,12 @@ import org.mechdancer.common.Stamped
 import org.mechdancer.common.filters.Differential
 import org.mechdancer.common.toPose
 import org.mechdancer.common.toTransformation
-import org.mechdancer.geometry.angle.toRad
-import org.mechdancer.geometry.angle.toVector
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.simulation.*
 import org.mechdancer.simulation.DifferentialOdometry.Key
 import org.mechdancer.simulation.random.Normal
 import org.mechdancer.struct.StructBuilderDSL
 import java.util.*
-import kotlin.math.PI
 import kotlin.random.Random
 
 /** 粒子滤波测试用例构建 */
@@ -41,10 +36,44 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
     var beaconSigma = 1E-3
     var beaconDelay = 170L
     var beacon = vector2DOfZero()
+
     // 定位异常配置
-    var pBeaconError = .0
-    var pBeaconRecover = 1.0
-    var beaconErrorRange = .0
+    @BuilderDslMarker
+    data class BeaconErrorSourceBuilderDsl
+    internal constructor(var pStart: Double = .0,
+                         var pStop: Double = 1.0,
+                         var range: Double = .0)
+
+    @BuilderDslMarker
+    class BeaconErrorSourcesBuilderDsl internal constructor() {
+        internal var beaconErrors = mutableListOf<AccidentalBeaconErrorSource>()
+
+        fun error(block: BeaconErrorSourceBuilderDsl.() -> Unit) {
+            BeaconErrorSourceBuilderDsl()
+                .apply(block)
+                .apply {
+                    require(pStart in .0..1.0)
+                    require(pStop in .0..1.0)
+                    require(range >= 0)
+                }
+                .takeIf { it.pStart > 0 && it.range > 0 }
+                ?.apply {
+                    this@BeaconErrorSourcesBuilderDsl
+                        .beaconErrors
+                        .add(AccidentalBeaconErrorSource(
+                            pStart = pStart,
+                            pStop = pStop,
+                            range = range
+                        ))
+                }
+        }
+    }
+
+    private var errors = BeaconErrorSourcesBuilderDsl()
+    fun beaconErrors(block: BeaconErrorSourcesBuilderDsl.() -> Unit) {
+        errors.apply(block)
+    }
+
     // 里程计配置
     var odometryFrequency = 20.0
     var leftWheel = vector2DOf(0, +.2)
@@ -101,7 +130,7 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                     // 标签延时队列
                     val beaconQueue: Queue<Stamped<Vector2D>> = LinkedList<Stamped<Vector2D>>()
                     // 标签偏置
-                    var beaconException: Vector2D? = null
+                    val beaconErrors = errors.beaconErrors
 
                     // 差动里程计
                     val odometry = DifferentialOdometry(wheelsWidthMeasure, Stamped(T0, Odometry()))
@@ -148,23 +177,14 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                             val get = { key: Key -> encodersOnRobot.keys.single { (k, _) -> k == key }.value }
                             val pose = odometry.update(get(Key.Left) to get(Key.Right), t).data
                             // 定位采样
-                            if (Random.nextDouble() < beaconRate){
-                                // 添加定位异常
-                                with(Random) {
-                                    beaconException = when {
-                                        beaconException == null
-                                        && nextDouble() < pBeaconError   ->
-                                            nextDouble(-PI, +PI).toRad().toVector() * nextDouble(.0, beaconErrorRange)
-                                        beaconException != null
-                                        && nextDouble() < pBeaconRecover ->
-                                            null
-                                        else                             ->
-                                            beaconException
-                                    }
-                                }
-                                val beaconError = (beaconException ?: vector2DOfZero()) +
-                                                  vector2DOf(Normal.next( .0, beaconSigma),
-                                                             Normal.next(.0, beaconSigma))
+                            if (Random.nextDouble() < beaconRate) {
+                                val beaconError =
+                                    beaconErrors
+                                        .fold(vector2DOf(Normal.next(.0, beaconSigma),
+                                                         Normal.next(.0, beaconSigma))
+                                        ) { sum, source ->
+                                            sum + source.next()
+                                        }
                                 beaconQueue +=
                                     Stamped(t, actual.data.toTransformation()(beaconOnRobot).to2D() + beaconError)
                             }
