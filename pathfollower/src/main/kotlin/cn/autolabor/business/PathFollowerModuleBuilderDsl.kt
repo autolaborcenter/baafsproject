@@ -1,6 +1,6 @@
-package cn.autolabor.pathfollower
+package cn.autolabor.business
 
-import cn.autolabor.pathfollower.Mode.*
+import cn.autolabor.business.Business.*
 import cn.autolabor.pathfollower.algorithm.PathFollowerBuilderDsl
 import cn.autolabor.pathfollower.algorithm.PathFollowerBuilderDsl.Companion.pathFollower
 import kotlinx.coroutines.CoroutineScope

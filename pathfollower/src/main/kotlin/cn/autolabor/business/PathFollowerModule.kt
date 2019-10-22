@@ -1,7 +1,7 @@
-package cn.autolabor.pathfollower
+package cn.autolabor.business
 
-import cn.autolabor.pathfollower.Mode.Idle
-import cn.autolabor.pathfollower.Mode.Record
+import cn.autolabor.business.Business.Idle
+import cn.autolabor.business.Business.Record
 import cn.autolabor.pathfollower.algorithm.FollowCommand.*
 import cn.autolabor.pathfollower.algorithm.VirtualLightSensorPathFollower
 import cn.autolabor.pathmaneger.PathManager
@@ -46,7 +46,7 @@ class PathFollowerModule(
     val path = PathManager(pathInterval)
     private val turnDirection = directionLimit.asRadian()
 
-    private var internalMode: Mode = Idle
+    private var internalBusiness: Business = Idle
         set(value) {
             field = value
             logger?.log("mode = $value")
@@ -67,46 +67,46 @@ class PathFollowerModule(
         }
 
     private fun <T> onFollowing(what: String, block: () -> T): T {
-        if (internalMode !is Mode.Follow)
+        if (internalBusiness !is Business.Follow)
             throw RuntimeException("cannot get or set $what unless in follow mode")
         return block()
     }
 
     var mode
-        get() = internalMode
+        get() = internalBusiness
         set(value) {
-            when (internalMode) {
-                Record         -> when (value) {
-                    Record         -> Unit
-                    is Mode.Follow -> Unit
-                    Idle           -> internalMode = Idle
+            when (internalBusiness) {
+                Record             -> when (value) {
+                    Record             -> Unit
+                    is Business.Follow -> Unit
+                    Idle               -> internalBusiness = Idle
                 }
-                is Mode.Follow -> when (value) {
+                is Business.Follow -> when (value) {
                     Record -> Unit
-                    is Mode.Follow,
-                    Idle   -> internalMode = value
+                    is Business.Follow,
+                    Idle   -> internalBusiness = value
                 }
-                Idle           -> when (value) {
-                    Record         -> {
-                        internalMode = Record
+                Idle               -> when (value) {
+                    Record             -> {
+                        internalBusiness = Record
                         scope.launch { record() }
                     }
-                    is Mode.Follow -> {
+                    is Business.Follow -> {
                         if (path.size < 2) return
 
                         follower.setPath(path.get())
 
-                        internalMode = value
+                        internalBusiness = value
                         scope.launch { follow() }
                     }
-                    Idle           -> Unit
+                    Idle               -> Unit
                 }
             }
         }
 
     private suspend fun record() {
         for ((_, pose) in robotOnMap) {
-            if (internalMode != Record) break
+            if (internalBusiness != Record) break
             path.record(pose)
         }
     }
@@ -114,8 +114,8 @@ class PathFollowerModule(
     private suspend fun follow() {
         isEnabled = false
         for ((_, pose) in robotOnMap) {
-            val m = internalMode
-            if (m !is Mode.Follow) break
+            val m = internalBusiness
+            if (m !is Business.Follow) break
             val command = follower(pose)
             logger?.log(command)
             if (command !is Error) {
@@ -136,7 +136,7 @@ class PathFollowerModule(
                             follower.setPath(path.get())
                         else {
                             stop()
-                            internalMode = Idle
+                            internalBusiness = Idle
                         }
                     }
                 }
@@ -163,7 +163,7 @@ class PathFollowerModule(
     private suspend fun goStraight(distance: Double) {
         val (p0, _) = robotOnOdometry.receive().data
         for ((_, pose) in robotOnOdometry) {
-            if (internalMode !is Mode.Follow) break
+            if (internalBusiness !is Business.Follow) break
             if ((pose.p - p0).norm() > distance) break
             drive(.1, 0)
         }
@@ -179,7 +179,7 @@ class PathFollowerModule(
         val delta = abs(value)
         val w = value.sign * follower.maxOmegaRad
         for ((_, pose) in robotOnOdometry) {
-            if (internalMode !is Mode.Follow) break
+            if (internalBusiness !is Business.Follow) break
             if (abs(pose.d.asRadian() - d0) > delta) break
             drive(0, w)
         }

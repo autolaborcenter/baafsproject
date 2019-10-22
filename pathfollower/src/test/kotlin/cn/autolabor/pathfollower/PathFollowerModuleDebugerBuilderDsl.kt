@@ -1,6 +1,8 @@
 package cn.autolabor.pathfollower
 
-import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
+import cn.autolabor.business.PathFollowerModuleBuilderDsl
+import cn.autolabor.business.PathFollowerModuleBuilderDsl.Companion.startPathFollower
+import cn.autolabor.business.parseFromConsole
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.consumeEach
 import org.mechdancer.*
