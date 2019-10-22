@@ -27,6 +27,8 @@ import java.text.DecimalFormat
 class PathFollowerModuleBuilderDsl private constructor() {
     // 路径记录间隔
     var pathInterval: Double = .05
+    // 全局路径搜索范围
+    var searchLength: Double = 1.0
     // 原地转方向分界
     var directionLimit: Angle = 180.toDegree()
     // 日志配置
@@ -65,6 +67,7 @@ class PathFollowerModuleBuilderDsl private constructor() {
                         exceptions = exceptions,
                         follower = pathFollower(followerConfig),
                         pathInterval = pathInterval,
+                        searchLength = searchLength,
                         directionLimit = directionLimit,
                         logger = logger,
                         painter = painter)

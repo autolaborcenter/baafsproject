@@ -1,18 +1,15 @@
 package cn.autolabor.baafs
 
 import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
+import cn.autolabor.business.PathFollowerModuleBuilderDsl.Companion.startPathFollower
+import cn.autolabor.business.parseFromConsole
 import cn.autolabor.core.server.DefaultSetup
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
-import cn.autolabor.message.navigation.Msg2DOdometry
-import cn.autolabor.message.navigation.Msg2DPose
 import cn.autolabor.module.networkhub.UDPMulticastBroadcaster
-import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
 import cn.autolabor.pathfollower.algorithm.Proportion
-import cn.autolabor.pathfollower.parseFromConsole
 import cn.autolabor.pathfollower.shape.Circle
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
-import kotlinx.coroutines.*
 import org.mechdancer.YChannel
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
@@ -114,14 +111,14 @@ try {
             consoleParser = parser
         ) {
             pathInterval = .05
+            searchLength = 1.0
             directionLimit = (-120).toDegree()
             follower {
-                sensorPose = odometry(.275, 0)
+                sensorPose = odometry(.16, .0)
+                lightRange = Circle(.2, 16)
                 controller = Proportion(1.25)
-                lightRange = Circle(.3, 128)
                 minTipAngle = 60.toDegree()
                 minTurnAngle = 15.toDegree()
-                maxJumpCount = 20
                 maxLinearSpeed = .09
                 maxAngularSpeed = .3.toRad()
             }
@@ -137,11 +134,11 @@ try {
                     commandToRobot.send(command)
             commandToRobot.close()
         }
-//        launch {
-//            val topic = "fusion".handler<Msg2DOdometry>()
-//            for ((_, pose) in robotOnMap.outputs[1])
-//                topic.pushSubData(Msg2DOdometry(Msg2DPose(pose.p.x, pose.p.y, pose.d.asRadian()), null))
-//        }
+//            launch {
+//                val topic = "fusion".handler<Msg2DOdometry>()
+//                for ((_, pose) in robotOnMap.outputs[1])
+//                    topic.pushSubData(Msg2DOdometry(Msg2DPose(pose.p.x, pose.p.y, pose.d.asRadian()), null))
+//            }
 
         GlobalScope.launch { while (isActive) parser.parseFromConsole() }
     }

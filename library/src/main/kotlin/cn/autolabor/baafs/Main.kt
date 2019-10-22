@@ -114,14 +114,14 @@ fun main() {
                 consoleParser = parser
             ) {
                 pathInterval = .05
+                searchLength = 1.0
                 directionLimit = (-120).toDegree()
                 follower {
-                    sensorPose = odometry(.275, 0)
+                    sensorPose = odometry(.16, .0)
+                    lightRange = Circle(.2, 16)
                     controller = Proportion(1.25)
-                    lightRange = Circle(.3, 128)
                     minTipAngle = 60.toDegree()
                     minTurnAngle = 15.toDegree()
-                    maxJumpCount = 20
                     maxLinearSpeed = .09
                     maxAngularSpeed = .3.toRad()
                 }

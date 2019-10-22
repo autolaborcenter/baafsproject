@@ -26,6 +26,7 @@ import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.RemoteHub
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.math.sign
 
 /**
@@ -41,11 +42,14 @@ class PathFollowerModule(
     private val follower: VirtualLightSensorPathFollower,
     directionLimit: Angle,
     pathInterval: Double,
+    searchLength: Double,
     val logger: SimpleLogger?,
     val painter: RemoteHub?
 ) {
     val path = FixedDistancePathRecorder(pathInterval)
-    private val turnDirection = directionLimit.asRadian()
+
+    private val turnDirectionRad = directionLimit.asRadian()
+    private val searchCount = (searchLength / pathInterval).roundToInt()
 
     private var internalMode: Business = Business.Idle
         set(value) {
@@ -94,9 +98,7 @@ class PathFollowerModule(
                     }
                     is Business.Follow -> {
                         if (path.size < 2) return
-
-                        follower.setPath(path.toGlobalPath(.5, 20))
-
+                        loadPath()
                         internalMode = value
                         scope.launch { follow() }
                     }
@@ -110,6 +112,10 @@ class PathFollowerModule(
             if (internalMode != Business.Record) break
             path.record(pose)
         }
+    }
+
+    private fun loadPath() {
+        follower.setPath(path.toGlobalPath(.5, searchCount))
     }
 
     private suspend fun follow() {
@@ -134,7 +140,7 @@ class PathFollowerModule(
                     }
                     is Finish -> {
                         if (m.loop)
-                            follower.setPath(path.toGlobalPath(.5, 20))
+                            loadPath()
                         else {
                             stop()
                             internalMode = Business.Idle
@@ -175,7 +181,7 @@ class PathFollowerModule(
 
     private suspend fun turn(angle: Double) {
         val d0 = robotOnOdometry.receive().data.d.asRadian()
-        val value = when (turnDirection) {
+        val value = when (turnDirectionRad) {
             in angle..0.0 -> angle + 2 * PI
             in 0.0..angle -> angle - 2 * PI
             else          -> angle
