@@ -17,7 +17,6 @@ class PathFollowerBuilderDsl private constructor() {
     var controller: Filter<Double, Double> = UnitController
     var minTipAngle: Angle = 60.toDegree()
     var minTurnAngle: Angle = 15.toDegree()
-    var maxJumpCount: Int = 20
     var maxLinearSpeed: Double = 0.1
     var maxAngularSpeed: Angle = 0.5.toRad()
 
@@ -28,7 +27,6 @@ class PathFollowerBuilderDsl private constructor() {
                 .apply {
                     require(minTipAngle.asRadian() in .0..PI)
                     require(minTurnAngle.asRadian() in .0..PI)
-                    require(maxJumpCount > 0)
                     require(maxLinearSpeed > 0)
                     require(maxAngularSpeed.asRadian() > 0)
                 }
@@ -40,7 +38,6 @@ class PathFollowerBuilderDsl private constructor() {
                         controller = controller,
                         minTipAngle = minTipAngle,
                         minTurnAngle = minTurnAngle,
-                        maxJumpCount = maxJumpCount,
                         maxLinearSpeed = maxLinearSpeed,
                         maxAngularSpeed = maxAngularSpeed)
                 }

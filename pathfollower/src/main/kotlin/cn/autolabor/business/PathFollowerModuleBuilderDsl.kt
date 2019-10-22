@@ -1,6 +1,5 @@
 package cn.autolabor.business
 
-import cn.autolabor.business.Business.*
 import cn.autolabor.pathfollower.algorithm.PathFollowerBuilderDsl
 import cn.autolabor.pathfollower.algorithm.PathFollowerBuilderDsl.Companion.pathFollower
 import kotlinx.coroutines.CoroutineScope
@@ -29,7 +28,7 @@ class PathFollowerModuleBuilderDsl private constructor() {
     // 路径记录间隔
     var pathInterval: Double = .05
     // 原地转方向分界
-    var directionLimit: Angle = (-120).toDegree()
+    var directionLimit: Angle = 180.toDegree()
     // 日志配置
     var logger: SimpleLogger? = SimpleLogger("PathFollowerModule")
     // 绘图配置
@@ -45,6 +44,7 @@ class PathFollowerModuleBuilderDsl private constructor() {
         /**
          * 构造循径模块
          */
+        @Suppress("MemberVisibilityCanBePrivate")
         fun CoroutineScope.pathFollowerModule(
             robotOnMap: ReceiveChannel<Stamped<Odometry>>,
             robotOnOdometry: ReceiveChannel<Stamped<Odometry>>,
@@ -91,11 +91,11 @@ class PathFollowerModuleBuilderDsl private constructor() {
                 block = block)
             with(consoleParser) {
                 this["cancel"] = {
-                    module.mode = Idle
+                    module.mode = Business.Idle
                     "current mode: ${module.mode}"
                 }
                 this["record"] = {
-                    module.mode = Record
+                    module.mode = Business.Record
                     "current mode: ${module.mode}"
                 }
                 this["clear"] = {
@@ -124,7 +124,7 @@ class PathFollowerModuleBuilderDsl private constructor() {
                     if (!file.exists())
                         "path not exist"
                     else {
-                        module.mode = Idle
+                        module.mode = Business.Idle
                         with(module.path) {
                             loadFrom(file)
                             module.painter?.paintPoses("路径", get())
@@ -156,11 +156,11 @@ class PathFollowerModuleBuilderDsl private constructor() {
                 }
 
                 this["go"] = {
-                    module.mode = Follow(loop = false)
+                    module.mode = Business.Follow(loop = false)
                     "current mode: ${module.mode}"
                 }
                 this["loop"] = {
-                    module.mode = Follow(loop = true)
+                    module.mode = Business.Follow(loop = true)
                     "current mode: ${module.mode}"
                 }
                 this["\'"] = {
