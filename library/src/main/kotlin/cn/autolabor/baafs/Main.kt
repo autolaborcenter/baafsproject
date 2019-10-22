@@ -100,7 +100,9 @@ fun main() {
             ) {
                 filter {
                     beaconOnRobot = vector2DOf(-.01, 0)
-                    beaconWeight = .15 * count
+                    maxInconsistency = .05
+                    convergence { (age, _, d) -> age > .4 && d > .95 }
+                    divergence { (age, _, d) -> age < .1 && d < .4 }
                 }
                 painter = remote
             }
