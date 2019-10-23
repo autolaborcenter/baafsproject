@@ -74,9 +74,9 @@ fun main() {
             ) {
                 port = null
                 retryInterval = 100L
-                connectionTimeout = 2000L
-                parseTimeout = 2000L
-                dataTimeout = 2000L
+                connectionTimeout = 4000L
+                parseTimeout = 3500L
+                dataTimeout = 3000L
                 delayLimit = 400L
             }
             println("done")

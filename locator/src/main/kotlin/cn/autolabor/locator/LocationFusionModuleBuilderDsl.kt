@@ -64,8 +64,8 @@ class LocationFusionModuleBuilderDsl private constructor() {
                         for (item in robotOnOdometry) {
                             painter?.paintPose("里程计", item.data)
                             filter.measureMaster(item)
-                                ?.also { robotOnMap.send(it) }
-                                ?.also { (_, data) ->
+                                .also { robotOnMap.send(it) }
+                                .also { (_, data) ->
                                     logger?.log(data.p.x, data.p.y, data.d.asRadian())
                                     painter?.run {
                                         paintPose("粒子滤波", data)
