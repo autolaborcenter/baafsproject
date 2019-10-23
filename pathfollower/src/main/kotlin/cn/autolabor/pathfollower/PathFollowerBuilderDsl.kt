@@ -1,4 +1,4 @@
-package cn.autolabor.pathfollower.algorithm
+package cn.autolabor.pathfollower
 
 import cn.autolabor.pathfollower.shape.Circle
 import cn.autolabor.pathfollower.shape.Shape

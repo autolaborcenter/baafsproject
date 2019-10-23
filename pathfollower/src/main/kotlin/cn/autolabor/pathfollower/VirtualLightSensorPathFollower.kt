@@ -1,7 +1,7 @@
-package cn.autolabor.pathfollower.algorithm
+package cn.autolabor.pathfollower
 
 import cn.autolabor.business.GlobalPath
-import cn.autolabor.pathfollower.algorithm.FollowCommand.*
+import cn.autolabor.pathfollower.FollowCommand.*
 import org.mechdancer.DebugTemporary
 import org.mechdancer.DebugTemporary.Operation.DELETE
 import org.mechdancer.DebugTemporary.Operation.REDUCE

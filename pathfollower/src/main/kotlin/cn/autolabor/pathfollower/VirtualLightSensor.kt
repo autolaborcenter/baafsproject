@@ -1,4 +1,4 @@
-package cn.autolabor.pathfollower.algorithm
+package cn.autolabor.pathfollower
 
 import cn.autolabor.pathfollower.shape.Shape
 import org.mechdancer.DebugTemporary

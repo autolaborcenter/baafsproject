@@ -7,7 +7,7 @@ import cn.autolabor.core.server.DefaultSetup
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.module.networkhub.UDPMulticastBroadcaster
-import cn.autolabor.pathfollower.algorithm.Proportion
+import cn.autolabor.pathfollower.Proportion
 import cn.autolabor.pathfollower.shape.Circle
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
 import kotlinx.coroutines.*

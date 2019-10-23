@@ -1,7 +1,7 @@
 package cn.autolabor.business
 
-import cn.autolabor.pathfollower.algorithm.FollowCommand.*
-import cn.autolabor.pathfollower.algorithm.VirtualLightSensorPathFollower
+import cn.autolabor.pathfollower.FollowCommand.*
+import cn.autolabor.pathfollower.VirtualLightSensorPathFollower
 import cn.autolabor.pathmaneger.FixedDistancePathRecorder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel

@@ -1,7 +1,7 @@
 package cn.autolabor.business
 
-import cn.autolabor.pathfollower.algorithm.PathFollowerBuilderDsl
-import cn.autolabor.pathfollower.algorithm.PathFollowerBuilderDsl.Companion.pathFollower
+import cn.autolabor.pathfollower.PathFollowerBuilderDsl
+import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel
