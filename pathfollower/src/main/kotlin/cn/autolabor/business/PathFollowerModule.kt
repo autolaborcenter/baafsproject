@@ -89,7 +89,10 @@ class PathFollowerModule(
                 is Business.Follow -> when (value) {
                     Business.Record -> Unit
                     is Business.Follow,
-                    Business.Idle   -> internalMode = value
+                    Business.Idle   -> {
+                        scope.launch { exceptions.send(Recovered(FollowFailedException)) }
+                        internalMode = value
+                    }
                 }
                 Business.Idle      -> when (value) {
                     Business.Record    -> {

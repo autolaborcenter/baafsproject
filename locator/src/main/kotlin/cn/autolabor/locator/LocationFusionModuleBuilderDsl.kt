@@ -39,8 +39,9 @@ class LocationFusionModuleBuilderDsl private constructor() {
                 .apply(block)
                 .run {
                     painter?.run {
+                        var t0: Long? = null
                         filter.stepFeedback.add { (t, state) ->
-                            val time = t.toDouble()
+                            val time = (t - (t0 ?: run { t0 = t;t })).toDouble()
                             val (measureWeight, particleWeight, quality) = state
                             paint("定位权重", time, measureWeight)
                             paint("粒子权重", time, particleWeight)

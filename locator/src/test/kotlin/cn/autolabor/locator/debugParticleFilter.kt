@@ -31,18 +31,18 @@ fun main() = debugParticleFilter {
             pStop = .75
             range = 1.5
         }
-        // 持续性的偏移
-        error {
-            pStart = .2
-            pStop = .2
-            range = .025
-        }
-        // 远且持久的移动(劫持)
-        error {
-            pStart = .01
-            pStop = .02
-            range = 1.0
-        }
+//        // 持续性的偏移
+//        error {
+//            pStart = .2
+//            pStop = .2
+//            range = .025
+//        }
+//        // 远且持久的移动(劫持)
+//        error {
+//            pStart = .01
+//            pStop = .02
+//            range = 1.0
+//        }
     }
     // 滤波器配置
     particleFilter {
