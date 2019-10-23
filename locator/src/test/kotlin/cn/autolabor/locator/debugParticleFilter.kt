@@ -4,32 +4,36 @@ import cn.autolabor.locator.ParticleFilterDebugerBuilderDsl.Companion.debugParti
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.mechdancer.algebra.function.vector.euclid
 import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.common.Odometry
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
 import org.mechdancer.simulation.displayOnConsole
+import kotlin.math.PI
 
 @ExperimentalCoroutinesApi
 fun main() = debugParticleFilter {
     // 仿真配置
     speed = 2
     frequency = 50L
+    origin = Odometry.odometry(3, 4, PI)
     // 里程计配置
     odometryFrequency = 20.0
-    leftWheel = vector2DOf(0, +.202)
-    rightWheel = vector2DOf(0, -.2)
+    leftWheel = vector2DOf(0, +.201)
+    rightWheel = vector2DOf(0, -.201)
     wheelsWidthMeasure = 0.4
     // 定位配置
-    beaconFrequency = 4.0
+    beaconFrequency = 7.0
+    beaconLossRate = .05
     beaconSigma = 5E-3
     beaconDelay = 170L
-    beacon = vector2DOf(-.05, 0)
+    beaconOnRobot = vector2DOf(-.05, 0)
     // 定位异常配置
     beaconErrors {
         // 快速恢复的局外点
         error {
             pStart = .05
             pStop = .75
-            range = 1.5
+            range = .8
         }
 //        // 持续性的偏移
 //        error {
@@ -48,8 +52,8 @@ fun main() = debugParticleFilter {
     particleFilter {
         beaconOnRobot = vector2DOf(-.05, 0)
         maxInconsistency = .05
-        convergence { (age, _, d) -> age > .4 && d > .95 }
-        divergence { (age, _, d) -> age < .1 && d < .4 }
+        convergence { (age, _, d) -> age > .3 && d > .9 }
+        divergence { (age, _, _) -> age < .1 }
     }
     // 数据分析
     analyze { t, actual, odometry ->
