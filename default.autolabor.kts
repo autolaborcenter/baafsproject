@@ -99,7 +99,7 @@ try {
             filter {
                 beaconOnRobot = vector2DOf(-.01, 0)
                 maxInconsistency = .2
-                convergence { (age, _, d) -> age > .3 && d > .9 }
+                convergence { (age, _, d) -> age > .2 && d > .9 }
                 divergence { (age, _, _) -> age < .05 }
             }
             painter = remote
@@ -115,12 +115,12 @@ try {
             searchLength = 1.0
             directionLimit = (-120).toDegree()
             follower {
-                sensorPose = odometry(.16, .0)
-                lightRange = Circle(.2, 16)
-                controller = Proportion(1.25)
+                sensorPose = odometry(.2, .0)
+                lightRange = Circle(.24, 16)
+                controller = Proportion(1.0)
                 minTipAngle = 60.toDegree()
                 minTurnAngle = 15.toDegree()
-                maxLinearSpeed = .09
+                maxLinearSpeed = .1
                 maxAngularSpeed = .3.toRad()
             }
             painter = remote
