@@ -15,10 +15,7 @@ import org.mechdancer.common.toTransformation
 import org.mechdancer.geometry.angle.*
 import org.mechdancer.geometry.transformation.Transformation
 import org.mechdancer.simulation.random.Normal
-import kotlin.math.PI
-import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.min
+import kotlin.math.*
 
 /**
  * 粒子滤波器
@@ -102,6 +99,7 @@ class ParticleFilter(
                         Stamped(t, m to before.data * k + after.data * (1 - k))
                     }
             }
+            // 计算定位权重
             .mapNotNull { stamped ->
                 val (t, pair) = stamped
                 val (measure, state) = pair
@@ -131,23 +129,25 @@ class ParticleFilter(
                 // 更新粒子群
                 particles = particles.map { (p, age) -> (p plusDelta (state minusState last)) to age }
                 // 计算每个粒子对应的信标坐标
+                val limitedMaxAge =
+                    max(3, (maxAge * particles.qualityBy(maxAge, maxInconsistency).direction).roundToInt())
                 val beacons = particles.map { (p, _) -> Odometry(p.toTransformation()(locatorOnRobot).to2D(), p.d) }
                 val distances = beacons.map { (p, _) -> p euclid measure }
                 val ages = particles.zip(distances) { (_, age), distance ->
-                    if (distance < maxInconsistency) min(maxAge, age + 1) else age - 1
+                    if (distance < maxInconsistency) min(limitedMaxAge, age + 1) else age - 1
                 }
                 // 计算粒子权重
                 val weights = ages.zip(distances) { age, distance ->
-                    (.5 + age.toDouble() / (2 * maxAge)) * (1 - min(1.0, distance / maxInconsistency))
+                    (age.toDouble() / maxAge) * (1 - min(1.0, distance / maxInconsistency))
                 }
                 // 计算粒子总权重，若过低，直接重新初始化
                 val weightsSum = weights.sum()
-                    .takeIf { it > 1 }
-                    ?: run {
-                        particles = particles.zip(ages) { (p, _), age -> p to max(age, 0) }
-                        if (!predicate.state && ages.max()!! < 3) initialize(t, measure, state)
-                        return@forEach
-                    }
+                                     .takeIf { it > 1 }
+                                 ?: run {
+                                     particles = particles.zip(ages) { (p, _), age -> p to max(age, 0) }
+                                     if (!predicate.state && ages.max()!! < 3) initialize(t, measure, state)
+                                     return@forEach
+                                 }
                 // 计算期望
                 var eP = vector2DOfZero()
                 var eD = vector2DOfZero()

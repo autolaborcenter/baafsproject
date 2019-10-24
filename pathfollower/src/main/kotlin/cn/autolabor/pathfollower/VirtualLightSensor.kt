@@ -31,6 +31,12 @@ class VirtualLightSensor(
     var area = listOf<Vector2D>()
         private set
 
+    /**
+     * 照亮
+     *
+     * 从目标路径获取兴趣区段
+     * 获取到的列表中点位于传感器坐标系
+     */
     fun shine(path: Sequence<Odometry>) =
         path.map { pose -> pose to robotToSensor(pose.p).to2D() }
             .dropWhile { (_, p) -> p !in lightRange }

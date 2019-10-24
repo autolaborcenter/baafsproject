@@ -29,7 +29,6 @@ class MobileBeaconModuleBuilderDsl private constructor() {
     var parseTimeout: Long = 2000L
     var dataTimeout: Long = 2000L
     var delayLimit: Long = 400L
-    var maxSpeed: Double = 0.2
 
     companion object {
         fun CoroutineScope.startMobileBeacon(
@@ -45,7 +44,6 @@ class MobileBeaconModuleBuilderDsl private constructor() {
                     require(parseTimeout > 0)
                     require(dataTimeout > 0)
                     require(delayLimit > 1)
-                    require(maxSpeed > 0)
                 }
                 .run {
                     MarvelmindMobilBeacon(
@@ -57,8 +55,7 @@ class MobileBeaconModuleBuilderDsl private constructor() {
                         parseTimeout = parseTimeout,
                         dataTimeout = dataTimeout,
                         retryInterval = retryInterval,
-                        delayLimit = delayLimit,
-                        maxSpeed = maxSpeed)
+                        delayLimit = delayLimit)
                 }
         }
     }
@@ -73,8 +70,7 @@ class MobileBeaconModuleBuilderDsl private constructor() {
         parseTimeout: Long,
         dataTimeout: Long,
         private val retryInterval: Long,
-        private val delayLimit: Long,
-        private val maxSpeed: Double
+        private val delayLimit: Long
     ) {
         private val logger = SimpleLogger(NAME)
         private val buffer = ByteArray(BUFFER_SIZE)
@@ -97,7 +93,6 @@ class MobileBeaconModuleBuilderDsl private constructor() {
         private val connectionWatchDog = WatchDog(connectionTimeout)
         private val parseWatchDog = WatchDog(parseTimeout)
         private val dataWatchDog = WatchDog(dataTimeout)
-        // 状态
 
         init {
             scope.launch {

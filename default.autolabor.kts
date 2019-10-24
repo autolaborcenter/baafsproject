@@ -98,9 +98,9 @@ try {
         ) {
             filter {
                 beaconOnRobot = vector2DOf(-.01, 0)
-                maxInconsistency = .2
+                maxInconsistency = .1
                 convergence { (age, _, d) -> age > .2 && d > .9 }
-                divergence { (age, _, _) -> age < .05 }
+                divergence { (age, _, _) -> age < .1 }
             }
             painter = remote
         }

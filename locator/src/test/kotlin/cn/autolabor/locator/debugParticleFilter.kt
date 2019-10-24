@@ -23,7 +23,7 @@ fun main() = debugParticleFilter {
     wheelsWidthMeasure = 0.4
     // 定位配置
     beaconFrequency = 7.0
-    beaconLossRate = .05
+    beaconLossRate = .15
     beaconSigma = 5E-3
     beaconDelay = 170L
     beaconOnRobot = vector2DOf(-.05, 0)
@@ -33,26 +33,26 @@ fun main() = debugParticleFilter {
         error {
             pStart = .05
             pStop = .75
-            range = .8
+            range = .2
         }
-//        // 持续性的偏移
-//        error {
-//            pStart = .2
-//            pStop = .2
-//            range = .025
-//        }
-//        // 远且持久的移动(劫持)
-//        error {
-//            pStart = .01
-//            pStop = .02
-//            range = 1.0
-//        }
+//      // 持续性的偏移
+//      error {
+//          pStart = .2
+//          pStop = .2
+//          range = .025
+//      }
+//      // 远且持久的移动(劫持)
+//      error {
+//          pStart = .01
+//          pStop = .02
+//          range = 1.0
+//      }
     }
     // 滤波器配置
     particleFilter {
         beaconOnRobot = vector2DOf(-.05, 0)
         maxInconsistency = .05
-        convergence { (age, _, d) -> age > .3 && d > .9 }
+        convergence { (age, _, d) -> age > .2 && d > .9 }
         divergence { (age, _, _) -> age < .1 }
     }
     // 数据分析

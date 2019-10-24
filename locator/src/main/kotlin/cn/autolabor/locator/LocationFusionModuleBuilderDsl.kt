@@ -15,10 +15,10 @@ import org.mechdancer.remote.presets.RemoteHub
 @BuilderDslMarker
 class LocationFusionModuleBuilderDsl private constructor() {
     // 滤波器配置
-    var filter = particleFilter {}
+    private var filterBlocks = mutableListOf<ParticleFilterBuilderDsl.() -> Unit>()
 
     fun filter(block: ParticleFilterBuilderDsl.() -> Unit) {
-        filter = particleFilter(block)
+        filterBlocks.add(block)
     }
 
     var logger: SimpleLogger? = SimpleLogger("LocationFusionModule")
@@ -38,6 +38,8 @@ class LocationFusionModuleBuilderDsl private constructor() {
             LocationFusionModuleBuilderDsl()
                 .apply(block)
                 .run {
+                    // 构造滤波器
+                    val filter = particleFilter { for (f in this@run.filterBlocks) f(this) }
                     painter?.run {
                         var t0: Long? = null
                         filter.stepFeedback.add { (t, state) ->

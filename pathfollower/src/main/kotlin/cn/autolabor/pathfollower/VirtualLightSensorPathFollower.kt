@@ -65,26 +65,24 @@ internal constructor(
         val global = path ?: return Finish
         val bright = sensor.shine(global[pose])
         // 特殊情况提前退出
-        if (bright.isEmpty())
-            return when {
-                global.progress == 1.0 -> Finish
-                abs(pre) > minTurnRad  -> Turn(pre)
-                else                   -> Error
-            }
+        var pn = bright.firstOrNull()
+                 ?: return when {
+                     global.progress == 1.0 -> Finish
+                     abs(pre) > minTurnRad  -> Turn(pre)
+                     else                   -> Error
+                 }
         // 查找尖点
-        var pn = bright.first()
         val (tip, i) =
             bright
                 .drop(1)
                 .asSequence()
                 .mapIndexed { i, item -> item to i }
-                // 查找尖点
                 .firstOrNull { (it, _) ->
                     val `pn-1` = pn
                     pn = it
                     pn.d.toVector() dot `pn-1`.d.toVector() < cosMinTip
                 }
-                ?: (bright.last() to bright.lastIndex)
+            ?: (bright.last() to bright.lastIndex)
         @DebugTemporary(DELETE)
         this.tip = tip
         // 处理尖点
@@ -99,8 +97,8 @@ internal constructor(
         }
         // 计算控制量
         return Follow(v = maxLinearSpeed,
-            w = controller
-                .update(new = sensor(bright.take(i + 1)))
-                .run { sign * min(maxOmegaRad, absoluteValue) })
+                      w = controller
+                          .update(new = sensor(bright.take(i + 1)))
+                          .run { sign * min(maxOmegaRad, absoluteValue) })
     }
 }
