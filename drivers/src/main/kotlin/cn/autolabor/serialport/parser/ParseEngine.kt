@@ -18,8 +18,7 @@ class ParseEngine<TWord, TResult>(
     data class ParseInfo<Result>(
         val nextHead: Int,
         val nextBegin: Int,
-        val result: Result
-    )
+        val result: Result)
 
     /**
      * 执行解析

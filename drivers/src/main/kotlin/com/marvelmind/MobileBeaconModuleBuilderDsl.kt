@@ -80,12 +80,16 @@ class MobileBeaconModuleBuilderDsl private constructor() {
         private val buffer = ByteArray(BUFFER_SIZE)
         private val engine = engine()
         private val port =
-            SerialPortFinder.findSerialPort(name, engine) {
-                baudRate = 115200
-                timeoutMs = dataTimeout
-                bufferSize = BUFFER_SIZE
-                condition { it is Data && it.code == COORDINATE_CODE }
-            } ?: throw DeviceNotExistException(NAME)
+            try {
+                SerialPortFinder.findSerialPort(name, engine) {
+                    baudRate = 115200
+                    timeoutMs = dataTimeout
+                    bufferSize = BUFFER_SIZE
+                    condition { it is Data && it.code == COORDINATE_CODE }
+                }
+            } catch (e: RuntimeException) {
+                throw DeviceNotExistException(NAME, e.message)
+            }
 
         // 单开线程以执行阻塞读取
         private val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()

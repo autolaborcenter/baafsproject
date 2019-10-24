@@ -19,13 +19,17 @@ class Resource(
     private val engine = engine()
     private val port =
         //  启动时发送开始旋转指令
-        SerialPortFinder.findSerialPort(name, engine) {
-            baudRate = 460800
-            timeoutMs = 5000
-            bufferSize = 32
-            activate = "#SF 10\r\n".toByteArray(Charsets.US_ASCII)
-            condition { pack -> pack is LidarPack.Data }
-        } ?: throw DeviceNotExistException("faselase lidar")
+        try {
+            SerialPortFinder.findSerialPort(name, engine) {
+                baudRate = 460800
+                timeoutMs = 5000
+                bufferSize = 32
+                activate = "#SF 10\r\n".toByteArray(Charsets.US_ASCII)
+                condition { pack -> pack is LidarPack.Data }
+            }
+        } catch (e: RuntimeException) {
+            throw DeviceNotExistException("faselase lidar", e.message)
+        }
     private val buffer = ByteArray(256)
     private val list = LinkedList<Stamped<Polar>>()
     private var offset = .0
