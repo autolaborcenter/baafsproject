@@ -1,6 +1,5 @@
-package cn.autolabor
+package com.marvelmind
 
-import com.marvelmind.MobileBeaconException
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
