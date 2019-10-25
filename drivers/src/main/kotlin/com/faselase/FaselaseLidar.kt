@@ -101,6 +101,6 @@ class FaselaseLidar(
     }
 
     companion object {
-        private const val BUFFER_SIZE = 32
+        private const val BUFFER_SIZE = 64
     }
 }
