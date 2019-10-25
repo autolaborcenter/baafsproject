@@ -1,5 +1,14 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
+buildscript {
+    repositories {
+        maven("https://maven.aliyun.com/repository/central")
+        maven("https://maven.aliyun.com/repository/google")
+        maven("https://maven.aliyun.com/repository/gradle-plugin")
+        maven("https://maven.aliyun.com/repository/jcenter")
+    }
+}
+
 plugins {
     kotlin("jvm") version "1.3.50"
     `build-scan`
@@ -30,6 +39,7 @@ allprojects {
     dependencies {
         // 自动依赖 kotlin 标准库
         implementation(kotlin("stdlib-jdk8"))
+        implementation("org.jetbrains.kotlinx", "kotlinx-coroutines-core", "1.3.2")
         // 单元测试
         testImplementation("junit", "junit", "+")
         testImplementation(kotlin("test-junit"))
@@ -73,8 +83,8 @@ dependencies {
         description = "pack jar to run script"
         archiveClassifier.set(name)
         from(sourceSets.main.get().output,
-             configurations.runtimeClasspath.get()
-                 .map { if (it.isDirectory) it else zipTree(it) })
+            configurations.runtimeClasspath.get()
+                .map { if (it.isDirectory) it else zipTree(it) })
     }
 }
 
