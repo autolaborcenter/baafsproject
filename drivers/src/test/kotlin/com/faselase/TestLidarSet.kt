@@ -39,7 +39,7 @@ fun main() = runBlocking<Unit>(Dispatchers.Default) {
             delay(2000L)
         }
     }
-    startFaselaseLidarSet {
+    val set = startFaselaseLidarSet {
         lidar("/dev/pos3") {
             tag = "FrontLidar"
             pose = odometry(.113, 0, PI / 2)
@@ -50,6 +50,13 @@ fun main() = runBlocking<Unit>(Dispatchers.Default) {
             pose = odometry(-.138, 0, PI / 2)
             inverse = false
         }
-        painter = remote
+    }!!
+    launch {
+        while (true) {
+            val frame = set.frame
+            println(frame.size)
+            remote.paintVectors("雷达", frame)
+            delay(100L)
+        }
     }
 }

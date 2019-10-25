@@ -2,17 +2,13 @@ package com.faselase
 
 import kotlinx.coroutines.CoroutineScope
 import org.mechdancer.algebra.implement.matrix.builder.matrix
-import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.toTransformation
 import org.mechdancer.geometry.transformation.Transformation
-import org.mechdancer.paint
-import org.mechdancer.remote.presets.RemoteHub
 
 class FaselaseLidarSetBuilderDsl private constructor() {
     var connectionTimeout: Long = 5000L
     var configs = mutableMapOf<String, FaselaseLidarConfig>()
-    var painter: RemoteHub? = null
 
     data class FaselaseLidarConfig internal constructor(
         var tag: String? = null,
@@ -51,16 +47,6 @@ class FaselaseLidarSetBuilderDsl private constructor() {
                         }
                     }
                     ?.toMap()
-                    ?.onEach { (lidar, tf) ->
-                        painter?.let {
-                            synchronized(lidar.callbacks) {
-                                lidar.callbacks += { (_, data) ->
-                                    val v = tf(data.toVector2D()).to2D()
-                                    it.paint("雷达数据", v.x, v.y)
-                                }
-                            }
-                        }
-                    }
                     ?.let(::FaselaseLidarSet)
             }
     }
