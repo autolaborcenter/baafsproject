@@ -2,9 +2,13 @@ package com.faselase
 
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.startFaselaseLidarSet
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import org.mechdancer.common.Odometry
+import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.common.Odometry.Companion.odometry
 import org.mechdancer.networksInfo
+import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.remoteHub
 import kotlin.math.PI
 
@@ -13,15 +17,37 @@ fun main() = runBlocking<Unit>(Dispatchers.Default) {
         openAllNetworks()
         println(networksInfo())
     }
+    val robotOutline = listOf(
+        vector2DOf(+.25, +.08),
+        vector2DOf(+.10, +.20),
+        vector2DOf(+.10, +.28),
+        vector2DOf(-.10, +.28),
+        vector2DOf(-.10, +.23),
+        vector2DOf(-.25, +.23),
+        vector2DOf(-.47, +.20),
+        vector2DOf(-.47, -.20),
+        vector2DOf(-.25, -.23),
+        vector2DOf(-.10, -.23),
+        vector2DOf(-.10, -.28),
+        vector2DOf(+.10, -.28),
+        vector2DOf(+.10, -.20),
+        vector2DOf(+.25, -.08),
+        vector2DOf(+.25, +.08))
+    launch {
+        while (true) {
+            remote.paintVectors("轮廓", robotOutline)
+            delay(2000L)
+        }
+    }
     startFaselaseLidarSet {
         lidar("/dev/pos3") {
             tag = "FrontLidar"
-            pose = Odometry.odometry(.113, 0, PI / 2)
+            pose = odometry(.113, 0, PI / 2)
             inverse = false
         }
         lidar("/dev/pos4") {
             tag = "BackLidar"
-            pose = Odometry.odometry(-.138, 0, PI / 2)
+            pose = odometry(-.138, 0, PI / 2)
             inverse = false
         }
         painter = remote

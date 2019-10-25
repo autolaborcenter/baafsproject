@@ -5,6 +5,7 @@ import cn.autolabor.pathfollower.FollowCommand.*
 import org.mechdancer.DebugTemporary
 import org.mechdancer.DebugTemporary.Operation.DELETE
 import org.mechdancer.DebugTemporary.Operation.REDUCE
+import org.mechdancer.SimpleLogger
 import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.plus
 import org.mechdancer.algebra.function.vector.times
@@ -45,6 +46,9 @@ internal constructor(
     internal val maxOmegaRad = maxAngularSpeed.asRadian()
 
     @DebugTemporary(DELETE)
+    private val logger = SimpleLogger("firstOfLocal")
+
+    @DebugTemporary(DELETE)
     var tip = Odometry()
         private set
 
@@ -66,6 +70,7 @@ internal constructor(
         val bright = sensor.shine(global[pose])
         // 特殊情况提前退出
         var pn = bright.firstOrNull()
+                     ?.also { (p, d) -> logger.log(p.x, p.y, d.asRadian()) }
                  ?: return when {
                      global.progress == 1.0 -> Finish
                      abs(pre) > minTurnRad  -> Turn(pre)
