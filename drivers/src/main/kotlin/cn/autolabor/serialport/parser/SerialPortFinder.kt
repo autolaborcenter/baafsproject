@@ -1,35 +1,26 @@
 package cn.autolabor.serialport.parser
 
 import com.fazecast.jSerialComm.SerialPort
-import org.mechdancer.exceptions.DeviceNotExistException
+import org.mechdancer.BuilderDslMarker
 
 /**
  * 通用串口查找器（DSL）
  */
+@BuilderDslMarker
 class SerialPortFinder<T> private constructor() {
-    /**
-     * 波特率
-     */
+    /** 波特率 */
     var baudRate: Int = 9600
 
-    /**
-     * 临时缓存容量
-     */
+    /** 临时缓存容量 */
     var bufferSize: Int = 256
 
-    /**
-     * 查找超时时间
-     */
+    /** 查找超时时间 */
     var timeoutMs: Long = 1000L
 
-    /**
-     * 发送激活码
-     */
+    /** 发送激活码 */
     var activate: ByteArray = byteArrayOf()
 
-    /**
-     * 设置成功条件
-     */
+    /** 设置成功条件 */
     fun condition(block: (T) -> Boolean) {
         predicate = block
     }

@@ -6,7 +6,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.channel
 import org.mechdancer.common.Odometry.Companion.odometry
+import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.networksInfo
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.remoteHub
@@ -39,7 +41,10 @@ fun main() = runBlocking<Unit>(Dispatchers.Default) {
             delay(2000L)
         }
     }
-    val set = startFaselaseLidarSet {
+    val exceptions = channel<ExceptionMessage>()
+    val set = startFaselaseLidarSet(
+        exceptions = exceptions
+    ) {
         lidar("/dev/pos3") {
             tag = "FrontLidar"
             pose = odometry(.113, 0, PI / 2)

@@ -51,7 +51,7 @@ class PathFollowerModuleBuilderDsl private constructor() {
             robotOnMap: ReceiveChannel<Stamped<Odometry>>,
             robotOnOdometry: ReceiveChannel<Stamped<Odometry>>,
             commandOut: SendChannel<NonOmnidirectional>,
-            exceptions: SendChannel<ExceptionMessage<FollowFailedException>>,
+            exceptions: SendChannel<ExceptionMessage>,
             block: PathFollowerModuleBuilderDsl.() -> Unit = {}
         ) =
             PathFollowerModuleBuilderDsl()
@@ -82,7 +82,7 @@ class PathFollowerModuleBuilderDsl private constructor() {
             robotOnMap: ReceiveChannel<Stamped<Odometry>>,
             robotOnOdometry: ReceiveChannel<Stamped<Odometry>>,
             commandOut: SendChannel<NonOmnidirectional>,
-            exceptions: SendChannel<ExceptionMessage<FollowFailedException>>,
+            exceptions: SendChannel<ExceptionMessage>,
             consoleParser: Parser,
             block: PathFollowerModuleBuilderDsl.() -> Unit = {}
         ) {

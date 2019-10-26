@@ -11,7 +11,7 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Stamped.Companion.stamp
 import org.mechdancer.common.Velocity.NonOmnidirectional
-import org.mechdancer.exceptions.DeviceNotExistException
+import org.mechdancer.exceptions.device.DeviceNotExistException
 
 @BuilderDslMarker
 class ChassisModuleBuilderDsl private constructor() {

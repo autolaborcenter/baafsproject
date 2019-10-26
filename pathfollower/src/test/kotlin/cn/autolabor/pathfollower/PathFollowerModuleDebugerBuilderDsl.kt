@@ -75,7 +75,7 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
                     // 话题
                     val robotOnMap = channel<Stamped<Odometry>>()
                     val commandToRobot = channel<NonOmnidirectional>()
-                    val exceptions = channel<ExceptionMessage<*>>()
+                    val exceptions = channel<ExceptionMessage>()
                     val command = AtomicReference(velocity(.0, .0))
                     val exceptionServer = ExceptionServer()
                     val parser = buildParser {

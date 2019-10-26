@@ -1,13 +1,17 @@
 package com.faselase
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.algebra.implement.matrix.builder.matrix
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.toTransformation
+import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.geometry.transformation.Transformation
 
 class FaselaseLidarSetBuilderDsl private constructor() {
-    var connectionTimeout: Long = 5000L
+    var launchTimeout: Long = 5000L
+    var connectionTimeout: Long = 3000L
+    var dataTimeout: Long = 2000L
     var configs = mutableMapOf<String, FaselaseLidarConfig>()
 
     data class FaselaseLidarConfig internal constructor(
@@ -24,6 +28,7 @@ class FaselaseLidarSetBuilderDsl private constructor() {
 
     companion object {
         fun CoroutineScope.startFaselaseLidarSet(
+            exceptions: SendChannel<ExceptionMessage>,
             block: FaselaseLidarSetBuilderDsl.() -> Unit
         ) = FaselaseLidarSetBuilderDsl()
             .apply(block)
@@ -33,9 +38,12 @@ class FaselaseLidarSetBuilderDsl private constructor() {
                     ?.map { (portName, config) ->
                         FaselaseLidar(
                             scope = this@startFaselaseLidarSet,
+                            exceptions = exceptions,
                             portName = portName,
                             tag = config.tag,
-                            connectionTimeout = connectionTimeout
+                            launchTimeout = launchTimeout,
+                            connectionTimeout = connectionTimeout,
+                            dataTimeout = dataTimeout
                         ) to config.pose.toTransformation().let {
                             if (config.inverse)
                                 it * Transformation(matrix {

@@ -18,12 +18,12 @@ class ExceptionServer {
 
     fun get() = lock.read { set.toSet() }
 
-    fun update(exception: ExceptionMessage<*>) {
+    fun update(exception: ExceptionMessage) {
         val what = exception.what
         lock.write {
             when (exception) {
-                is Occurred<*>  -> if (set.add(what)) record(what.toString())
-                is Recovered<*> -> if (set.remove(what)) record("${what::class.java.simpleName}: recovered")
+                is Occurred  -> if (set.add(what)) record(what.toString())
+                is Recovered -> if (set.remove(what)) record("${what::class.java.simpleName}: recovered")
             }
         }
     }

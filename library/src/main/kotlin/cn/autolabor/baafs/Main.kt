@@ -50,7 +50,7 @@ fun main() {
     val robotOnMap = YChannel<Stamped<Odometry>>()
     val beaconOnMap = channel<Stamped<Vector2D>>()
     val commandToObstacle = channel<NonOmnidirectional>()
-    val exceptions = channel<ExceptionMessage<*>>()
+    val exceptions = channel<ExceptionMessage>()
     val commandToSwitch = channel<NonOmnidirectional>()
     val commandToRobot = channel<NonOmnidirectional>()
     // 任务

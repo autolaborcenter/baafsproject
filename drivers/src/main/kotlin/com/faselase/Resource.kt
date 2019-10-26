@@ -3,7 +3,7 @@ package com.faselase
 import cn.autolabor.serialport.parser.SerialPortFinder
 import org.mechdancer.common.Polar
 import org.mechdancer.common.Stamped
-import org.mechdancer.exceptions.DeviceNotExistException
+import org.mechdancer.exceptions.device.DeviceNotExistException
 import java.io.Closeable
 import java.util.*
 import kotlin.math.PI

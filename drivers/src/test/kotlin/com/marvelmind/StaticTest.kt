@@ -18,7 +18,7 @@ import kotlin.math.sqrt
 fun main() = runBlocking<Unit>(Dispatchers.Default) {
     // 话题
     val beaconOnMap = channel<Stamped<Vector2D>>()
-    val exceptions = channel<ExceptionMessage<MobileBeaconException>>()
+    val exceptions = channel<ExceptionMessage>()
     // 任务
     startMobileBeacon(
         beaconOnMap = beaconOnMap,
@@ -34,7 +34,7 @@ fun main() = runBlocking<Unit>(Dispatchers.Default) {
     }
     launch {
         for (e in exceptions)
-            if (e is ExceptionMessage.Occurred<*>)
+            if (e is ExceptionMessage.Occurred)
                 println(e.what)
     }
 }

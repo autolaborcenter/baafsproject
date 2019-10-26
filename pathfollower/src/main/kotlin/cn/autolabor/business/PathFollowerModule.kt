@@ -38,7 +38,7 @@ class PathFollowerModule(
     private val robotOnMap: ReceiveChannel<Stamped<Odometry>>,
     private val robotOnOdometry: ReceiveChannel<Stamped<Odometry>>,
     private val commandOut: SendChannel<NonOmnidirectional>,
-    private val exceptions: SendChannel<ExceptionMessage<FollowFailedException>>,
+    private val exceptions: SendChannel<ExceptionMessage>,
     private val follower: VirtualLightSensorPathFollower,
     directionLimit: Angle,
     pathInterval: Double,

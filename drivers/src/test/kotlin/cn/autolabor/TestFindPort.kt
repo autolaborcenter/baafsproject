@@ -12,7 +12,7 @@ object MarvelmindTest {
             timeoutMs = 1000
             bufferSize = 32
             condition { it is BeaconPackage.Data && it.code == 0x11 }
-        }?.descriptivePortName.let(::println)
+        }.descriptivePortName.let(::println)
     }
 }
 
@@ -25,6 +25,6 @@ object FaselaseTest {
             bufferSize = 32
             activate = "#SF 10\r\n".toByteArray(Charsets.US_ASCII)
             condition { it is LidarPack.Data }
-        }?.descriptivePortName.let(::println)
+        }.descriptivePortName.let(::println)
     }
 }
