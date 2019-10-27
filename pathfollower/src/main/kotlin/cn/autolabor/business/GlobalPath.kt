@@ -61,7 +61,7 @@ class GlobalPath(
         // 产生全局路径（机器人坐标系下）
         return when {
             get(i).p euclid p < localLimit -> {
-                val mapToRobot = -robotOnMap.toTransformation()
+                val mapToRobot = robotOnMap.toTransformation().inverse()
                 asSequence().drop(i).map { mapToRobot(it) }
             }
             else                           ->

@@ -12,6 +12,7 @@ class FaselaseLidarSetBuilderDsl private constructor() {
     var launchTimeout: Long = 5000L
     var connectionTimeout: Long = 3000L
     var dataTimeout: Long = 2000L
+    var retryInterval: Long = 100L
     var configs = mutableMapOf<String, FaselaseLidarConfig>()
 
     data class FaselaseLidarConfig internal constructor(
@@ -43,7 +44,8 @@ class FaselaseLidarSetBuilderDsl private constructor() {
                             tag = config.tag,
                             launchTimeout = launchTimeout,
                             connectionTimeout = connectionTimeout,
-                            dataTimeout = dataTimeout
+                            dataTimeout = dataTimeout,
+                            retryInterval = retryInterval
                         ) to config.pose.toTransformation().let {
                             if (config.inverse)
                                 it * Transformation(matrix {

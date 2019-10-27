@@ -74,9 +74,9 @@ fun main() {
             ) {
                 port = null
                 retryInterval = 100L
-                connectionTimeout = 4000L
-                parseTimeout = 3500L
-                dataTimeout = 3000L
+                connectionTimeout = 3000L
+                parseTimeout = 2500L
+                dataTimeout = 2000L
                 delayLimit = 400L
             }
             println("done")
@@ -99,7 +99,7 @@ fun main() {
                 robotOnMap = robotOnMap.input
             ) {
                 filter {
-                    beaconOnRobot = vector2DOf(-.01, 0)
+                    beaconOnRobot = vector2DOf(-.01, -.02)
                     maxInconsistency = .1
                     convergence { (age, _, d) -> age > .2 && d > .9 }
                     divergence { (age, _, _) -> age < .1 }
@@ -117,12 +117,12 @@ fun main() {
                 searchLength = 1.0
                 directionLimit = (-120).toDegree()
                 follower {
-                    sensorPose = odometry(.16, .0)
-                    lightRange = Circle(.2, 16)
-                    controller = Proportion(1.25)
+                    sensorPose = odometry(.2, .0)
+                    lightRange = Circle(.24, 16)
+                    controller = Proportion(1.0)
                     minTipAngle = 60.toDegree()
                     minTurnAngle = 15.toDegree()
-                    maxLinearSpeed = .09
+                    maxLinearSpeed = .1
                     maxAngularSpeed = .3.toRad()
                 }
                 painter = remote

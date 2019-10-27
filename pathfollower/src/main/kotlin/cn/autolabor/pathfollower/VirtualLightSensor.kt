@@ -23,7 +23,7 @@ class VirtualLightSensor(
     onRobot: Odometry,
     private val lightRange: Shape
 ) {
-    private val robotToSensor = -onRobot.toTransformation()
+    private val robotToSensor = onRobot.toTransformation().inverse()
 
     @DebugTemporary(DELETE)
     val sensorToRobot = onRobot.toTransformation()

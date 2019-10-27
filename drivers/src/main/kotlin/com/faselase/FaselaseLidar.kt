@@ -29,7 +29,8 @@ class FaselaseLidar(
     tag: String?,
     launchTimeout: Long,
     connectionTimeout: Long,
-    private val dataTimeout: Long
+    private val dataTimeout: Long,
+    retryInterval: Long
 ) : CoroutineScope by scope {
     // 解析
     private val engine = engine()
@@ -65,7 +66,7 @@ class FaselaseLidar(
         launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
             val name = this@FaselaseLidar.tag
             while (port.isOpen)
-                port.readOrReboot(buffer, 100L) {
+                port.readOrReboot(buffer, retryInterval) {
                     exceptions.send(Occurred(DeviceOfflineException(name)))
                 }.takeIf(Collection<*>::isNotEmpty)
                     ?.let { buffer ->

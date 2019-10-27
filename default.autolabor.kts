@@ -48,7 +48,7 @@ val robotOnOdometry = YChannel<Stamped<Odometry>>()
 val robotOnMap = YChannel<Stamped<Odometry>>()
 val beaconOnMap = channel<Stamped<Vector2D>>()
 val commandToObstacle = channel<NonOmnidirectional>()
-val exceptions = channel<ExceptionMessage<*>>()
+val exceptions = channel<ExceptionMessage>()
 val commandToSwitch = channel<NonOmnidirectional>()
 val commandToRobot = channel<NonOmnidirectional>()
 // 任务
@@ -72,9 +72,9 @@ try {
         ) {
             port = null
             retryInterval = 100L
-            connectionTimeout = 4000L
-            parseTimeout = 3500L
-            dataTimeout = 3000L
+            connectionTimeout = 3000L
+            parseTimeout = 2500L
+            dataTimeout = 2000L
             delayLimit = 400L
         }
         println("done")
@@ -97,7 +97,7 @@ try {
             robotOnMap = robotOnMap.input
         ) {
             filter {
-                beaconOnRobot = vector2DOf(-.01, 0)
+                beaconOnRobot = vector2DOf(-.01, -.02)
                 maxInconsistency = .1
                 convergence { (age, _, d) -> age > .2 && d > .9 }
                 divergence { (age, _, _) -> age < .1 }
