@@ -45,16 +45,20 @@ fun main() = runBlocking<Unit>(Dispatchers.Default) {
     val set = startFaselaseLidarSet(
         exceptions = exceptions
     ) {
-        lidar("/dev/pos3") {
-            tag = "FrontLidar"
-            pose = odometry(.113, 0, PI / 2)
+        lidar("com3") {
+            tag = "Lidar"
             inverse = false
         }
-        lidar("/dev/pos4") {
-            tag = "BackLidar"
-            pose = odometry(-.138, 0, PI / 2)
-            inverse = false
-        }
+//        lidar("/dev/pos3") {
+//            tag = "FrontLidar"
+//            pose = odometry(.113, 0, PI / 2)
+//            inverse = false
+//        }
+//        lidar("/dev/pos4") {
+//            tag = "BackLidar"
+//            pose = odometry(-.138, 0, PI / 2)
+//            inverse = false
+//        }
     }!!
     launch {
         while (true) {

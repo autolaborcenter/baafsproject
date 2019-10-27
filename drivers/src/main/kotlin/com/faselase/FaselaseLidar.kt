@@ -60,7 +60,7 @@ class FaselaseLidar(
     val tag = tag ?: port.descriptivePortName
     val frame get() = lock.read { list.toList() }
     // 日志
-    private val logger = SimpleLogger(this.tag)
+    private val logger = SimpleLogger(this.tag).apply { period = 4096 }
 
     init {
         launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
@@ -91,8 +91,7 @@ class FaselaseLidar(
                                             DataTimeoutException(name, dataTimeout))
                                     }
                                     val (rho, theta) = pack
-                                    val data = Stamped.stamp(Polar(rho, refresh(theta)))
-                                    lock.write { list.offer(data) }
+                                    lock.write { list.offer(Stamped.stamp(Polar(rho, refresh(theta)))) }
                                     logger.log(rho, theta)
                                 }
                             }
