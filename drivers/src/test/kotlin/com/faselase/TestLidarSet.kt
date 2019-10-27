@@ -5,10 +5,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import org.mechdancer.algebra.function.vector.plus
+import org.mechdancer.algebra.function.vector.times
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.channel
-import org.mechdancer.common.Odometry.Companion.odometry
 import org.mechdancer.exceptions.ExceptionMessage
+import org.mechdancer.geometry.angle.toRad
+import org.mechdancer.geometry.angle.toVector
 import org.mechdancer.networksInfo
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.remoteHub
@@ -35,9 +38,14 @@ fun main() = runBlocking<Unit>(Dispatchers.Default) {
         vector2DOf(+.10, -.20),
         vector2DOf(+.25, -.08),
         vector2DOf(+.25, +.08))
+    val circle = List(32 + 1) { i ->
+        (i * 2 * PI / 32).toRad().toVector() * .15
+    }
     launch {
         while (true) {
             remote.paintVectors("轮廓", robotOutline)
+            remote.paintVectors("前雷达", circle.map { it + vector2DOf(+.113, 0) })
+            remote.paintVectors("后雷达", circle.map { it + vector2DOf(-.138, 0) })
             delay(2000L)
         }
     }

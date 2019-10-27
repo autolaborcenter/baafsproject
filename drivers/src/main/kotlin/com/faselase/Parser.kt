@@ -73,7 +73,7 @@ fun engine() =
 
                 when {
                     theta !in 0.0..2 * PI -> LidarPack.Failed
-                    rho !in 0.15..10.0    -> LidarPack.Invalid(theta)
+                    rho !in .05..10.0     -> LidarPack.Invalid(theta)
                     else                  -> LidarPack.Data(rho, theta)
                 }
             } else {
