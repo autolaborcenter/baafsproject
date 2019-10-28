@@ -2,7 +2,7 @@ package com.faselase
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.SendChannel
-import org.mechdancer.algebra.implement.matrix.builder.matrix
+import org.mechdancer.algebra.implement.matrix.builder.toDiagonalMatrix
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.toTransformation
@@ -67,11 +67,7 @@ class FaselaseLidarSetBuilderDsl private constructor() {
                         retryInterval = retryInterval
                     ) to config.pose.toTransformation().let {
                         if (config.inverse)
-                            it * Transformation(matrix {
-                                row(+1, 0, 0)
-                                row(0, -1, 0)
-                                row(0, 0, +1)
-                            })
+                            it * Transformation(listOf(+1, -1, +1).toDiagonalMatrix())
                         else it
                     }
                 }.let { FaselaseLidarSet(it.toMap(), filter) }

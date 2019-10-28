@@ -59,9 +59,9 @@ class CollisionPredictingModuleBuilderDsl {
                             val points = getting.await()
                             count =
                                 if (points.any { it in outline })
-                                    min(count + 1, countToStop)
+                                    min(count + 1, +countToStop)
                                 else
-                                    max(count - 1, countToContinue)
+                                    max(count - 1, -countToContinue)
                             if (count > 0)
                                 exception.send(Recovered(CollisionDetectedException))
                             else
