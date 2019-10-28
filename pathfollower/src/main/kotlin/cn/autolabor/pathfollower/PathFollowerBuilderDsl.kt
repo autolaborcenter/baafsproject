@@ -1,7 +1,7 @@
 package cn.autolabor.pathfollower
 
-import cn.autolabor.pathfollower.shape.Circle
-import cn.autolabor.pathfollower.shape.Shape
+import org.mechdancer.shape.Circle
+import org.mechdancer.shape.Shape
 import org.mechdancer.BuilderDslMarker
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.filters.Filter

@@ -1,7 +1,7 @@
 package cn.autolabor.pathfollower
 
 import cn.autolabor.pathfollower.PathFollowerModuleDebugerBuilderDsl.Companion.debugPathFollowerModule
-import cn.autolabor.pathfollower.shape.Circle
+import org.mechdancer.shape.Circle
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.mechdancer.common.Odometry.Companion.odometry
 

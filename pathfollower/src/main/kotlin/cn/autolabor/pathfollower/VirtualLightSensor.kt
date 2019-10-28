@@ -1,6 +1,6 @@
 package cn.autolabor.pathfollower
 
-import cn.autolabor.pathfollower.shape.Shape
+import org.mechdancer.shape.Shape
 import org.mechdancer.DebugTemporary
 import org.mechdancer.DebugTemporary.Operation.DELETE
 import org.mechdancer.algebra.function.vector.dot

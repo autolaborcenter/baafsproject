@@ -8,8 +8,7 @@ import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.module.networkhub.UDPMulticastBroadcaster
 import cn.autolabor.pathfollower.Proportion
-import cn.autolabor.pathfollower.shape.Circle
-import com.faselase.FaselaseLidarSetBuilderDsl.Companion.startFaselaseLidarSet
+import org.mechdancer.shape.Circle
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
 import kotlinx.coroutines.*
 import org.mechdancer.YChannel
@@ -28,7 +27,6 @@ import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
-import kotlin.math.PI
 import kotlin.system.exitProcess
 
 @ExperimentalCoroutinesApi

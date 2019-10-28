@@ -13,6 +13,7 @@ import org.mechdancer.remote.resources.Command
 import org.mechdancer.remote.resources.MulticastSockets
 import org.mechdancer.remote.resources.Name
 import org.mechdancer.remote.resources.Networks
+import org.mechdancer.shape.Shape
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 
@@ -199,6 +200,24 @@ fun RemoteHub.paintVectors(
                 writeDouble(v.y)
                 writeDouble(v.z)
             }
+        }
+    }
+}
+
+fun RemoteHub.paint(
+    topic: String,
+    shape: Shape
+) = paint(topic) {
+    DataOutputStream(this).apply {
+        writeByte(0)
+        writeByte(TwoDouble.value)
+        for ((x, y) in shape.vertex) {
+            writeDouble(x)
+            writeDouble(y)
+        }
+        with(shape.vertex.first()) {
+            writeDouble(x)
+            writeDouble(y)
         }
     }
 }

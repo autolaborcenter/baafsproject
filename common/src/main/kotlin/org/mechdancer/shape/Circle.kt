@@ -1,4 +1,4 @@
-package cn.autolabor.pathfollower.shape
+package org.mechdancer.shape
 
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.function.vector.times
