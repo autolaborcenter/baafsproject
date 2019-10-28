@@ -1,16 +1,14 @@
 package com.faselase
 
-import com.faselase.FaselaseLidarSetBuilderDsl.Companion.startFaselaseLidarSet
+import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.algebra.function.vector.plus
-import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry.Companion.odometry
-import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.networksInfo
 import org.mechdancer.paint
 import org.mechdancer.paintVectors
@@ -48,17 +46,11 @@ fun main() = runBlocking(Dispatchers.Default) {
             delay(2000L)
         }
     }
-    val exceptions = channel<ExceptionMessage>()
-    val lidarPointsOnRobot = channel<List<Vector2D>>()
-    startFaselaseLidarSet(
-        points = lidarPointsOnRobot,
-        exceptions = exceptions
-    ) {
+    val lidarSet = faselaseLidarSet(exceptions = channel()) {
         launchTimeout = 5000L
-        connectionTimeout = 3000L
-        dataTimeout = 2000L
+        connectionTimeout = 800L
+        dataTimeout = 400L
         retryInterval = 100L
-        period = 100L
         lidar(port = "/dev/pos3") {
             tag = "FrontLidar"
             pose = odometry(.113, 0, PI / 2)
@@ -73,8 +65,10 @@ fun main() = runBlocking(Dispatchers.Default) {
             p !in robotOutline
         }
     }
-    for (points in lidarPointsOnRobot) {
+    while (true) {
+        val points = lidarSet.frame
         println("size = ${points.size}")
         remote.paintVectors("雷达", points)
+        delay(100L)
     }
 }

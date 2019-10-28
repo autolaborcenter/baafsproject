@@ -8,7 +8,6 @@ import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.module.networkhub.UDPMulticastBroadcaster
 import cn.autolabor.pathfollower.Proportion
-import cn.autolabor.pathfollower.shape.Circle
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
 import kotlinx.coroutines.*
 import org.mechdancer.YChannel
@@ -27,6 +26,7 @@ import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
+import org.mechdancer.shape.Circle
 import kotlin.system.exitProcess
 
 ServerManager.setSetup(object : DefaultSetup() {
@@ -45,10 +45,10 @@ val remote by lazy {
 
 // 话题
 val robotOnOdometry = YChannel<Stamped<Odometry>>()
-val robotOnMap = YChannel<Stamped<Odometry>>()
+val robotOnMap = channel<Stamped<Odometry>>()
 val beaconOnMap = channel<Stamped<Vector2D>>()
-val commandToObstacle = channel<NonOmnidirectional>()
 val exceptions = channel<ExceptionMessage>()
+val commandToObstacle = channel<NonOmnidirectional>()
 val commandToSwitch = channel<NonOmnidirectional>()
 val commandToRobot = channel<NonOmnidirectional>()
 // 任务
@@ -94,7 +94,7 @@ try {
         startLocationFusion(
             robotOnOdometry = robotOnOdometry.outputs[0],
             beaconOnMap = beaconOnMap,
-            robotOnMap = robotOnMap.input
+            robotOnMap = robotOnMap
         ) {
             filter {
                 beaconOnRobot = vector2DOf(-.01, -.02)
@@ -105,7 +105,7 @@ try {
             painter = remote
         }
         startPathFollower(
-            robotOnMap = robotOnMap.outputs[0],
+            robotOnMap = robotOnMap,
             robotOnOdometry = robotOnOdometry.outputs[1],
             commandOut = commandToObstacle,
             exceptions = exceptions,

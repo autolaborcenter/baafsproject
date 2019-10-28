@@ -8,7 +8,6 @@ import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.module.networkhub.UDPMulticastBroadcaster
 import cn.autolabor.pathfollower.Proportion
-import org.mechdancer.shape.Circle
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
 import kotlinx.coroutines.*
 import org.mechdancer.YChannel
@@ -27,6 +26,7 @@ import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
+import org.mechdancer.shape.Circle
 import kotlin.system.exitProcess
 
 @ExperimentalCoroutinesApi
@@ -49,7 +49,6 @@ fun main() {
     val robotOnOdometry = YChannel<Stamped<Odometry>>()
     val robotOnMap = channel<Stamped<Odometry>>()
     val beaconOnMap = channel<Stamped<Vector2D>>()
-    val lidarPointsOnRobot = channel<List<Vector2D>>()
     val exceptions = channel<ExceptionMessage>()
     val commandToObstacle = channel<NonOmnidirectional>()
     val commandToSwitch = channel<NonOmnidirectional>()
@@ -81,30 +80,6 @@ fun main() {
                 delayLimit = 400L
             }
             println("done")
-
-//            println("trying to connect to faselase lidar set...")
-//            startFaselaseLidarSet(
-//                points = lidarPointsOnRobot,
-//                exceptions = exceptions
-//            ) {
-//                launchTimeout = 5000L
-//                connectionTimeout = 3000L
-//                dataTimeout = 2000L
-//                retryInterval = 100L
-//                period = 100L
-//
-//                lidar(port = "/dev/pos3") {
-//                    tag = "FrontLidar"
-//                    pose = odometry(.113, 0, PI / 2)
-//                    inverse = false
-//                }
-//                lidar(port = "/dev/pos4") {
-//                    tag = "BackLidar"
-//                    pose = odometry(-.138, 0, PI / 2)
-//                    inverse = false
-//                }
-//            }
-//            println("done")
 
             println("trying to connect to faselase lidars...")
             startObstacleAvoiding(
