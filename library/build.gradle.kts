@@ -9,7 +9,6 @@ dependencies {
     api(project(":painter"))          // 调试与绘图功能
     // 导出外部依赖
     api(fileTree("../libs"))
-    api("org.mechdancer", "linearalgebra", "+")
     api("net.java.dev.jna", "jna", "+")
     api("com.fazecast", "jSerialComm", "+")
     // 其他测试

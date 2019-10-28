@@ -10,7 +10,7 @@ buildscript {
 }
 
 plugins {
-    kotlin("jvm") version "1.3.50"
+    kotlin("jvm") version "1.3.50" apply true
     `build-scan`
 }
 
@@ -22,19 +22,11 @@ buildScan {
 
 // 包括主项目的构建脚本
 allprojects {
-    apply(plugin = "kotlin")
     group = "cn.autolabor"
     version = "v0.0.9"
     repositories {
         mavenCentral()
         jcenter()
-    }
-    tasks.withType<KotlinCompile> {
-        kotlinOptions { jvmTarget = "1.8" }
-    }
-    tasks.withType<JavaCompile> {
-        sourceCompatibility = "1.8"
-        targetCompatibility = "1.8"
     }
     dependencies {
         // 自动依赖 kotlin 标准库
@@ -44,14 +36,21 @@ allprojects {
         testImplementation("junit", "junit", "+")
         testImplementation(kotlin("test-junit"))
     }
+    tasks.withType<KotlinCompile> {
+        kotlinOptions { jvmTarget = "1.8" }
+    }
+    tasks.withType<JavaCompile> {
+        sourceCompatibility = "1.8"
+        targetCompatibility = "1.8"
+    }
     // 源码导出任务
     with("sourcesJar") {
         tasks["jar"].dependsOn(this)
         tasks.register<Jar>(this) {
+            group = JavaBasePlugin.BUILD_TASK_NAME
+            description = "create sources jar"
             archiveClassifier.set("sources")
-            group = "build"
-
-            from(sourceSets["main"].allSource)
+            from(sourceSets.main.get().allSource)
         }
     }
 }
@@ -60,7 +59,7 @@ allprojects {
 subprojects {
     dependencies {
         // 子项目自动依赖重要数学和定义库
-        implementation("org.mechdancer", "linearalgebra", "+")
+        implementation(files("../libs/linearalgebra-0.2.6-dev-1.jar"))
         implementation(files("../libs/simulator-0.0.2.jar"))
     }
 }
@@ -83,8 +82,8 @@ dependencies {
         description = "pack jar to run script"
         archiveClassifier.set(name)
         from(sourceSets.main.get().output,
-            configurations.runtimeClasspath.get()
-                .map { if (it.isDirectory) it else zipTree(it) })
+             configurations.runtimeClasspath.get()
+                 .map { if (it.isDirectory) it else zipTree(it) })
     }
 }
 
