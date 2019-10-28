@@ -43,13 +43,13 @@ fun main() = runBlocking(Dispatchers.Default) {
         dataTimeout = 2000L
         retryInterval = 100L
         period = 100L
-        lidar(port = "com3") {
+        lidar {
             tag = "Lidar"
             inverse = true
         }
     }
     for (points in lidarPointsOnRobot) {
-        println(points.size)
+        println("size = ${points.size}")
         remote.paintVectors("雷达", points)
     }
 }

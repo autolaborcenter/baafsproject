@@ -68,7 +68,7 @@ fun main() = runBlocking(Dispatchers.Default) {
         }
     }
     for (points in lidarPointsOnRobot) {
-        println(points.size)
+        println("size = ${points.size}")
         remote.paintVectors("雷达", points)
     }
 }

@@ -19,7 +19,9 @@ class FaselaseLidarSetBuilderDsl private constructor() {
     var dataTimeout: Long = 2000L
     var retryInterval: Long = 100L
     var period: Long = 100L
-    private var configs = mutableMapOf<String, FaselaseLidarConfig>()
+
+    private var autoDetect: FaselaseLidarConfig? = null
+    private var configs = mutableMapOf<String?, FaselaseLidarConfig>()
     private var filter: (Vector2D) -> Boolean = { true }
 
     data class FaselaseLidarConfig internal constructor(
@@ -27,11 +29,17 @@ class FaselaseLidarSetBuilderDsl private constructor() {
         var pose: Odometry = Odometry(),
         var inverse: Boolean = false)
 
-    fun lidar(
-        port: String,
-        block: FaselaseLidarConfig.() -> Unit
-    ) = require(configs.putIfAbsent(port, FaselaseLidarConfig().apply(block)) == null) {
-        "faselase lidar on $port is already added"
+    fun lidar(block: FaselaseLidarConfig.() -> Unit) {
+        require(configs.isEmpty())
+        autoDetect = FaselaseLidarConfig().apply(block)
+    }
+
+    fun lidar(port: String,
+              block: FaselaseLidarConfig.() -> Unit) {
+        require(autoDetect == null)
+        require(configs.putIfAbsent(port, FaselaseLidarConfig().apply(block)) == null) {
+            "faselase lidar on $port is already added"
+        }
     }
 
     fun filter(block: (Vector2D) -> Boolean) {
@@ -46,7 +54,10 @@ class FaselaseLidarSetBuilderDsl private constructor() {
         ) {
             FaselaseLidarSetBuilderDsl()
                 .apply(block)
-                .apply { require(configs.isNotEmpty()) }
+                .apply {
+                    if (configs.isEmpty())
+                        configs = mutableMapOf(null to autoDetect!!)
+                }
                 .run {
                     val map = configs.map { (portName, config) ->
                         FaselaseLidar(
