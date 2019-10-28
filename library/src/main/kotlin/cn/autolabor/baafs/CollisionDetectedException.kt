@@ -1,4 +1,4 @@
-package cn.autolabor
+package cn.autolabor.baafs
 
 import org.mechdancer.exceptions.RecoverableException
 

@@ -1,4 +1,4 @@
-package cn.autolabor
+package cn.autolabor.baafs
 
 import com.faselase.FaselaseLidarSet
 import kotlinx.coroutines.CoroutineScope
@@ -14,6 +14,9 @@ import org.mechdancer.common.toTransformation
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
+import org.mechdancer.paint
+import org.mechdancer.paintVectors
+import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.shape.Shape
 import kotlin.math.max
 import kotlin.math.min
@@ -23,6 +26,7 @@ class CollisionPredictingModuleBuilderDsl {
     var predictingTime: Long = 100L
     var countToContinue: Int = 5
     var countToStop: Int = 5
+    var painter: RemoteHub? = null
 
     companion object {
         fun CoroutineScope.startCollisionPredictingModule(
@@ -45,15 +49,16 @@ class CollisionPredictingModuleBuilderDsl {
                     launch {
                         for (command in commandIn) {
                             val delta = command.toDeltaOdometry(predictingTime / 1000.0).toTransformation()
-                            val points = async { lidarSet.frame }
+                            val getting = async { lidarSet.frame }
                             val outline = origin
                                 .asSequence()
                                 .map(delta::invoke)
                                 .map(Vector::to2D)
                                 .toList()
                                 .let(::Shape)
+                            val points = getting.await()
                             count =
-                                if (points.await().any { it in outline })
+                                if (points.any { it in outline })
                                     min(count + 1, countToStop)
                                 else
                                     max(count - 1, countToContinue)
@@ -61,6 +66,11 @@ class CollisionPredictingModuleBuilderDsl {
                                 exception.send(Recovered(CollisionDetectedException))
                             else
                                 exception.send(Occurred(CollisionDetectedException))
+                            painter?.run {
+                                paint("机器人轮廓", robotOutline)
+                                paint("运动预测", outline)
+                                paintVectors("障碍物", points)
+                            }
                         }
                     }
                 }
