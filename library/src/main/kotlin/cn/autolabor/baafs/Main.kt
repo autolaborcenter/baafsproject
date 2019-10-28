@@ -9,6 +9,7 @@ import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocati
 import cn.autolabor.module.networkhub.UDPMulticastBroadcaster
 import cn.autolabor.pathfollower.Proportion
 import cn.autolabor.pathfollower.shape.Circle
+import com.faselase.FaselaseLidarSetBuilderDsl.Companion.startFaselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
 import kotlinx.coroutines.*
 import org.mechdancer.YChannel
@@ -27,6 +28,7 @@ import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
+import kotlin.math.PI
 import kotlin.system.exitProcess
 
 @ExperimentalCoroutinesApi
@@ -47,10 +49,11 @@ fun main() {
 
     // 话题
     val robotOnOdometry = YChannel<Stamped<Odometry>>()
-    val robotOnMap = YChannel<Stamped<Odometry>>()
+    val robotOnMap = channel<Stamped<Odometry>>()
     val beaconOnMap = channel<Stamped<Vector2D>>()
-    val commandToObstacle = channel<NonOmnidirectional>()
+    val lidarPointsOnRobot = channel<List<Vector2D>>()
     val exceptions = channel<ExceptionMessage>()
+    val commandToObstacle = channel<NonOmnidirectional>()
     val commandToSwitch = channel<NonOmnidirectional>()
     val commandToRobot = channel<NonOmnidirectional>()
     // 任务
@@ -81,6 +84,30 @@ fun main() {
             }
             println("done")
 
+//            println("trying to connect to faselase lidar set...")
+//            startFaselaseLidarSet(
+//                points = lidarPointsOnRobot,
+//                exceptions = exceptions
+//            ) {
+//                launchTimeout = 5000L
+//                connectionTimeout = 3000L
+//                dataTimeout = 2000L
+//                retryInterval = 100L
+//                period = 100L
+//
+//                lidar(port = "/dev/pos3") {
+//                    tag = "FrontLidar"
+//                    pose = odometry(.113, 0, PI / 2)
+//                    inverse = false
+//                }
+//                lidar(port = "/dev/pos4") {
+//                    tag = "BackLidar"
+//                    pose = odometry(-.138, 0, PI / 2)
+//                    inverse = false
+//                }
+//            }
+//            println("done")
+
             println("trying to connect to faselase lidars...")
             startObstacleAvoiding(
                 launchLidar = true,
@@ -96,7 +123,7 @@ fun main() {
             startLocationFusion(
                 robotOnOdometry = robotOnOdometry.outputs[0],
                 beaconOnMap = beaconOnMap,
-                robotOnMap = robotOnMap.input
+                robotOnMap = robotOnMap
             ) {
                 filter {
                     beaconOnRobot = vector2DOf(-.01, -.02)
@@ -107,7 +134,7 @@ fun main() {
                 painter = remote
             }
             startPathFollower(
-                robotOnMap = robotOnMap.outputs[0],
+                robotOnMap = robotOnMap,
                 robotOnOdometry = robotOnOdometry.outputs[1],
                 commandOut = commandToObstacle,
                 exceptions = exceptions,
