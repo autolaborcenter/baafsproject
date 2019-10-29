@@ -15,10 +15,10 @@ import org.mechdancer.remote.presets.RemoteHub
 @BuilderDslMarker
 class LocationFusionModuleBuilderDsl private constructor() {
     // 滤波器配置
-    var filter = particleFilter {}
+    private var filterBlocks = mutableListOf<ParticleFilterBuilderDsl.() -> Unit>()
 
     fun filter(block: ParticleFilterBuilderDsl.() -> Unit) {
-        filter = particleFilter(block)
+        filterBlocks.add(block)
     }
 
     var logger: SimpleLogger? = SimpleLogger("LocationFusionModule")
@@ -38,9 +38,12 @@ class LocationFusionModuleBuilderDsl private constructor() {
             LocationFusionModuleBuilderDsl()
                 .apply(block)
                 .run {
+                    // 构造滤波器
+                    val filter = particleFilter { for (f in this@run.filterBlocks) f(this) }
                     painter?.run {
+                        var t0: Long? = null
                         filter.stepFeedback.add { (t, state) ->
-                            val time = t.toDouble()
+                            val time = (t - (t0 ?: run { t0 = t;t })).toDouble()
                             val (measureWeight, particleWeight, quality) = state
                             paint("定位权重", time, measureWeight)
                             paint("粒子权重", time, particleWeight)
@@ -64,8 +67,8 @@ class LocationFusionModuleBuilderDsl private constructor() {
                         for (item in robotOnOdometry) {
                             painter?.paintPose("里程计", item.data)
                             filter.measureMaster(item)
-                                ?.also { robotOnMap.send(it) }
-                                ?.also { (_, data) ->
+                                .also { robotOnMap.send(it) }
+                                .also { (_, data) ->
                                     logger?.log(data.p.x, data.p.y, data.d.asRadian())
                                     painter?.run {
                                         paintPose("粒子滤波", data)

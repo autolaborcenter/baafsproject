@@ -1,14 +1,13 @@
 package cn.autolabor.baafs
 
 import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
+import cn.autolabor.business.PathFollowerModuleBuilderDsl.Companion.startPathFollower
+import cn.autolabor.business.parseFromConsole
 import cn.autolabor.core.server.DefaultSetup
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.module.networkhub.UDPMulticastBroadcaster
-import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
-import cn.autolabor.pathfollower.algorithm.Proportion
-import cn.autolabor.pathfollower.parseFromConsole
-import cn.autolabor.pathfollower.shape.Circle
+import cn.autolabor.pathfollower.Proportion
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
 import kotlinx.coroutines.*
 import org.mechdancer.YChannel
@@ -27,6 +26,7 @@ import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
+import org.mechdancer.shape.Circle
 import kotlin.system.exitProcess
 
 @ExperimentalCoroutinesApi
@@ -47,10 +47,10 @@ fun main() {
 
     // 话题
     val robotOnOdometry = YChannel<Stamped<Odometry>>()
-    val robotOnMap = YChannel<Stamped<Odometry>>()
+    val robotOnMap = channel<Stamped<Odometry>>()
     val beaconOnMap = channel<Stamped<Vector2D>>()
+    val exceptions = channel<ExceptionMessage>()
     val commandToObstacle = channel<NonOmnidirectional>()
-    val exceptions = channel<ExceptionMessage<*>>()
     val commandToSwitch = channel<NonOmnidirectional>()
     val commandToRobot = channel<NonOmnidirectional>()
     // 任务
@@ -74,8 +74,8 @@ fun main() {
             ) {
                 port = null
                 retryInterval = 100L
-                connectionTimeout = 2000L
-                parseTimeout = 2000L
+                connectionTimeout = 3000L
+                parseTimeout = 2500L
                 dataTimeout = 2000L
                 delayLimit = 400L
             }
@@ -96,33 +96,33 @@ fun main() {
             startLocationFusion(
                 robotOnOdometry = robotOnOdometry.outputs[0],
                 beaconOnMap = beaconOnMap,
-                robotOnMap = robotOnMap.input
+                robotOnMap = robotOnMap
             ) {
                 filter {
-                    beaconOnRobot = vector2DOf(-.01, 0)
-                    maxInconsistency = .05
-                    convergence { (age, _, d) -> age > .4 && d > .95 }
-                    divergence { (age, _, d) -> age < .1 && d < .4 }
+                    beaconOnRobot = vector2DOf(-.01, -.02)
+                    maxInconsistency = .1
+                    convergence { (age, _, d) -> age > .2 && d > .9 }
+                    divergence { (age, _, _) -> age < .1 }
                 }
                 painter = remote
             }
             startPathFollower(
-                robotOnMap = robotOnMap.outputs[0],
+                robotOnMap = robotOnMap,
                 robotOnOdometry = robotOnOdometry.outputs[1],
                 commandOut = commandToObstacle,
                 exceptions = exceptions,
                 consoleParser = parser
             ) {
                 pathInterval = .05
+                searchLength = 1.0
                 directionLimit = (-120).toDegree()
                 follower {
-                    sensorPose = odometry(.275, 0)
-                    controller = Proportion(1.25)
-                    lightRange = Circle(.3, 128)
+                    sensorPose = odometry(.2, .0)
+                    lightRange = Circle(.24, 16)
+                    controller = Proportion(1.0)
                     minTipAngle = 60.toDegree()
                     minTurnAngle = 15.toDegree()
-                    maxJumpCount = 20
-                    maxLinearSpeed = .09
+                    maxLinearSpeed = .1
                     maxAngularSpeed = .3.toRad()
                 }
                 painter = remote

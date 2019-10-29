@@ -1,34 +1,26 @@
 package cn.autolabor.serialport.parser
 
 import com.fazecast.jSerialComm.SerialPort
+import org.mechdancer.BuilderDslMarker
 
 /**
  * 通用串口查找器（DSL）
  */
+@BuilderDslMarker
 class SerialPortFinder<T> private constructor() {
-    /**
-     * 波特率
-     */
+    /** 波特率 */
     var baudRate: Int = 9600
 
-    /**
-     * 临时缓存容量
-     */
+    /** 临时缓存容量 */
     var bufferSize: Int = 256
 
-    /**
-     * 查找超时时间
-     */
+    /** 查找超时时间 */
     var timeoutMs: Long = 1000L
 
-    /**
-     * 发送激活码
-     */
+    /** 发送激活码 */
     var activate: ByteArray = byteArrayOf()
 
-    /**
-     * 设置成功条件
-     */
+    /** 设置成功条件 */
     fun condition(block: (T) -> Boolean) {
         predicate = block
     }
@@ -50,17 +42,23 @@ class SerialPortFinder<T> private constructor() {
             SerialPortFinder<T>()
                 .apply(block)
                 .run {
+                    val exceptionMessages = mutableListOf<String>()
                     (name?.let { arrayOf(SerialPort.getCommPort(it)) } ?: SerialPort.getCommPorts())
                         .find { port ->
                             // 设置串口
                             port.baudRate = baudRate
                             port.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 100, 100)
-                            if (!port.openPort()) return@find false
-                            println("try port ${port.descriptivePortName}")
+                            if (!port.openPort()) {
+                                exceptionMessages += "${port.systemPortName}: cannot open"
+                                return@find false
+                            }
                             // 发送激活码
                             if (activate.isNotEmpty()
                                 && activate.size != port.writeBytes(activate, activate.size.toLong())
-                            ) return@find false
+                            ) {
+                                exceptionMessages += "${port.systemPortName}: failed to send activation"
+                                return@find false
+                            }
                             // 初始化接收
                             val time = System.currentTimeMillis()
                             val array = ByteArray(bufferSize)
@@ -72,9 +70,13 @@ class SerialPortFinder<T> private constructor() {
                                     ?.let(array::take)
                                     ?.let { list -> engine(list) { result = result || predicate(it) } }
                             // 返回
-                            if (!result) port.closePort()
+                            if (!result) {
+                                exceptionMessages += "${port.systemPortName}: never receive any valid data until timeout"
+                                port.closePort()
+                            }
                             result
                         }
+                    ?: throw RuntimeException(exceptionMessages.joinToString("\n"))
                 }
     }
 }

@@ -8,7 +8,7 @@ import cn.autolabor.message.navigation.Msg2DPose;
 import cn.autolabor.message.navigation.Msg2DTwist;
 import cn.autolabor.message.navigation.MsgPolygon;
 import org.mechdancer.SimpleLogger;
-import org.mechdancer.exceptions.DataTimeoutException;
+import org.mechdancer.exceptions.device.DataTimeoutException;
 
 import java.util.List;
 
@@ -51,7 +51,7 @@ public class FilterTwistTask extends AbstractTask {
             if (timeDiff >= lidarTimeout) {
                 logger.log(String.format("Lidar timeout : %d", timeDiff));
                 twistOutHandle.pushSubData(new Msg2DOdometry(new Msg2DPose(0, 0, 0), new Msg2DTwist(0, 0, 0)));
-                throw new DataTimeoutException("faselase lidar");
+                throw new DataTimeoutException("faselase lidar", lidarTimeout);
             }
             Msg2DTwist twist = smartChoice ? poseDetectionTask.smartChoiceTwist(msg.getTwist()) : poseDetectionTask.choiceTwist(msg.getTwist(), true);
             switch (status) {

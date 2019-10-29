@@ -5,7 +5,8 @@ class Schmitt<T>(
     private val positive: (T) -> Boolean,
     private val negative: (T) -> Boolean
 ) {
-    private var state = false
+    var state = false
+        private set
 
     fun update(value: T) =
         when {

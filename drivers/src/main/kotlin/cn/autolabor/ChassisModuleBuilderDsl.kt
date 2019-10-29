@@ -11,7 +11,7 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Stamped.Companion.stamp
 import org.mechdancer.common.Velocity.NonOmnidirectional
-import org.mechdancer.exceptions.DeviceNotExistException
+import org.mechdancer.exceptions.device.DeviceNotExistException
 
 @BuilderDslMarker
 class ChassisModuleBuilderDsl private constructor() {
@@ -36,11 +36,10 @@ class ChassisModuleBuilderDsl private constructor() {
                     .apply(block)
                     .apply {
                         // 初始化 PM1
-                        PM1.runCatching {
-                            initialize(port ?: "")
-                        }.onFailure { e ->
-                            throw e.takeUnless { it is RuntimeException }
-                                  ?: DeviceNotExistException("pm1 chassis")
+                        try {
+                            PM1.initialize(port ?: "")
+                        } catch (e: RuntimeException) {
+                            throw DeviceNotExistException("pm1 chassis", e.message)
                         }
                         PM1.locked = false
                         PM1.setCommandEnabled(false)

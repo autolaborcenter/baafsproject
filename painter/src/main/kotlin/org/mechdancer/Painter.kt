@@ -1,10 +1,7 @@
 package org.mechdancer
 
 import org.mechdancer.FrameType.*
-import org.mechdancer.algebra.core.Vector
-import org.mechdancer.algebra.function.vector.x
-import org.mechdancer.algebra.function.vector.y
-import org.mechdancer.algebra.function.vector.z
+import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.common.Odometry
 import org.mechdancer.dependency.must
 import org.mechdancer.remote.presets.RemoteHub
@@ -13,6 +10,7 @@ import org.mechdancer.remote.resources.Command
 import org.mechdancer.remote.resources.MulticastSockets
 import org.mechdancer.remote.resources.Name
 import org.mechdancer.remote.resources.Networks
+import org.mechdancer.shape.Shape
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 
@@ -180,25 +178,32 @@ fun RemoteHub.paintPoses(
  */
 fun RemoteHub.paintVectors(
     topic: String,
-    list: Collection<Vector>
+    list: Collection<Vector2D>
 ) = paint(topic) {
-    when (list.map { it.dim }.toSet().singleOrNull()) {
-        2 -> DataOutputStream(this).apply {
-            writeByte(0)
-            writeByte(TwoDouble.value)
-            for (v in list) {
-                writeDouble(v.x)
-                writeDouble(v.y)
-            }
+    DataOutputStream(this).apply {
+        writeByte(0)
+        writeByte(TwoDouble.value)
+        for ((x, y) in list) {
+            writeDouble(x)
+            writeDouble(y)
         }
-        3 -> DataOutputStream(this).apply {
-            writeByte(0)
-            writeByte(ThreeDouble.value)
-            for (v in list) {
-                writeDouble(v.x)
-                writeDouble(v.y)
-                writeDouble(v.z)
-            }
+    }
+}
+
+fun RemoteHub.paint(
+    topic: String,
+    shape: Shape
+) = paint(topic) {
+    DataOutputStream(this).apply {
+        writeByte(0)
+        writeByte(TwoDouble.value)
+        for ((x, y) in shape.vertex) {
+            writeDouble(x)
+            writeDouble(y)
+        }
+        with(shape.vertex.first()) {
+            writeDouble(x)
+            writeDouble(y)
         }
     }
 }

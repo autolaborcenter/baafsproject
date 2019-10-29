@@ -40,8 +40,9 @@ private fun Byte.takeBits(mask: Int, p: Int) =
     (toIntUnsigned() and mask).let { if (p >= 0) it shl p else it ushr -p }
 
 sealed class LidarPack {
+    object Nothing : LidarPack()
     object Failed : LidarPack()
-    data class Nothing(val theta: Double) : LidarPack()
+    data class Invalid(val theta: Double) : LidarPack()
     data class Data(val rho: Double, val theta: Double) : LidarPack()
 }
 
@@ -52,13 +53,13 @@ fun engine() =
             buffer
                 .indexOfFirst { it >= 0 }
                 .takeIf { it >= 0 }
-            ?: return@ParseEngine ParseInfo(size, size, LidarPack.Failed)
+            ?: return@ParseEngine ParseInfo(size, size, LidarPack.Nothing)
 
         val `package` =
             (begin + 4)
                 .takeIf { it < size }
                 ?.let { buffer.subList(begin, it) }
-            ?: return@ParseEngine ParseInfo(begin, size, LidarPack.Failed)
+            ?: return@ParseEngine ParseInfo(begin, size, LidarPack.Nothing)
 
         val result =
             if (crcCheck(`package`)) {
@@ -72,7 +73,7 @@ fun engine() =
 
                 when {
                     theta !in 0.0..2 * PI -> LidarPack.Failed
-                    rho !in 0.15..10.0    -> LidarPack.Nothing(theta)
+                    rho !in .05..10.0     -> LidarPack.Invalid(theta)
                     else                  -> LidarPack.Data(rho, theta)
                 }
             } else {

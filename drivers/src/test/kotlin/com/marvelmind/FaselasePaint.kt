@@ -1,4 +1,4 @@
-package cn.autolabor
+package com.marvelmind
 
 import com.faselase.Resource
 import org.mechdancer.networksInfo

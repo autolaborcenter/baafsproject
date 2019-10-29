@@ -62,7 +62,7 @@ public class FaselaseTask extends AbstractTask {
     }
 
     public String name() {
-        return resource.getInfo();
+        return resource.getDescriptivePortName();
     }
 
     @TaskFunction

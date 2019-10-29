@@ -1,8 +1,9 @@
 package cn.autolabor.pathfollower
 
-import cn.autolabor.pathfollower.PathFollowerModuleBuilderDsl.Companion.startPathFollower
+import cn.autolabor.business.PathFollowerModuleBuilderDsl
+import cn.autolabor.business.PathFollowerModuleBuilderDsl.Companion.startPathFollower
+import cn.autolabor.business.parseFromConsole
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.consumeEach
 import org.mechdancer.*
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
@@ -74,7 +75,7 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
                     // 话题
                     val robotOnMap = channel<Stamped<Odometry>>()
                     val commandToRobot = channel<NonOmnidirectional>()
-                    val exceptions = channel<ExceptionMessage<*>>()
+                    val exceptions = channel<ExceptionMessage>()
                     val command = AtomicReference(velocity(.0, .0))
                     val exceptionServer = ExceptionServer()
                     val parser = buildParser {
@@ -91,6 +92,7 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
                             exceptions = exceptions,
                             consoleParser = parser
                         ) {
+                            this@run.config(this)
                             painter = remote
                         }
                         launch {
@@ -111,9 +113,7 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
                         }
                         launch { while (isActive) parser.parseFromConsole() }
                         // 运行仿真
-                        speedSimulation(T0, dt, speed) {
-                            command.get()
-                        }.consumeEach { (t, v) ->
+                        for ((t, v) in speedSimulation(T0, dt, speed) { command.get() }) {
                             //  计算机器人位姿增量
                             val actual = robot.what.drive(v, t)
                             // 里程计采样

@@ -1,5 +1,6 @@
 dependencies {
     implementation(project(":common"))
+    implementation(project(":drivers"))
     // for framework
     implementation(files("../libs/autolabor_core-1.0.0.5.jar"))
     // for gazebo

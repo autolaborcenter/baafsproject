@@ -3,7 +3,7 @@ package com.faselase
 import cn.autolabor.serialport.parser.SerialPortFinder
 import org.mechdancer.common.Polar
 import org.mechdancer.common.Stamped
-import org.mechdancer.exceptions.DeviceNotExistException
+import org.mechdancer.exceptions.device.DeviceNotExistException
 import java.io.Closeable
 import java.util.*
 import kotlin.math.PI
@@ -18,20 +18,25 @@ class Resource(
 ) : Closeable {
     private val engine = engine()
     private val port =
-        //  启动时发送开始旋转指令
-        SerialPortFinder.findSerialPort(name, engine) {
-            baudRate = 460800
-            timeoutMs = 5000
-            bufferSize = 32
-            activate = "#SF 10\r\n".toByteArray(Charsets.US_ASCII)
-            condition { pack -> pack is LidarPack.Data }
-        } ?: throw DeviceNotExistException("faselase lidar")
+        try {
+            SerialPortFinder.findSerialPort(name, engine) {
+                baudRate = 460800
+                timeoutMs = 5000
+                bufferSize = 32
+                //  启动时发送开始旋转指令
+                activate = "#SF 10\r\n".toByteArray(Charsets.US_ASCII)
+                condition { pack -> pack is LidarPack.Data }
+            }
+        } catch (e: RuntimeException) {
+            throw DeviceNotExistException("faselase lidar", e.message)
+        }
+    //    private val logger = SimpleLogger("faselase lidar")
     private val buffer = ByteArray(256)
     private val list = LinkedList<Stamped<Polar>>()
     private var offset = .0
     private var last = .0
 
-    val info: String get() = port.descriptivePortName
+    val descriptivePortName: String get() = port.descriptivePortName
 
     operator fun invoke() {
         synchronized(port) {
@@ -41,8 +46,12 @@ class Resource(
             ?.let { buffer ->
                 engine(buffer) { pack ->
                     when (pack) {
-                        is LidarPack.Failed  -> Unit
-                        is LidarPack.Nothing -> refresh(pack.theta)
+                        LidarPack.Failed,
+                        LidarPack.Nothing    -> Unit
+                        is LidarPack.Invalid -> {
+                            val (theta) = pack
+                            refresh(theta)
+                        }
                         is LidarPack.Data    -> {
                             val (rho, theta) = pack
                             list.offer(Stamped.stamp(Polar(rho, refresh(theta))))

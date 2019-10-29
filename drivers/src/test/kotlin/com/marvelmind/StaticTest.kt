@@ -1,6 +1,5 @@
-package cn.autolabor
+package com.marvelmind
 
-import com.marvelmind.MobileBeaconException
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -19,7 +18,7 @@ import kotlin.math.sqrt
 fun main() = runBlocking<Unit>(Dispatchers.Default) {
     // 话题
     val beaconOnMap = channel<Stamped<Vector2D>>()
-    val exceptions = channel<ExceptionMessage<MobileBeaconException>>()
+    val exceptions = channel<ExceptionMessage>()
     // 任务
     startMobileBeacon(
         beaconOnMap = beaconOnMap,
@@ -35,7 +34,7 @@ fun main() = runBlocking<Unit>(Dispatchers.Default) {
     }
     launch {
         for (e in exceptions)
-            if (e is ExceptionMessage.Occurred<*>)
+            if (e is ExceptionMessage.Occurred)
                 println(e.what)
     }
 }

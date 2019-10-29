@@ -1,5 +1,14 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
+buildscript {
+    repositories {
+        maven("https://maven.aliyun.com/repository/central")
+        maven("https://maven.aliyun.com/repository/google")
+        maven("https://maven.aliyun.com/repository/gradle-plugin")
+        maven("https://maven.aliyun.com/repository/jcenter")
+    }
+}
+
 plugins {
     kotlin("jvm") version "1.3.50"
     `build-scan`
@@ -20,6 +29,14 @@ allprojects {
         mavenCentral()
         jcenter()
     }
+    dependencies {
+        // 自动依赖 kotlin 标准库
+        implementation(kotlin("stdlib-jdk8"))
+        implementation("org.jetbrains.kotlinx", "kotlinx-coroutines-core", "1.3.2")
+        // 单元测试
+        testImplementation("junit", "junit", "+")
+        testImplementation(kotlin("test-junit"))
+    }
     tasks.withType<KotlinCompile> {
         kotlinOptions { jvmTarget = "1.8" }
     }
@@ -27,21 +44,14 @@ allprojects {
         sourceCompatibility = "1.8"
         targetCompatibility = "1.8"
     }
-    dependencies {
-        // 自动依赖 kotlin 标准库
-        implementation(kotlin("stdlib-jdk8"))
-        // 单元测试
-        testImplementation("junit", "junit", "+")
-        testImplementation(kotlin("test-junit"))
-    }
     // 源码导出任务
     with("sourcesJar") {
         tasks["jar"].dependsOn(this)
         tasks.register<Jar>(this) {
+            group = JavaBasePlugin.BUILD_TASK_NAME
+            description = "create sources jar"
             archiveClassifier.set("sources")
-            group = "build"
-
-            from(sourceSets["main"].allSource)
+            from(sourceSets.main.get().allSource)
         }
     }
 }
@@ -50,7 +60,7 @@ allprojects {
 subprojects {
     dependencies {
         // 子项目自动依赖重要数学和定义库
-        implementation("org.mechdancer", "linearalgebra", "+")
+        implementation(files("../libs/linearalgebra-0.2.6-dev-1.jar"))
         implementation(files("../libs/simulator-0.0.2.jar"))
     }
 }

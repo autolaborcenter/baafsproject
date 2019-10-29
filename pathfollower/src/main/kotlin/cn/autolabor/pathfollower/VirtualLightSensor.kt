@@ -1,10 +1,8 @@
-package cn.autolabor.pathfollower.algorithm
+package cn.autolabor.pathfollower
 
-import cn.autolabor.pathfollower.shape.Shape
+import org.mechdancer.shape.Shape
 import org.mechdancer.DebugTemporary
 import org.mechdancer.DebugTemporary.Operation.DELETE
-import org.mechdancer.DebugTemporary.Operation.INLINE
-import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.normalize
@@ -25,42 +23,31 @@ class VirtualLightSensor(
     onRobot: Odometry,
     private val lightRange: Shape
 ) {
-    private val robotToSensor = -onRobot.toTransformation()
+    private val robotToSensor = onRobot.toTransformation().inverse()
 
     @DebugTemporary(DELETE)
-    var areaShape = listOf<Vector2D>()
-
-    /** 局部路径（地图坐标系） */
-    @DebugTemporary(INLINE)
-    var local = listOf<Odometry>()
+    val sensorToRobot = onRobot.toTransformation()
+    @DebugTemporary(DELETE)
+    var area = listOf<Vector2D>()
         private set
 
-    /** 从全局路径 [path] 中找出相对于当前位姿 [robotOnMap] 的局部路径 */
-    fun findLocal(robotOnMap: Odometry, path: Iterable<Odometry>): IntRange {
-        // 地图到传感器坐标的变换
-        val mapToSensor = robotToSensor * (-robotOnMap.toTransformation())
-        // 循环状态
-        var pass = 0
-        var take = -1
-        loop@ for (item in path)
-            when {
-                mapToSensor(item).p in lightRange -> take = if (take < 0) pass else take + 1
-                take < 0                          -> ++pass
-                else                              -> break@loop
-            }
-        return pass..take
-    }
+    /**
+     * 照亮
+     *
+     * 从目标路径获取兴趣区段
+     * 获取到的列表中点位于传感器坐标系
+     */
+    fun shine(path: Sequence<Odometry>) =
+        path.map { pose -> pose to robotToSensor(pose.p).to2D() }
+            .dropWhile { (_, p) -> p !in lightRange }
+            .takeWhile { (_, p) -> p in lightRange }
+            .map { (pose, _) -> pose }
+            .toList()
 
     /** 虚拟光值计算 */
-    operator fun invoke(
-        pose: Odometry,
-        path: Iterable<Odometry>
-    ): Double {
-        local = path.toList()
-        // 地图到传感器坐标的变换
-        val sensorFromMap = robotToSensor * (-pose.toTransformation())
+    operator fun invoke(path: List<Odometry>): Double {
         // 转化路径到传感器坐标系并约束局部路径
-        val local = path.map { sensorFromMap.invoke(it) }
+        val local = path.map { robotToSensor(it) }
         // 处理路径丢失情况
         if (local.isEmpty()) return .0
         // 传感器栅格化
@@ -71,8 +58,7 @@ class VirtualLightSensor(
             .let { if (it < index0) it + shape.size else it }
         // 确定填色区域
         val area = Shape(local.map { it.p } + List(index1 - index0 + 1) { i -> shape[(index0 + i) % shape.size] })
-        @DebugTemporary(DELETE)
-        areaShape = area.vertex.map((-sensorFromMap)::invoke).map(Vector::to2D)
+        this.area = area.vertex.map { sensorToRobot(it).to2D() }
         // 计算误差
         return 2 * (0.5 - area.size / lightRange.size)
     }

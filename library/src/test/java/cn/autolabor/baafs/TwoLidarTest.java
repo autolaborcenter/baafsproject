@@ -46,7 +46,7 @@ public class TwoLidarTest extends AbstractTask {
         ServerManager.me().register(new LaserFilterTask("LaserFilterBack"));
         ServerManager.me().register(new ObstacleDetectionTask("ObstacleDetectionTask"));
         ServerManager.me().register(new GazeboMarkerServerTask());
-//        ServerManager.me().register(new DrawLidarTask());
+        ServerManager.me().register(new DrawLidarTask());
 //        ServerManager.me().register();
 //        ServerManager.me().dump();
     }

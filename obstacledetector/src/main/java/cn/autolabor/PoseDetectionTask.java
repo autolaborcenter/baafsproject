@@ -83,7 +83,6 @@ public class PoseDetectionTask extends AbstractTask {
             if (in.getX() != 0) {
                 Msg2DTwist testTwist = new Msg2DTwist(in.getX(), 0, 0);
                 for (int i = 1; i <= deltaNumber; i++) {
-//                    System.out.println(i);
                     // 测试左转
                     testTwist.setYaw(in.getYaw() + i * deltaOmega);
                     if (checkTwist(testTwist, obstacles, realFlag)) {

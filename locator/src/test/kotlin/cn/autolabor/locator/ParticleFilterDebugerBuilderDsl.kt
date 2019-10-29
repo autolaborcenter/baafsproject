@@ -29,13 +29,23 @@ import kotlin.random.Random
 @BuilderDslMarker
 class ParticleFilterDebugerBuilderDsl private constructor() {
     // 仿真配置
+    // 倍速仿真
     var speed = 1
+    // 仿真器工作频率
     var frequency = 50L
+    // 机器人起始位姿
+    var origin = Odometry()
     // 定位配置
+    // 定位频率
     var beaconFrequency = 7.0
+    // 丢包率
+    var beaconLossRate = .05
+    // 定位噪声标准差
     var beaconSigma = 1E-3
+    // 定位平均延时
     var beaconDelay = 170L
-    var beacon = vector2DOfZero()
+    // 定位标签位置
+    var beaconOnRobot = vector2DOfZero()
 
     // 定位异常配置
     @BuilderDslMarker
@@ -109,12 +119,18 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
         fun debugParticleFilter(block: ParticleFilterDebugerBuilderDsl.() -> Unit = {}) {
             ParticleFilterDebugerBuilderDsl()
                 .apply(block)
+                .apply {
+                    require(frequency > 0)
+                    require(beaconFrequency > 0)
+                    require(odometryFrequency > 0)
+                    require(beaconLossRate in 0.0..1.0)
+                }
                 .run {
                     // 机器人机械结构
-                    val robot = StructBuilderDSL.struct(Chassis(Stamped(T0, Odometry()))) {
+                    val robot = StructBuilderDSL.struct(Chassis(Stamped(T0, origin))) {
                         Encoder(Key.Left) asSub { pose = Odometry(leftWheel) }
                         Encoder(Key.Right) asSub { pose = Odometry(rightWheel) }
-                        BEACON_TAG asSub { pose = Odometry(beacon) }
+                        BEACON_TAG asSub { pose = Odometry(beaconOnRobot) }
                     }
                     // 编码器在机器人上的位姿
                     val encodersOnRobot =
@@ -125,12 +141,14 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                     val beaconOnRobot =
                         robot.devices[BEACON_TAG]!!.toPose().p
 
-                    // 定位命中率
-                    val beaconRate = beaconFrequency / frequency
                     // 标签延时队列
                     val beaconQueue: Queue<Stamped<Vector2D>> = LinkedList<Stamped<Vector2D>>()
                     // 标签偏置
                     val beaconErrors = errors.beaconErrors
+                    // 里程计周期
+                    val beaconPeriod = 1000L / beaconFrequency
+                    // 定位标签采样计数
+                    var beaconTimes = 0L
 
                     // 差动里程计
                     val odometry = DifferentialOdometry(wheelsWidthMeasure, Stamped(T0, Odometry()))
@@ -177,16 +195,16 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                             val get = { key: Key -> encodersOnRobot.keys.single { (k, _) -> k == key }.value }
                             val pose = odometry.update(get(Key.Left) to get(Key.Right), t).data
                             // 定位采样
-                            if (Random.nextDouble() < beaconRate) {
-                                val beaconError =
-                                    beaconErrors
+                            if (t > beaconTimes * beaconPeriod) {
+                                ++beaconTimes
+                                if (Random.nextDouble() > beaconLossRate)
+                                    beaconQueue += beaconErrors
                                         .fold(vector2DOf(Normal.next(.0, beaconSigma),
                                                          Normal.next(.0, beaconSigma))
-                                        ) { sum, source ->
-                                            sum + source.next()
+                                        ) { sum, source -> sum + source.next() }
+                                        .let {
+                                            Stamped(t, actual.data.toTransformation()(beaconOnRobot).to2D() + it)
                                         }
-                                beaconQueue +=
-                                    Stamped(t, actual.data.toTransformation()(beaconOnRobot).to2D() + beaconError)
                             }
                             // 延时发送采样
                             while (beaconQueue.peek()?.time?.let { it < t - beaconDelay } == true)
