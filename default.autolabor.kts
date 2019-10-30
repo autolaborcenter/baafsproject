@@ -60,8 +60,8 @@ try {
             command = commandToRobot
         ) {
             port = null
-            period = 30L
-            controlTimeout = 300L
+            period = 40L
+            controlTimeout = 600L
         }
         println("done")
 

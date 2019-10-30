@@ -76,7 +76,6 @@ class Business(
 
     suspend fun cancel() {
         function?.job?.cancelAndJoin()
-        if (function is Functions.Following);
         function = null
     }
 
