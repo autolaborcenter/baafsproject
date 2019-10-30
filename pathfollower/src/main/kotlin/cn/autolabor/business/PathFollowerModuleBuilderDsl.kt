@@ -105,53 +105,32 @@ class PathFollowerModuleBuilderDsl private constructor() {
                     "current mode: ${module.mode}"
                 }
                 this["clear"] = {
-                    module.recorder.clear()
+                    module.mode = BusinessMode.Idle
+                    module.mode = BusinessMode.Record
                     module.painter?.paintFrame3("路径", emptyList())
                     "path cleared"
-                }
-                this["show"] = {
-                    with(module.recorder.get()) {
-                        module.painter?.paintPoses("路径", this)
-                        "path count = ${size}\n${joinToString("\n")}"
-                    }
                 }
 
                 this["save @name"] = {
                     val name = get(1).toString()
-                    with(module.recorder) {
-                        saveTo(File(name))
-                        module.painter?.paintPoses("路径", get())
-                        "$size nodes saved to $name"
-                    }
+                    val size = module.savePathTo(File(name))
+                    "$size nodes were saved in $name"
                 }
-
                 this["load @name"] = {
-                    val name = get(1).toString()
-                    val file = File(name)
-                    if (!file.exists())
-                        "path not exist"
-                    else {
-                        module.mode = BusinessMode.Idle
-                        module.path = file.loadPath(localRadius, searchCount, .0)
-                        with(module.path!!) {
-                            module.painter?.paintPoses("路径", this)
-                            "$size nodes loaded"
-                        }
-                    }
+                    module.load(
+                        File(get(1).toString()),
+                        localRadius,
+                        searchCount,
+                        .0
+                    )
                 }
                 this["load @name @num%"] = {
-                    val name = get(1).toString()
-                    val file = File(name)
-                    if (!file.exists())
-                        "path not exist"
-                    else {
-                        module.mode = BusinessMode.Idle
-                        module.path = file.loadPath(localRadius, searchCount, numbers.single() / 100.0)
-                        with(module.path!!) {
-                            module.painter?.paintPoses("路径", this)
-                            "$size nodes loaded"
-                        }
-                    }
+                    module.load(
+                        File(get(1).toString()),
+                        localRadius,
+                        searchCount,
+                        numbers.single() / 100.0
+                    )
                 }
                 this["resume @name"] = {
                     TODO("haven't implement")
@@ -184,17 +163,27 @@ class PathFollowerModuleBuilderDsl private constructor() {
             }
         }
 
-        private fun File.loadPath(
+        private fun PathFollowerModule.load(
+            file: File,
             localRadius: Double,
             searchCount: Int,
             progress: Double
-        ) = readLines()
-            .map {
-                val numbers = it.split(',').map(String::toDouble)
-                Odometry.odometry(numbers[0], numbers[1], numbers[2])
-            }
-            .toList()
-            .let { GlobalPath(it, localRadius, searchCount) }
-            .also { it.progress = progress }
+        ) =
+            file.takeIf(File::exists)
+                ?.readLines()
+                ?.map {
+                    val numbers = it.split(',').map(String::toDouble)
+                    Odometry.odometry(numbers[0], numbers[1], numbers[2])
+                }
+                ?.toList()
+                ?.let { GlobalPath(it, localRadius, searchCount) }
+                ?.also { global ->
+                    global.progress = progress
+                    mode = BusinessMode.Idle
+                    path = global
+                    painter?.paintPoses("路径", global)
+                }
+                ?.run { "$size nodes loaded" }
+                ?: "path not exist"
     }
 }

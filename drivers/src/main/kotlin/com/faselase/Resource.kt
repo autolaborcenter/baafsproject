@@ -1,6 +1,7 @@
 package com.faselase
 
 import cn.autolabor.serialport.parser.SerialPortFinder
+import com.fazecast.jSerialComm.SerialPort
 import org.mechdancer.common.Polar
 import org.mechdancer.common.Stamped
 import org.mechdancer.exceptions.device.DeviceNotExistException
@@ -19,14 +20,18 @@ class Resource(
     private val engine = engine()
     private val port =
         try {
-            SerialPortFinder.findSerialPort(name, engine) {
-                baudRate = 460800
-                timeoutMs = 5000
-                bufferSize = 32
-                //  启动时发送开始旋转指令
-                activate = "#SF 10\r\n".toByteArray(Charsets.US_ASCII)
-                condition { pack -> pack is LidarPack.Data }
-            }
+            val candidates =
+                name?.let { listOf(SerialPort.getCommPort(it)) }
+                    ?: SerialPort.getCommPorts().toList()
+            SerialPortFinder
+                .findSerialPort(candidates, engine) {
+                    baudRate = 460800
+                    timeoutMs = 5000
+                    bufferSize = 32
+                    //  启动时发送开始旋转指令
+                    activate = "#SF 10\r\n".toByteArray(Charsets.US_ASCII)
+                    condition { pack -> pack is LidarPack.Data }
+                }
         } catch (e: RuntimeException) {
             throw DeviceNotExistException("faselase lidar", e.message)
         }
@@ -47,12 +52,12 @@ class Resource(
                 engine(buffer) { pack ->
                     when (pack) {
                         LidarPack.Failed,
-                        LidarPack.Nothing    -> Unit
+                        LidarPack.Nothing -> Unit
                         is LidarPack.Invalid -> {
                             val (theta) = pack
                             refresh(theta)
                         }
-                        is LidarPack.Data    -> {
+                        is LidarPack.Data -> {
                             val (rho, theta) = pack
                             list.offer(Stamped.stamp(Polar(rho, refresh(theta))))
                         }

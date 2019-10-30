@@ -1,6 +1,8 @@
 package com.marvelmind
 
 import cn.autolabor.serialport.parser.SerialPortFinder
+import cn.autolabor.serialport.parser.readOrReboot
+import com.fazecast.jSerialComm.SerialPort
 import com.marvelmind.BeaconPackage.*
 import com.marvelmind.BeaconPackage.Nothing
 import kotlinx.coroutines.CoroutineScope
@@ -20,7 +22,6 @@ import org.mechdancer.exceptions.device.DataTimeoutException
 import org.mechdancer.exceptions.device.DeviceNotExistException
 import org.mechdancer.exceptions.device.DeviceOfflineException
 import org.mechdancer.exceptions.device.ParseTimeoutException
-import cn.autolabor.serialport.parser.readOrReboot
 import java.util.concurrent.Executors
 
 @BuilderDslMarker
@@ -59,7 +60,8 @@ class MobileBeaconModuleBuilderDsl private constructor() {
                         parseTimeout = parseTimeout,
                         dataTimeout = dataTimeout,
                         retryInterval = retryInterval,
-                        delayLimit = delayLimit)
+                        delayLimit = delayLimit
+                    )
                 }
         }
     }
@@ -81,7 +83,18 @@ class MobileBeaconModuleBuilderDsl private constructor() {
         private val engine = engine()
         private val port =
             try {
-                SerialPortFinder.findSerialPort(name, engine) {
+                val candidates =
+                    name?.let { listOf(SerialPort.getCommPort(it)) }
+                        ?: SerialPort.getCommPorts()
+                            ?.takeIf(Array<*>::isNotEmpty)
+                            ?.groupBy { "marvelmind" in it.systemPortName.toLowerCase() }
+                            ?.flatMap { it.value }
+                            ?.toList()
+                        ?: throw RuntimeException("no available port")
+                SerialPortFinder.findSerialPort(
+                    candidates = candidates,
+                    engine = engine
+                ) {
                     baudRate = 115200
                     timeoutMs = dataTimeout
                     bufferSize = BUFFER_SIZE
@@ -114,17 +127,19 @@ class MobileBeaconModuleBuilderDsl private constructor() {
             launch {
                 connectionWatchDog.feedOrThrowTo(
                     exceptions,
-                    DeviceOfflineException(NAME))
+                    DeviceOfflineException(NAME)
+                )
             }
             engine(array) { pack ->
                 when (pack) {
                     is Nothing -> logger.log("nothing${pack.dropped.toHexString()}")
-                    is Failed  -> logger.log("failed${pack.dropped.toHexString()}")
-                    is Data    -> {
+                    is Failed -> logger.log("failed${pack.dropped.toHexString()}")
+                    is Data -> {
                         launch {
                             parseWatchDog.feedOrThrowTo(
                                 exceptions,
-                                ParseTimeoutException(NAME, parseTimeout))
+                                ParseTimeoutException(NAME, parseTimeout)
+                            )
                         }
                         val (code, payload) = pack
                         if (code != COORDINATE_CODE)
@@ -148,7 +163,8 @@ class MobileBeaconModuleBuilderDsl private constructor() {
                                 beaconOnMap.send(Stamped(now - delay, vector2DOf(x, y) / 1000.0))
                                 dataWatchDog.feedOrThrowTo(
                                     exceptions,
-                                    DataTimeoutException(NAME, dataTimeout))
+                                    DataTimeoutException(NAME, dataTimeout)
+                                )
                             }
                         }
                     }

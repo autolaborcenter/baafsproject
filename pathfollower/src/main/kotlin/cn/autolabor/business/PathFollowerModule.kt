@@ -2,12 +2,12 @@ package cn.autolabor.business
 
 import cn.autolabor.pathfollower.FollowCommand.*
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower
-import cn.autolabor.pathmaneger.FixedDistancePathRecorder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
 import org.mechdancer.SimpleLogger
+import org.mechdancer.algebra.function.vector.euclid
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.to2D
@@ -24,6 +24,7 @@ import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.paintPoses
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.RemoteHub
+import java.io.File
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.sign
@@ -40,11 +41,11 @@ class PathFollowerModule(
     private val exceptions: SendChannel<ExceptionMessage>,
     private val follower: VirtualLightSensorPathFollower,
     directionLimit: Angle,
-    pathInterval: Double,
+    private val pathInterval: Double,
     val logger: SimpleLogger?,
     val painter: RemoteHub?
 ) {
-    val recorder = FixedDistancePathRecorder(pathInterval)
+    private val recorder = mutableListOf<Odometry>()
     var path: GlobalPath? = null
 
     private val turnDirectionRad = directionLimit.asRadian()
@@ -101,10 +102,20 @@ class PathFollowerModule(
             }
         }
 
+    fun savePathTo(file: File): Int {
+        require(mode == BusinessMode.Record)
+        file.writeText(recorder.joinToString("\n") { (p, d) -> "${p.x},${p.y},${d.asRadian()}" })
+        return recorder.size
+    }
+
     private suspend fun record() {
+        recorder.clear()
         for ((_, pose) in robotOnMap) {
             if (internalMode != BusinessMode.Record) break
-            recorder.record(pose)
+            recorder
+                .lastOrNull()
+                .let { it == null || it.p euclid pose.p > pathInterval }
+                .also { if (it) recorder += pose }
         }
     }
 

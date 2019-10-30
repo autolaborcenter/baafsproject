@@ -59,7 +59,7 @@ class FaselaseLidarSetBuilderDsl private constructor() {
                     FaselaseLidar(
                         scope = this@faselaseLidarSet,
                         exceptions = exceptions,
-                        portName = portName,
+                        name = portName,
                         tag = config.tag,
                         launchTimeout = launchTimeout,
                         connectionTimeout = connectionTimeout,
