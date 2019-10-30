@@ -25,6 +25,11 @@ class FixedDistancePathRecorder(private val interval: Double) {
             .let { it == null || (it.p - new.p).norm() >= interval }
             .also { if (it) path += new }
 
+    /** 记录路径点 [new] */
+    operator fun plusAssign(new: Odometry) {
+        record(new)
+    }
+
     /** 清空记录的路径点 */
     fun clear() = path.clear()
 

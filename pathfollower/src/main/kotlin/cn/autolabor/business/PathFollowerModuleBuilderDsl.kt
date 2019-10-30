@@ -94,11 +94,11 @@ class PathFollowerModuleBuilderDsl private constructor() {
                 block = block)
             with(consoleParser) {
                 this["cancel"] = {
-                    module.mode = Business.Idle
+                    module.mode = BusinessMode.Idle
                     "current mode: ${module.mode}"
                 }
                 this["record"] = {
-                    module.mode = Business.Record
+                    module.mode = BusinessMode.Record
                     "current mode: ${module.mode}"
                 }
                 this["clear"] = {
@@ -127,7 +127,7 @@ class PathFollowerModuleBuilderDsl private constructor() {
                     if (!file.exists())
                         "path not exist"
                     else {
-                        module.mode = Business.Idle
+                        module.mode = BusinessMode.Idle
                         with(module.path) {
                             loadFrom(file)
                             module.painter?.paintPoses("路径", get())
@@ -159,11 +159,11 @@ class PathFollowerModuleBuilderDsl private constructor() {
                 }
 
                 this["go"] = {
-                    module.mode = Business.Follow(loop = false)
+                    module.mode = BusinessMode.Follow(loop = false)
                     "current mode: ${module.mode}"
                 }
                 this["loop"] = {
-                    module.mode = Business.Follow(loop = true)
+                    module.mode = BusinessMode.Follow(loop = true)
                     "current mode: ${module.mode}"
                 }
                 this["\'"] = {

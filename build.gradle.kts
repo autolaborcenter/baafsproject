@@ -2,6 +2,8 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 buildscript {
     repositories {
+        mavenCentral()
+        jcenter()
         maven("https://maven.aliyun.com/repository/central")
         maven("https://maven.aliyun.com/repository/google")
         maven("https://maven.aliyun.com/repository/gradle-plugin")
@@ -32,7 +34,7 @@ allprojects {
     dependencies {
         // 自动依赖 kotlin 标准库
         implementation(kotlin("stdlib-jdk8"))
-        implementation("org.jetbrains.kotlinx", "kotlinx-coroutines-core", "1.3.2")
+        implementation("org.jetbrains.kotlinx", "kotlinx-coroutines-core", "1.1.1")
         // 单元测试
         testImplementation("junit", "junit", "+")
         testImplementation(kotlin("test-junit"))
