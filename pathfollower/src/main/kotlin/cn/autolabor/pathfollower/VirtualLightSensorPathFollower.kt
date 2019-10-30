@@ -55,6 +55,7 @@ internal constructor(
     /** 设置目标路径 */
     fun setPath(path: GlobalPath) {
         this.path = path
+        pre = .0
         // 重置状态
         controller.clear()
     }
@@ -62,7 +63,10 @@ internal constructor(
     /** 查询/修改进度 */
     var progress: Double
         get() = path?.progress ?: 1.0
-        set(value) = path?.run { progress = value } ?: Unit
+        set(value) =
+            path?.run { progress = value }
+                ?.also { pre = .0 }
+                ?: Unit
 
     /** 计算控制量 */
     operator fun invoke(pose: Odometry): FollowCommand {
@@ -70,12 +74,12 @@ internal constructor(
         val bright = sensor.shine(global[pose])
         // 特殊情况提前退出
         var pn = bright.firstOrNull()
-                     ?.also { (p, d) -> logger.log(p.x, p.y, d.asRadian()) }
-                 ?: return when {
-                     global.progress == 1.0 -> Finish
-                     abs(pre) > minTurnRad  -> Turn(pre)
-                     else                   -> Error
-                 }
+            ?.also { (p, d) -> logger.log(p.x, p.y, d.asRadian()) }
+            ?: return when {
+                global.progress == 1.0 -> Finish
+                abs(pre) > minTurnRad -> Turn(pre)
+                else -> Error
+            }
         // 查找尖点
         val (tip, i) =
             bright
@@ -87,14 +91,14 @@ internal constructor(
                     pn = it
                     pn.d.toVector() dot `pn-1`.d.toVector() < cosMinTip
                 }
-            ?: (bright.last() to bright.lastIndex)
+                ?: (bright.last() to bright.lastIndex)
         @DebugTemporary(DELETE)
         this.tip = tip
         // 处理尖点
         when {
             i in 1..4 -> pre = tip.d.adjust().asRadian()
-            i > 4     -> pre = .0
-            else      -> {
+            i > 4 -> pre = .0
+            else -> {
                 global += i + 1
                 val target = (tip.p + tip.d.toVector() * 0.2).toAngle().adjust().asRadian()
                 if (abs(target) > minTurnRad) return Turn(target)
@@ -102,8 +106,8 @@ internal constructor(
         }
         // 计算控制量
         return Follow(v = maxLinearSpeed,
-                      w = controller
-                          .update(new = sensor(bright.take(i + 1)))
-                          .run { sign * min(maxOmegaRad, absoluteValue) })
+            w = controller
+                .update(new = sensor(bright.take(i + 1)))
+                .run { sign * min(maxOmegaRad, absoluteValue) })
     }
 }

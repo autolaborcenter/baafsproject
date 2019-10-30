@@ -41,15 +41,14 @@ class PathFollowerModule(
     private val exceptions: SendChannel<ExceptionMessage>,
     private val follower: VirtualLightSensorPathFollower,
     directionLimit: Angle,
-    pathInterval: Double,
-    searchLength: Double,
+    private val pathInterval: Double,
+    private val searchLength: Double,
     val logger: SimpleLogger?,
     val painter: RemoteHub?
 ) {
     val path = FixedDistancePathRecorder(pathInterval)
 
     private val turnDirectionRad = directionLimit.asRadian()
-    private val searchCount = (searchLength / pathInterval).roundToInt()
 
     private var internalMode: BusinessMode = BusinessMode.Idle
         set(value) {
@@ -81,22 +80,22 @@ class PathFollowerModule(
         get() = internalMode
         set(value) {
             when (internalMode) {
-                BusinessMode.Record    -> when (value) {
+                BusinessMode.Record -> when (value) {
                     BusinessMode.Record,
                     is BusinessMode.Follow -> Unit
-                    BusinessMode.Idle      -> internalMode = value
+                    BusinessMode.Idle -> internalMode = value
                 }
                 is BusinessMode.Follow -> when (value) {
                     BusinessMode.Record -> Unit
                     is BusinessMode.Follow,
-                    BusinessMode.Idle   -> {
+                    BusinessMode.Idle -> {
                         scope.launch { exceptions.send(Recovered(FollowFailedException)) }
                         path.clear()
                         internalMode = value
                     }
                 }
-                BusinessMode.Idle      -> when (value) {
-                    BusinessMode.Record    -> {
+                BusinessMode.Idle -> when (value) {
+                    BusinessMode.Record -> {
                         internalMode = value
                         scope.launch { record() }
                     }
@@ -106,7 +105,7 @@ class PathFollowerModule(
                         internalMode = value
                         scope.launch { follow() }
                     }
-                    BusinessMode.Idle      -> Unit
+                    BusinessMode.Idle -> Unit
                 }
             }
         }
@@ -119,7 +118,7 @@ class PathFollowerModule(
     }
 
     private fun loadPath() {
-        follower.setPath(path.toGlobalPath(.5, searchCount))
+        follower.setPath(path.toGlobalPath(searchLength, (searchLength / pathInterval).roundToInt()))
     }
 
     private suspend fun follow() {
@@ -135,7 +134,7 @@ class PathFollowerModule(
                         val (v, w) = command
                         drive(v, w)
                     }
-                    is Turn   -> {
+                    is Turn -> {
                         val (angle) = command
                         stop()
                         turn(angle)
@@ -187,7 +186,7 @@ class PathFollowerModule(
         val value = when (turnDirectionRad) {
             in angle..0.0 -> angle + 2 * PI
             in 0.0..angle -> angle - 2 * PI
-            else          -> angle
+            else -> angle
         }
         val delta = abs(value)
         val w = value.sign * follower.maxOmegaRad

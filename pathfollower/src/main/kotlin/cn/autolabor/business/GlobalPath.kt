@@ -1,6 +1,7 @@
 package cn.autolabor.business
 
 import org.mechdancer.algebra.function.vector.euclid
+import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.invoke
 import org.mechdancer.common.toTransformation
@@ -45,7 +46,7 @@ class GlobalPath(
         val i = index.updateAndGet { old ->
             val end = when {
                 searchAll || old == 0 -> size
-                else                  -> kotlin.math.min(old + searchLength, size)
+                else -> kotlin.math.min(old + searchLength, size)
             }
             searchAll = false
             var dn = get(old).p euclid p
@@ -62,9 +63,12 @@ class GlobalPath(
         return when {
             get(i).p euclid p < localLimit -> {
                 val mapToRobot = robotOnMap.toTransformation().inverse()
-                asSequence().drop(i).map { mapToRobot(it) }
+                asSequence()
+                    .drop(i)
+                    .map { mapToRobot(it) }
+                    .takeWhile { it.p.norm() < searchLength }
             }
-            else                           ->
+            else ->
                 emptySequence()
         }
     }
