@@ -1,10 +1,8 @@
 package cn.autolabor.pathmaneger
 
-import cn.autolabor.business.GlobalPath
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.common.Odometry
-import org.mechdancer.common.Odometry.Companion.odometry
 import java.io.File
 
 /**
@@ -36,22 +34,4 @@ class FixedDistancePathRecorder(private val interval: Double) {
     /** 保存到 [file] */
     fun saveTo(file: File) =
         file.writeText(path.joinToString("\n") { (p, d) -> "${p.x},${p.y},${d.asRadian()}" })
-
-    /** 从 [file] 加载 */
-    fun loadFrom(file: File) =
-        file.readLines()
-            .asSequence()
-            .map {
-                val numbers = it.split(',').map(String::toDouble)
-                odometry(numbers[0], numbers[1], numbers[2])
-            }.let {
-                path.clear()
-                path.addAll(it)
-                Unit
-            }
-
-    fun toGlobalPath(
-        localLimit: Double,
-        searchLength: Int
-    ) = GlobalPath(path.toList(), localLimit, searchLength)
 }

@@ -26,7 +26,6 @@ import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.RemoteHub
 import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.roundToInt
 import kotlin.math.sign
 
 /**
@@ -41,12 +40,12 @@ class PathFollowerModule(
     private val exceptions: SendChannel<ExceptionMessage>,
     private val follower: VirtualLightSensorPathFollower,
     directionLimit: Angle,
-    private val pathInterval: Double,
-    private val searchLength: Double,
+    pathInterval: Double,
     val logger: SimpleLogger?,
     val painter: RemoteHub?
 ) {
-    val path = FixedDistancePathRecorder(pathInterval)
+    val recorder = FixedDistancePathRecorder(pathInterval)
+    var path: GlobalPath? = null
 
     private val turnDirectionRad = directionLimit.asRadian()
 
@@ -54,13 +53,6 @@ class PathFollowerModule(
         set(value) {
             field = value
             logger?.log("mode = $value")
-        }
-
-    var progress: Double
-        get() =
-            onFollowing("progress") { follower.progress }
-        set(value) {
-            onFollowing("progress") { follower.progress = value }
         }
 
     var isEnabled = false
@@ -90,7 +82,7 @@ class PathFollowerModule(
                     is BusinessMode.Follow,
                     BusinessMode.Idle -> {
                         scope.launch { exceptions.send(Recovered(FollowFailedException)) }
-                        path.clear()
+                        recorder.clear()
                         internalMode = value
                     }
                 }
@@ -100,8 +92,7 @@ class PathFollowerModule(
                         scope.launch { record() }
                     }
                     is BusinessMode.Follow -> {
-                        if (path.size < 2) return
-                        loadPath()
+                        path?.let { follower.setPath(it) } ?: return
                         internalMode = value
                         scope.launch { follow() }
                     }
@@ -113,12 +104,8 @@ class PathFollowerModule(
     private suspend fun record() {
         for ((_, pose) in robotOnMap) {
             if (internalMode != BusinessMode.Record) break
-            path.record(pose)
+            recorder.record(pose)
         }
-    }
-
-    private fun loadPath() {
-        follower.setPath(path.toGlobalPath(searchLength, (searchLength / pathInterval).roundToInt()))
     }
 
     private suspend fun follow() {
@@ -142,7 +129,7 @@ class PathFollowerModule(
                     }
                     is Finish -> {
                         if (m.loop)
-                            loadPath()
+                            follower.progress = .0
                         else {
                             stop()
                             mode = BusinessMode.Idle

@@ -90,6 +90,8 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
                             robotOnOdometry = robotOnMap,
                             commandOut = commandToRobot,
                             exceptions = exceptions,
+                            localRadius = .5,
+                            searchCount = 10,
                             consoleParser = parser
                         ) {
                             this@run.config(this)

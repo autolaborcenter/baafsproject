@@ -85,7 +85,8 @@ fun main() {
             startObstacleAvoiding(
                 launchLidar = true,
                 commandIn = commandToObstacle,
-                commandOut = commandToSwitch)
+                commandOut = commandToSwitch
+            )
             println("done")
 
             val exceptionServer = ExceptionServer()
@@ -111,6 +112,8 @@ fun main() {
                 robotOnOdometry = robotOnOdometry.outputs[1],
                 commandOut = commandToObstacle,
                 exceptions = exceptions,
+                localRadius = .5,
+                searchCount = 10,
                 consoleParser = parser
             ) {
                 pathInterval = .05

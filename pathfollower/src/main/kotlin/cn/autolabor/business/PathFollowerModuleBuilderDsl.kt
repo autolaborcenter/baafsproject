@@ -67,10 +67,10 @@ class PathFollowerModuleBuilderDsl private constructor() {
                         exceptions = exceptions,
                         follower = pathFollower(followerConfig),
                         pathInterval = pathInterval,
-                        searchLength = searchLength,
                         directionLimit = directionLimit,
                         logger = logger,
-                        painter = painter)
+                        painter = painter
+                    )
                 }
 
         /**
@@ -83,6 +83,8 @@ class PathFollowerModuleBuilderDsl private constructor() {
             robotOnOdometry: ReceiveChannel<Stamped<Odometry>>,
             commandOut: SendChannel<NonOmnidirectional>,
             exceptions: SendChannel<ExceptionMessage>,
+            localRadius: Double,
+            searchCount: Int,
             consoleParser: Parser,
             block: PathFollowerModuleBuilderDsl.() -> Unit = {}
         ) {
@@ -91,7 +93,8 @@ class PathFollowerModuleBuilderDsl private constructor() {
                 robotOnOdometry = robotOnOdometry,
                 commandOut = commandOut,
                 exceptions = exceptions,
-                block = block)
+                block = block
+            )
             with(consoleParser) {
                 this["cancel"] = {
                     module.mode = BusinessMode.Idle
@@ -102,12 +105,12 @@ class PathFollowerModuleBuilderDsl private constructor() {
                     "current mode: ${module.mode}"
                 }
                 this["clear"] = {
-                    module.path.clear()
+                    module.recorder.clear()
                     module.painter?.paintFrame3("路径", emptyList())
                     "path cleared"
                 }
                 this["show"] = {
-                    with(module.path.get()) {
+                    with(module.recorder.get()) {
                         module.painter?.paintPoses("路径", this)
                         "path count = ${size}\n${joinToString("\n")}"
                     }
@@ -115,12 +118,13 @@ class PathFollowerModuleBuilderDsl private constructor() {
 
                 this["save @name"] = {
                     val name = get(1).toString()
-                    with(module.path) {
+                    with(module.recorder) {
                         saveTo(File(name))
                         module.painter?.paintPoses("路径", get())
                         "$size nodes saved to $name"
                     }
                 }
+
                 this["load @name"] = {
                     val name = get(1).toString()
                     val file = File(name)
@@ -128,33 +132,35 @@ class PathFollowerModuleBuilderDsl private constructor() {
                         "path not exist"
                     else {
                         module.mode = BusinessMode.Idle
-                        with(module.path) {
-                            loadFrom(file)
-                            module.painter?.paintPoses("路径", get())
+                        module.path = file.loadPath(localRadius, searchCount, .0)
+                        with(module.path!!) {
+                            module.painter?.paintPoses("路径", this)
                             "$size nodes loaded"
                         }
                     }
                 }
+                this["load @name @num%"] = {
+                    val name = get(1).toString()
+                    val file = File(name)
+                    if (!file.exists())
+                        "path not exist"
+                    else {
+                        module.mode = BusinessMode.Idle
+                        module.path = file.loadPath(localRadius, searchCount, numbers.single() / 100.0)
+                        with(module.path!!) {
+                            module.painter?.paintPoses("路径", this)
+                            "$size nodes loaded"
+                        }
+                    }
+                }
+                this["resume @name"] = {
+                    TODO("haven't implement")
+                }
 
                 val formatter = DecimalFormat("0.00")
-                val formatProgress = {
-                    "progress = ${formatter.format(module.progress * 100)}%"
-                }
                 this["progress"] = {
                     module.runCatching {
-                        formatProgress()
-                    }.getOrElse { it.message }
-                }
-                this["progress = @num"] = {
-                    module.runCatching {
-                        progress = numbers.single()
-                        formatProgress()
-                    }.getOrElse { it.message }
-                }
-                this["progress = @num%"] = {
-                    module.runCatching {
-                        progress = numbers.single() / 100
-                        formatProgress()
+                        "progress = ${formatter.format((module.path?.progress ?: 1.0) * 100)}%"
                     }.getOrElse { it.message }
                 }
 
@@ -177,5 +183,18 @@ class PathFollowerModuleBuilderDsl private constructor() {
                 this["shutdown"] = { cancel(); "Bye~" }
             }
         }
+
+        private fun File.loadPath(
+            localRadius: Double,
+            searchCount: Int,
+            progress: Double
+        ) = readLines()
+            .map {
+                val numbers = it.split(',').map(String::toDouble)
+                Odometry.odometry(numbers[0], numbers[1], numbers[2])
+            }
+            .toList()
+            .let { GlobalPath(it, localRadius, searchCount) }
+            .also { it.progress = progress }
     }
 }
