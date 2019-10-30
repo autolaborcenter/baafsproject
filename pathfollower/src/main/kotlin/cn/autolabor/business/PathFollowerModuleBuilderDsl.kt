@@ -88,6 +88,12 @@ class PathFollowerModuleBuilderDsl private constructor() {
             consoleParser: Parser,
             block: PathFollowerModuleBuilderDsl.() -> Unit = {}
         ) {
+            val business = PathManager(
+                localRadius = localRadius,
+                pathInterval = localRadius / searchCount,
+                logger = null,
+                painter = null
+            )
             val module = pathFollowerModule(
                 robotOnMap = robotOnMap,
                 robotOnOdometry = robotOnOdometry,
