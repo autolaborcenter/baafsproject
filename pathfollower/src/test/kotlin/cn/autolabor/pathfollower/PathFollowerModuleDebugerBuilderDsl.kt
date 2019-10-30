@@ -1,7 +1,7 @@
 package cn.autolabor.pathfollower
 
-import cn.autolabor.business.PathFollowerModuleBuilderDsl
-import cn.autolabor.business.PathFollowerModuleBuilderDsl.Companion.startPathFollower
+import cn.autolabor.business.BusinessBuilderDsl
+import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.business.parseFromConsole
 import kotlinx.coroutines.*
 import org.mechdancer.*
@@ -32,9 +32,9 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
     // 里程计配置
     var odometryFrequency = 20.0
     // 跟踪器配置
-    private var config: PathFollowerModuleBuilderDsl.() -> Unit = {}
+    private var config: BusinessBuilderDsl.() -> Unit = {}
 
-    fun module(block: PathFollowerModuleBuilderDsl.() -> Unit) {
+    fun module(block: BusinessBuilderDsl.() -> Unit) {
         config = block
     }
 
@@ -85,13 +85,11 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
                     }
                     runBlocking {
                         // 任务
-                        startPathFollower(
+                        startBusiness(
                             robotOnMap = robotOnMap,
                             robotOnOdometry = robotOnMap,
                             commandOut = commandToRobot,
                             exceptions = exceptions,
-                            localRadius = .5,
-                            searchCount = 10,
                             consoleParser = parser
                         ) {
                             this@run.config(this)

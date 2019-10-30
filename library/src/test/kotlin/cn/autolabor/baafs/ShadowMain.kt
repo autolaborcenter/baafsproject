@@ -2,7 +2,7 @@ package cn.autolabor.baafs
 
 import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
 import cn.autolabor.baafs.CollisionPredictingModuleBuilderDsl.Companion.startCollisionPredictingModule
-import cn.autolabor.business.PathFollowerModuleBuilderDsl.Companion.startPathFollower
+import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.business.parseFromConsole
 import cn.autolabor.core.server.DefaultSetup
 import cn.autolabor.core.server.ServerManager
@@ -141,17 +141,15 @@ fun main() {
                 }
                 painter = remote
             }
-            startPathFollower(
+            startBusiness(
                 robotOnMap = robotOnMap,
                 robotOnOdometry = robotOnOdometry.outputs[1],
                 commandOut = commandToObstacle,
                 exceptions = exceptions,
-                localRadius = .5,
-                searchCount = 10,
                 consoleParser = parser
             ) {
                 pathInterval = .05
-                searchLength = 1.0
+                localRadius = .5
                 directionLimit = (-120).toDegree()
                 follower {
                     sensorPose = odometry(.2, .0)

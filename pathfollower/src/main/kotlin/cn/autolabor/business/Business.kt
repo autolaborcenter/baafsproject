@@ -1,6 +1,8 @@
 package cn.autolabor.business
 
 import cn.autolabor.pathfollower.FollowCommand
+import cn.autolabor.pathfollower.PathFollowerBuilderDsl
+import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import cn.autolabor.pathfollower.VirtualLightSensorPathFollower
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -30,10 +32,10 @@ class Business(
     private val commandOut: SendChannel<Velocity.NonOmnidirectional>,
     private val exceptions: SendChannel<ExceptionMessage>,
 
-    private val follower: VirtualLightSensorPathFollower,
+    private val followerConfig: PathFollowerBuilderDsl.() -> Unit,
     private val directionLimit: Angle,
 
-    private val localRadius: Double,
+    localRadius: Double,
     private val pathInterval: Double,
     private val logger: SimpleLogger?,
     private val painter: RemoteHub?
@@ -64,8 +66,7 @@ class Business(
             commandOut,
             exceptions,
 
-            global,
-            follower,
+            pathFollower(global, followerConfig),
             directionLimit,
 
             logger,
@@ -81,6 +82,7 @@ class Business(
 
     sealed class Functions {
         internal abstract val job: Job
+        override fun toString(): String = javaClass.simpleName
 
         class Recording(
             scope: CoroutineScope,
@@ -113,8 +115,7 @@ class Business(
             private val commandOut: SendChannel<Velocity.NonOmnidirectional>,
             private val exceptions: SendChannel<ExceptionMessage>,
 
-            global: GlobalPath,
-            follower: VirtualLightSensorPathFollower,
+            private val follower: VirtualLightSensorPathFollower,
             directionLimit: Angle,
 
             val logger: SimpleLogger?,
@@ -122,11 +123,11 @@ class Business(
         ) : Functions() {
             private val turnDirectionRad = directionLimit.asRadian()
 
+            val global = follower.global
             var isEnabled = false
             var loop = false
 
             override val job = scope.launch {
-                follower.setPath(global)
                 `for`@ for ((_, pose) in robotOnMap) {
                     val command = follower(pose)
                     logger?.log(command)
@@ -137,7 +138,7 @@ class Business(
                                 val (v, w) = command
                                 drive(v, w)
                             }
-                            is FollowCommand.Turn -> {
+                            is FollowCommand.Turn   -> {
                                 val (angle) = command
                                 stop()
                                 turn(follower.maxOmegaRad, angle)
@@ -145,7 +146,7 @@ class Business(
                             }
                             is FollowCommand.Finish -> {
                                 if (loop)
-                                    follower.progress = .0
+                                    follower.global.progress = .0
                                 else {
                                     stop()
                                     break@`for`
@@ -175,11 +176,11 @@ class Business(
             }
 
             @Suppress("unused")
-            private suspend fun goStraight(distance: Double) {
+            private suspend fun goStraight(v: Double, distance: Double) {
                 val (p0, _) = robotOnOdometry.receive().data
                 for ((_, pose) in robotOnOdometry) {
                     if ((pose.p - p0).norm() > distance) break
-                    drive(.1, 0)
+                    drive(v, 0)
                 }
             }
 
@@ -188,7 +189,7 @@ class Business(
                 val value = when (turnDirectionRad) {
                     in angle..0.0 -> angle + 2 * PI
                     in 0.0..angle -> angle - 2 * PI
-                    else -> angle
+                    else          -> angle
                 }
                 val delta = abs(value)
                 val w = value.sign * omega

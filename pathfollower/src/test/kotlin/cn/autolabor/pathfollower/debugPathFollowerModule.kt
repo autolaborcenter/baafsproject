@@ -12,7 +12,6 @@ fun main() = debugPathFollowerModule {
     speed = 1
     // 导航器配置
     module {
-        searchLength = .5
         follower {
             sensorPose = odometry(.16, .0)
             lightRange = Circle(.2, 16)

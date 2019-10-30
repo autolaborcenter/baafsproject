@@ -39,7 +39,7 @@ class PathManager(
     fun load(pathName: String, progress: Double = .0) =
         globals[pathName]
             ?.also { it.progress = progress }
-            ?: refresh(pathName, progress)
+        ?: refresh(pathName, progress)
 
     /** 从本地或文件中读取路径 */
     fun resume(pathName: String) =
@@ -50,4 +50,10 @@ class PathManager(
         path.joinToString("\n") { (p, d) -> "${p.x},${p.y},${d.asRadian()}" }
             .let { File(fileName).writeText(it) }
     }
+
+    override fun toString() =
+        buildString {
+            for ((name, path) in globals)
+                appendln("$name:\t${path.progress * 100}%/${path.size}")
+        }
 }
