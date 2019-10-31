@@ -148,7 +148,7 @@ fun main() {
                         val (t, quality) = filter.quality
                         buildString {
                             appendln("particles last update ${System.currentTimeMillis() - t}ms ago")
-                            appendln("now system is ${if (filter.isConvergenced) "" else "not"} ready for work")
+                            appendln("now system is ${if (filter.isConvergent) "" else "not"} ready for work")
                             appendln("quality = $quality")
                         }
                     }

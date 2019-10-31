@@ -56,7 +56,8 @@ class ParticleFilter(
     var quality = Stamped(0L, FusionQuality.zero)
         private set
 
-    val isConvergenced get() = predicate.state
+    //
+    val isConvergent get() = predicate.state
 
     // 过程参数渗透
     @DebugTemporary(DELETE)
@@ -97,7 +98,7 @@ class ParticleFilter(
                     .takeIf { it in 1..maxInterval }
                     ?.let { interval ->
                         val k = (t - before.time).toDouble() / interval
-                        Stamped(t, m to before.data * k + after.data * (1 - k))
+                        Stamped(t, m to average(before.data to k, after.data to (1 - k)))
                     }
             }
             // 计算定位权重
@@ -205,14 +206,6 @@ class ParticleFilter(
     }
 
     private companion object {
-        // 里程计线性可加性（用于加权平均）
-        operator fun Odometry.times(k: Double) =
-            Odometry(p * k, d * k)
-
-        // 里程计线性可数乘（用于加权平均）
-        operator fun Odometry.plus(other: Odometry) =
-            Odometry(p + other.p, d rotate other.d)
-
         fun List<Pair<Odometry, Int>>.qualityBy(
             maxAge: Int,
             maxInconsistent: Double

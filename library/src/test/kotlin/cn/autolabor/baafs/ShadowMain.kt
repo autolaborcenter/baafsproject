@@ -1,6 +1,7 @@
 package cn.autolabor.baafs
 
 import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
+import cn.autolabor.baafs.CollisionPredictingModuleBuilderDsl.Companion.startCollisionPredictingModule
 import cn.autolabor.business.BusinessBuilderDsl.Companion.business
 import cn.autolabor.business.parseFromConsole
 import cn.autolabor.business.registerBusinessParser
@@ -54,8 +55,7 @@ fun main() {
     val robotOnMap = channel<Stamped<Odometry>>()
     val beaconOnMap = channel<Stamped<Vector2D>>()
     val exceptions = channel<ExceptionMessage>()
-    val commandToObstacle = channel<NonOmnidirectional>()
-    val commandToSwitch = channel<NonOmnidirectional>()
+    val commandToSwitch = YChannel<NonOmnidirectional>()
     val commandToRobot = channel<NonOmnidirectional>()
     // 任务
     try {
@@ -141,7 +141,7 @@ fun main() {
             val business = business(
                 robotOnMap = robotOnMap,
                 robotOnOdometry = robotOnOdometry.outputs[1],
-                commandOut = commandToObstacle,
+                commandOut = commandToSwitch.input,
                 exceptions = exceptions
             ) {
                 pathInterval = .05
@@ -158,12 +158,20 @@ fun main() {
                 }
                 painter = remote
             }
+            startCollisionPredictingModule(
+                commandIn = commandToSwitch.outputs[0],
+                exception = exceptions,
+                lidarSet = lidarSet,
+                robotOutline = robotOutline
+            ) {
+
+            }
             launch {
                 for (e in exceptions)
                     exceptionServer.update(e)
             }
             launch {
-                for (command in commandToSwitch)
+                for (command in commandToSwitch.outputs[1])
                     if (exceptionServer.isEmpty())
                         commandToRobot.send(command)
                 commandToRobot.close()
@@ -182,7 +190,7 @@ fun main() {
                         val (t, quality) = filter.quality
                         buildString {
                             appendln("particles last update ${System.currentTimeMillis() - t}ms ago")
-                            appendln("now system is ${if (filter.isConvergenced) "" else "not"} ready for work")
+                            appendln("now system is ${if (filter.isConvergent) "" else "not"} ready for work")
                             appendln("quality = $quality")
                         }
                     }
