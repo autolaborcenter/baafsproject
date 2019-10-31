@@ -7,6 +7,9 @@ import org.mechdancer.remote.presets.RemoteHub
 import java.io.File
 import kotlin.math.roundToInt
 
+/**
+ * 全局路径管理
+ */
 class PathManager(
     private val localRadius: Double,
     pathInterval: Double,
@@ -14,7 +17,6 @@ class PathManager(
     private val painter: RemoteHub?
 ) {
     private val searchCount = (localRadius / pathInterval).roundToInt()
-
     private val globals = mutableMapOf<String, GlobalPath>()
 
     /** 强制从文件中读取路径，并设置进度 */
@@ -37,19 +39,16 @@ class PathManager(
 
     /** 本地或文件中读取路径，并设置进度 */
     fun load(pathName: String, progress: Double = .0) =
-        globals[pathName]
-            ?.also { it.progress = progress }
-        ?: refresh(pathName, progress)
+        globals[pathName]?.also { it.progress = progress } ?: refresh(pathName, progress)
 
     /** 从本地或文件中读取路径 */
     fun resume(pathName: String) =
         globals[pathName] ?: refresh(pathName)
 
     /** 将路径存储到文件 */
-    fun save(fileName: String, path: List<Odometry>) {
+    fun save(fileName: String, path: List<Odometry>) =
         path.joinToString("\n") { (p, d) -> "${p.x},${p.y},${d.asRadian()}" }
             .let { File(fileName).writeText(it) }
-    }
 
     override fun toString() =
         buildString {

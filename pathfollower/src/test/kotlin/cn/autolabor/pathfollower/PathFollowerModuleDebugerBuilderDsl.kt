@@ -1,8 +1,9 @@
 package cn.autolabor.pathfollower
 
 import cn.autolabor.business.BusinessBuilderDsl
-import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
+import cn.autolabor.business.BusinessBuilderDsl.Companion.business
 import cn.autolabor.business.parseFromConsole
+import cn.autolabor.business.registerBusinessParser
 import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.common.Odometry
@@ -85,12 +86,11 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
                     }
                     runBlocking {
                         // 任务
-                        startBusiness(
+                        val business = business(
                             robotOnMap = robotOnMap,
                             robotOnOdometry = robotOnMap,
                             commandOut = commandToRobot,
-                            exceptions = exceptions,
-                            consoleParser = parser
+                            exceptions = exceptions
                         ) {
                             this@run.config(this)
                             painter = remote
@@ -111,7 +111,10 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
                                 launch { if (!watchDog.feed()) command.set(velocity(0, 0)) }
                             }
                         }
-                        launch { while (isActive) parser.parseFromConsole() }
+                        launch {
+                            registerBusinessParser(business, parser)
+                            while (isActive) parser.parseFromConsole()
+                        }
                         // 运行仿真
                         for ((t, v) in speedSimulation(T0, dt, speed) { command.get() }) {
                             //  计算机器人位姿增量

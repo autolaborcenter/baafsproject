@@ -56,6 +56,8 @@ class ParticleFilter(
     var quality = Stamped(0L, FusionQuality.zero)
         private set
 
+    val isConvergenced get() = predicate.state
+
     // 过程参数渗透
     @DebugTemporary(DELETE)
     data class StepState(
@@ -142,12 +144,16 @@ class ParticleFilter(
                 }
                 // 计算粒子总权重，若过低，直接重新初始化
                 val weightsSum = weights.sum()
-                    .takeIf { it > 1 }
-                    ?: run {
-                        particles = particles.zip(ages) { (p, _), age -> p to max(age, 0) }
-                        if (!predicate.state && ages.max()!! < 3) initialize(t, measure, state)
-                        return@forEach
-                    }
+                                     .takeIf { it > 1 }
+                                 ?: run {
+                                     // 写入当前寿命
+                                     particles = particles.zip(ages) { (p, _), age -> p to max(age, 0) }
+                                     // 计算定位质量
+                                     quality = Stamped(t, particles.qualityBy(maxAge, maxInconsistency))
+                                     // 重新初始化
+                                     if (!predicate.update(quality.data)) initialize(t, measure, state)
+                                     return@forEach
+                                 }
                 // 计算期望
                 var eP = vector2DOfZero()
                 var eD = vector2DOfZero()
