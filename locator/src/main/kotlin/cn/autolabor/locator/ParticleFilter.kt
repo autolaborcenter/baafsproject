@@ -142,12 +142,12 @@ class ParticleFilter(
                 }
                 // 计算粒子总权重，若过低，直接重新初始化
                 val weightsSum = weights.sum()
-                                     .takeIf { it > 1 }
-                                 ?: run {
-                                     particles = particles.zip(ages) { (p, _), age -> p to max(age, 0) }
-                                     if (!predicate.state && ages.max()!! < 3) initialize(t, measure, state)
-                                     return@forEach
-                                 }
+                    .takeIf { it > 1 }
+                    ?: run {
+                        particles = particles.zip(ages) { (p, _), age -> p to max(age, 0) }
+                        if (!predicate.state && ages.max()!! < 3) initialize(t, measure, state)
+                        return@forEach
+                    }
                 // 计算期望
                 var eP = vector2DOfZero()
                 var eD = vector2DOfZero()
@@ -172,13 +172,12 @@ class ParticleFilter(
                 if (predicate.update(quality.data)) predictingMemory = robotPoseBy(eP, eAngle) to state
                 @DebugTemporary(DELETE)
                 synchronized(stepFeedback) {
-                    for (callback in stepFeedback)
-                        callback(
-                            Stamped(
-                                t, StepState(
-                                    measureWeight = measureWeight,
-                                    particleWeight = weightsSum,
-                                    quality = quality.data)))
+                    val msg = Stamped(
+                        t, StepState(
+                            measureWeight = measureWeight,
+                            particleWeight = weightsSum,
+                            quality = quality.data))
+                    for (callback in stepFeedback) callback(msg)
                 }
             }
     }
