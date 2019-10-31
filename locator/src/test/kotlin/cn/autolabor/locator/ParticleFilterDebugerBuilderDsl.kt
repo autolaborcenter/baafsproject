@@ -4,7 +4,7 @@ import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocati
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import org.mechdancer.*
+import org.mechdancer.BuilderDslMarker
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.function.vector.plus
@@ -12,11 +12,14 @@ import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
+import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.filters.Differential
 import org.mechdancer.common.toPose
 import org.mechdancer.common.toTransformation
+import org.mechdancer.newRandomDriving
+import org.mechdancer.paintPose
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.simulation.*
 import org.mechdancer.simulation.DifferentialOdometry.Key
@@ -50,9 +53,10 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
     // 定位异常配置
     @BuilderDslMarker
     data class BeaconErrorSourceBuilderDsl
-    internal constructor(var pStart: Double = .0,
-                         var pStop: Double = 1.0,
-                         var range: Double = .0)
+    internal constructor(
+        var pStart: Double = .0,
+        var pStop: Double = 1.0,
+        var range: Double = .0)
 
     @BuilderDslMarker
     class BeaconErrorSourcesBuilderDsl internal constructor() {
@@ -70,11 +74,12 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                 ?.apply {
                     this@BeaconErrorSourcesBuilderDsl
                         .beaconErrors
-                        .add(AccidentalBeaconErrorSource(
-                            pStart = pStart,
-                            pStop = pStop,
-                            range = range
-                        ))
+                        .add(
+                            AccidentalBeaconErrorSource(
+                                pStart = pStart,
+                                pStop = pStop,
+                                range = range
+                            ))
                 }
         }
     }
@@ -179,10 +184,8 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                         }
                         launch {
                             // 在控制台打印误差
-                            for ((t, pose) in robotOnMap) {
-                                painter?.paintPose("滤波", pose)
+                            for ((t, pose) in robotOnMap)
                                 if (t == actual.time) analyzer(t, actual.data, pose)
-                            }
                         }
                         // 运行仿真
                         for ((t, v) in speedSimulation(T0, 1000L / frequency, speed) { random.next() }) {
@@ -199,8 +202,10 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                                 ++beaconTimes
                                 if (Random.nextDouble() > beaconLossRate)
                                     beaconQueue += beaconErrors
-                                        .fold(vector2DOf(Normal.next(.0, beaconSigma),
-                                                         Normal.next(.0, beaconSigma))
+                                        .fold(
+                                            vector2DOf(
+                                                Normal.next(.0, beaconSigma),
+                                                Normal.next(.0, beaconSigma))
                                         ) { sum, source -> sum + source.next() }
                                         .let {
                                             Stamped(t, actual.data.toTransformation()(beaconOnRobot).to2D() + it)
@@ -208,11 +213,7 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                             }
                             // 延时发送采样
                             while (beaconQueue.peek()?.time?.let { it < t - beaconDelay } == true)
-                                beaconQueue.poll()!!
-                                    .also {
-                                        painter?.paint(BEACON_TAG, it.data.x, it.data.y)
-                                        beaconOnMap.send(it)
-                                    }
+                                beaconQueue.poll()!!.also { beaconOnMap.send(it) }
                             // 里程计采样
                             if (t > odometryTimes * odometryPeriod) {
                                 ++odometryTimes

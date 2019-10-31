@@ -18,8 +18,8 @@ fun main() = debugParticleFilter {
     origin = Odometry.odometry(3, 4, PI)
     // 里程计配置
     odometryFrequency = 20.0
-    leftWheel = vector2DOf(0, +.201)
-    rightWheel = vector2DOf(0, -.201)
+    leftWheel = vector2DOf(0, +.21)
+    rightWheel = vector2DOf(0, -.21)
     wheelsWidthMeasure = 0.4
     // 定位配置
     beaconFrequency = 7.0
@@ -31,9 +31,9 @@ fun main() = debugParticleFilter {
     beaconErrors {
         // 快速恢复的局外点
         error {
-            pStart = .05
+            pStart = .1
             pStop = .75
-            range = .2
+            range = .3
         }
 //      // 持续性的偏移
 //      error {
@@ -51,7 +51,7 @@ fun main() = debugParticleFilter {
     // 滤波器配置
     particleFilter {
         beaconOnRobot = vector2DOf(-.05, 0)
-        maxInconsistency = .05
+        maxInconsistency = .04
         convergence { (age, _, d) -> age > .2 && d > .9 }
         divergence { (age, _, _) -> age < .1 }
     }
