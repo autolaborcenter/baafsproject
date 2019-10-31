@@ -78,13 +78,12 @@ class ParticleFilter(
 
     override operator fun get(item: Stamped<Odometry>): Stamped<Odometry> {
         val (t, p) = item
-        val (e, b) = predictingMemory
-        return Stamped(t, e plusDelta (p minusState b))
+        return Stamped(t, visionary.infer(p))
     }
 
     private var stepMemory: Pair<Vector2D, Odometry>? = null
     private lateinit var updatingMemory: Odometry
-    private var predictingMemory = Odometry() to Odometry()
+    private var visionary = Visionary(Odometry(), Odometry(), .0)
 
     @Synchronized
     private fun update() {
@@ -175,7 +174,8 @@ class ParticleFilter(
                 // 计算定位质量
                 quality = Stamped(t, particles.qualityBy(maxAge, maxInconsistency))
                 // 猜测真实位姿
-                if (predicate.update(quality.data)) predictingMemory = robotPoseBy(eP, eAngle) to state
+                if (predicate.update(quality.data))
+                    visionary = visionary.fusion(state, robotPoseBy(eP, eAngle), maxInconsistency)
                 @DebugTemporary(DELETE)
                 synchronized(stepFeedback) {
                     val msg = Stamped(
@@ -195,6 +195,7 @@ class ParticleFilter(
     private fun initialize(t: Long, measure: Vector2D, state: Odometry) {
         updatingMemory = state
         quality = Stamped(t, FusionQuality.zero)
+        visionary = visionary.copy(reliability = .0)
         val step = 2 * PI / count
         particles = List(count) {
             val d = (it * step).toRad()

@@ -31,7 +31,7 @@ fun main() = debugParticleFilter {
     beaconErrors {
         // 快速恢复的局外点
         error {
-            pStart = .1
+            pStart = .05
             pStop = .75
             range = .3
         }
