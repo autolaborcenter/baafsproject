@@ -73,12 +73,17 @@ fun main() {
                 beaconOnMap = beaconOnMap,
                 exceptions = exceptions
             ) {
-                port = null
+                port = "/dev/beacon"
                 retryInterval = 100L
                 connectionTimeout = 3000L
                 parseTimeout = 2500L
                 dataTimeout = 2000L
+
                 delayLimit = 400L
+
+                val height = -1.6
+                val radius = .3
+                heightRange = height - radius..height + radius
             }
             println("done")
 

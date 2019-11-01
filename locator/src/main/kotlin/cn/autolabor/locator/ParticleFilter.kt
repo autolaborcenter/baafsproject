@@ -12,7 +12,10 @@ import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.toTransformation
-import org.mechdancer.geometry.angle.*
+import org.mechdancer.geometry.angle.Angle
+import org.mechdancer.geometry.angle.toAngle
+import org.mechdancer.geometry.angle.toRad
+import org.mechdancer.geometry.angle.toVector
 import org.mechdancer.geometry.transformation.Transformation
 import org.mechdancer.simulation.random.Normal
 import kotlin.math.*
@@ -56,8 +59,11 @@ class ParticleFilter(
     var quality = Stamped(0L, FusionQuality.zero)
         private set
 
-    //
+    // 是否收敛
     val isConvergent get() = predicate.state
+    // 最后一次查询结果
+    var lastQuery: Stamped<Odometry>? = null
+        private set
 
     // 过程参数渗透
     @DebugTemporary(DELETE)
@@ -79,7 +85,7 @@ class ParticleFilter(
 
     override operator fun get(item: Stamped<Odometry>): Stamped<Odometry> {
         val (t, p) = item
-        return Stamped(t, visionary.infer(p))
+        return Stamped(t, visionary.infer(p)).also { lastQuery = it }
     }
 
     private var stepMemory: Pair<Vector2D, Odometry>? = null
@@ -144,16 +150,16 @@ class ParticleFilter(
                 }
                 // 计算粒子总权重，若过低，直接重新初始化
                 val weightsSum = weights.sum()
-                                     .takeIf { it > 1 }
-                                 ?: run {
-                                     // 写入当前寿命
-                                     particles = particles.zip(ages) { (p, _), age -> p to max(age, 0) }
-                                     // 计算定位质量
-                                     quality = Stamped(t, particles.qualityBy(maxAge, maxInconsistency))
-                                     // 重新初始化
-                                     if (!predicate.update(quality.data)) initialize(t, measure, state)
-                                     return@forEach
-                                 }
+                    .takeIf { it > 1 }
+                    ?: run {
+                        // 写入当前寿命
+                        particles = particles.zip(ages) { (p, _), age -> p to max(age, 0) }
+                        // 计算定位质量
+                        quality = Stamped(t, particles.qualityBy(maxAge, maxInconsistency))
+                        // 重新初始化
+                        if (!predicate.update(quality.data)) initialize(t, measure, state)
+                        return@forEach
+                    }
                 // 计算期望
                 var eP = vector2DOfZero()
                 var eD = vector2DOfZero()
@@ -176,7 +182,11 @@ class ParticleFilter(
                 quality = Stamped(t, particles.qualityBy(maxAge, maxInconsistency))
                 // 猜测真实位姿
                 if (predicate.update(quality.data))
-                    visionary = visionary.fusion(state, robotPoseBy(eP, eAngle), maxInconsistency)
+                    visionary = visionary.fusion(
+                        state,
+                        robotPoseBy(eP, eAngle),
+                        2.0,
+                        maxInconsistency)
                 @DebugTemporary(DELETE)
                 synchronized(stepFeedback) {
                     val msg = Stamped(
