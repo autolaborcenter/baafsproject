@@ -156,7 +156,7 @@ class MobileBeaconModuleBuilderDsl private constructor() {
                             val y = value.y
                             val z = value.z
                             val delay = value.delay
-                            logger.log("delay = $delay, x = ${x / 1000.0}, y = ${y / 1000.0}")
+                            logger.log("delay = $delay, x = ${x / 1000.0}, y = ${y / 1000.0}, z = ${z / 1000.0}")
 
                             if (delay !in 1 until delayLimit || z / 1000.0 !in heightRange) return@engine
 
