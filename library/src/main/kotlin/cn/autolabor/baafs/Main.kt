@@ -150,11 +150,15 @@ fun main() {
                     this["coroutines"] = { coroutineContext[Job]?.children?.count() }
                     this["exceptions"] = { exceptionServer.get().joinToString("\n") }
                     this["fusion state"] = {
-                        val (t, quality) = filter.quality
                         buildString {
-                            appendln("particles last update ${System.currentTimeMillis() - t}ms ago")
+                            val now = System.currentTimeMillis()
+                            appendln(filter.lastQuery
+                                ?.let { (t, pose) -> "last locate at $pose ${now - t}ms ago" }
+                                ?: "never query pose before")
+                            val (t, quality) = filter.quality
+                            appendln("particles last update ${now - t}ms ago")
                             appendln("now system is ${if (filter.isConvergent) "" else "not"} ready for work")
-                            appendln("quality = $quality")
+                            append("quality = $quality")
                         }
                     }
                     registerBusinessParser(business, this)
