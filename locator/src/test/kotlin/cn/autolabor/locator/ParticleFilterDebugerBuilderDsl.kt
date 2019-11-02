@@ -38,6 +38,11 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
     var frequency = 50L
     // 机器人起始位姿
     var origin = Odometry()
+    // 里程计配置
+    var odometryFrequency = 20.0
+    var leftWheel = vector2DOf(0, +.2)
+    var rightWheel = vector2DOf(0, -.2)
+    var wheelsWidthMeasure = 0.4
     // 定位配置
     // 定位频率
     var beaconFrequency = 7.0
@@ -89,11 +94,6 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
         errors.apply(block)
     }
 
-    // 里程计配置
-    var odometryFrequency = 20.0
-    var leftWheel = vector2DOf(0, +.2)
-    var rightWheel = vector2DOf(0, -.2)
-    var wheelsWidthMeasure = 0.4
     // 滤波器配置
     private var filterConfig: ParticleFilterBuilderDsl.() -> Unit = {}
 
