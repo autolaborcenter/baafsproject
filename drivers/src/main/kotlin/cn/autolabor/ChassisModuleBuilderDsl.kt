@@ -12,6 +12,7 @@ import org.mechdancer.common.Stamped
 import org.mechdancer.common.Stamped.Companion.stamp
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.exceptions.device.DeviceNotExistException
+import java.util.concurrent.Executors
 
 @BuilderDslMarker
 class ChassisModuleBuilderDsl private constructor() {
@@ -50,7 +51,7 @@ class ChassisModuleBuilderDsl private constructor() {
                         length?.let { PM1[Length] = it }
                     }
             // 启动里程计发送
-            launch {
+            launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
                 val logger = SimpleLogger("ChassisOdometry")
                 while (isActive) {
                     val (t, data) = PM1.odometry

@@ -12,7 +12,10 @@ import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.toTransformation
-import org.mechdancer.geometry.angle.*
+import org.mechdancer.geometry.angle.Angle
+import org.mechdancer.geometry.angle.toAngle
+import org.mechdancer.geometry.angle.toRad
+import org.mechdancer.geometry.angle.toVector
 import org.mechdancer.geometry.transformation.Transformation
 import org.mechdancer.simulation.random.Normal
 import kotlin.math.*
@@ -56,6 +59,12 @@ class ParticleFilter(
     var quality = Stamped(0L, FusionQuality.zero)
         private set
 
+    // 是否收敛
+    val isConvergent get() = predicate.state
+    // 最后一次查询结果
+    var lastQuery: Stamped<Odometry>? = null
+        private set
+
     // 过程参数渗透
     @DebugTemporary(DELETE)
     data class StepState(
@@ -76,13 +85,12 @@ class ParticleFilter(
 
     override operator fun get(item: Stamped<Odometry>): Stamped<Odometry> {
         val (t, p) = item
-        val (e, b) = predictingMemory
-        return Stamped(t, e plusDelta (p minusState b))
+        return Stamped(t, visionary.infer(p)).also { lastQuery = it }
     }
 
     private var stepMemory: Pair<Vector2D, Odometry>? = null
     private lateinit var updatingMemory: Odometry
-    private var predictingMemory = Odometry() to Odometry()
+    private var visionary = Visionary(Odometry(), Odometry(), .0)
 
     @Synchronized
     private fun update() {
@@ -96,7 +104,7 @@ class ParticleFilter(
                     .takeIf { it in 1..maxInterval }
                     ?.let { interval ->
                         val k = (t - before.time).toDouble() / interval
-                        Stamped(t, m to before.data * k + after.data * (1 - k))
+                        Stamped(t, m to average(before.data to k, after.data to (1 - k)))
                     }
             }
             // 计算定位权重
@@ -142,12 +150,16 @@ class ParticleFilter(
                 }
                 // 计算粒子总权重，若过低，直接重新初始化
                 val weightsSum = weights.sum()
-                                     .takeIf { it > 1 }
-                                 ?: run {
-                                     particles = particles.zip(ages) { (p, _), age -> p to max(age, 0) }
-                                     if (!predicate.state && ages.max()!! < 3) initialize(t, measure, state)
-                                     return@forEach
-                                 }
+                    .takeIf { it > 1 }
+                    ?: run {
+                        // 写入当前寿命
+                        particles = particles.zip(ages) { (p, _), age -> p to max(age, 0) }
+                        // 计算定位质量
+                        quality = Stamped(t, particles.qualityBy(maxAge, maxInconsistency))
+                        // 重新初始化
+                        if (!predicate.update(quality.data)) initialize(t, measure, state)
+                        return@forEach
+                    }
                 // 计算期望
                 var eP = vector2DOfZero()
                 var eD = vector2DOfZero()
@@ -169,16 +181,20 @@ class ParticleFilter(
                 // 计算定位质量
                 quality = Stamped(t, particles.qualityBy(maxAge, maxInconsistency))
                 // 猜测真实位姿
-                if (predicate.update(quality.data)) predictingMemory = robotPoseBy(eP, eAngle) to state
+                if (predicate.update(quality.data))
+                    visionary = visionary.fusion(
+                        state,
+                        robotPoseBy(eP, eAngle),
+                        2.0,
+                        maxInconsistency)
                 @DebugTemporary(DELETE)
                 synchronized(stepFeedback) {
-                    for (callback in stepFeedback)
-                        callback(
-                            Stamped(
-                                t, StepState(
-                                    measureWeight = measureWeight,
-                                    particleWeight = weightsSum,
-                                    quality = quality.data)))
+                    val msg = Stamped(
+                        t, StepState(
+                            measureWeight = measureWeight,
+                            particleWeight = weightsSum,
+                            quality = quality.data))
+                    for (callback in stepFeedback) callback(msg)
                 }
             }
     }
@@ -190,6 +206,7 @@ class ParticleFilter(
     private fun initialize(t: Long, measure: Vector2D, state: Odometry) {
         updatingMemory = state
         quality = Stamped(t, FusionQuality.zero)
+        visionary = visionary.copy(reliability = .0)
         val step = 2 * PI / count
         particles = List(count) {
             val d = (it * step).toRad()
@@ -199,14 +216,6 @@ class ParticleFilter(
     }
 
     private companion object {
-        // 里程计线性可加性（用于加权平均）
-        operator fun Odometry.times(k: Double) =
-            Odometry(p * k, d * k)
-
-        // 里程计线性可数乘（用于加权平均）
-        operator fun Odometry.plus(other: Odometry) =
-            Odometry(p + other.p, d rotate other.d)
-
         fun List<Pair<Odometry, Int>>.qualityBy(
             maxAge: Int,
             maxInconsistent: Double

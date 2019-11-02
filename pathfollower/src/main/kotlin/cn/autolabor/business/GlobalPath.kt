@@ -1,6 +1,7 @@
 package cn.autolabor.business
 
 import org.mechdancer.algebra.function.vector.euclid
+import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.invoke
 import org.mechdancer.common.toTransformation
@@ -12,8 +13,8 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 class GlobalPath(
     core: List<Odometry>,
-    private val localLimit: Double,
-    private val searchLength: Int
+    private val localRadius: Double,
+    private val searchCount: Int
 ) : List<Odometry> by core {
     // 当前位置
     private val index = AtomicInteger(0)
@@ -45,7 +46,7 @@ class GlobalPath(
         val i = index.updateAndGet { old ->
             val end = when {
                 searchAll || old == 0 -> size
-                else                  -> kotlin.math.min(old + searchLength, size)
+                else -> kotlin.math.min(old + searchCount, size)
             }
             searchAll = false
             var dn = get(old).p euclid p
@@ -53,18 +54,21 @@ class GlobalPath(
                 .firstOrNull { i ->
                     val `dn-1` = dn
                     dn = get(i).p euclid p
-                    `dn-1` < localLimit && `dn-1` < dn
+                    `dn-1` < localRadius && `dn-1` < dn
                 }
                 ?.let { it - 1 }
-                ?: if (dn < localLimit) end - 1 else old
+                ?: if (dn < localRadius) end - 1 else old
         }
         // 产生全局路径（机器人坐标系下）
         return when {
-            get(i).p euclid p < localLimit -> {
+            get(i).p euclid p < localRadius -> {
                 val mapToRobot = robotOnMap.toTransformation().inverse()
-                asSequence().drop(i).map { mapToRobot(it) }
+                asSequence()
+                    .drop(i)
+                    .map { mapToRobot(it) }
+                    .takeWhile { it.p.norm() < searchCount }
             }
-            else                           ->
+            else ->
                 emptySequence()
         }
     }

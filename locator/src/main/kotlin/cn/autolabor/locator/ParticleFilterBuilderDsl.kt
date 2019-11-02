@@ -28,7 +28,7 @@ class ParticleFilterBuilderDsl private constructor() {
     var sigma: Double = .10 * PI
     // 收敛判定
     private var convergence: (FusionQuality) -> Boolean = { true }
-    private var divergence: (FusionQuality) -> Boolean = { false }
+    private var divergence: (FusionQuality) -> Boolean = { (age, _, _) -> age < .05 }
 
     // 收敛条件
     fun convergence(block: (FusionQuality) -> Boolean) {

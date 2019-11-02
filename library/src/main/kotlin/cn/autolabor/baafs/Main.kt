@@ -1,8 +1,9 @@
 package cn.autolabor.baafs
 
 import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
-import cn.autolabor.business.PathFollowerModuleBuilderDsl.Companion.startPathFollower
+import cn.autolabor.business.BusinessBuilderDsl.Companion.business
 import cn.autolabor.business.parseFromConsole
+import cn.autolabor.business.registerBusinessParser
 import cn.autolabor.core.server.DefaultSetup
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
@@ -62,8 +63,8 @@ fun main() {
                 command = commandToRobot
             ) {
                 port = null
-                period = 30L
-                controlTimeout = 300L
+                period = 40L
+                controlTimeout = 400L
             }
             println("done")
 
@@ -72,12 +73,17 @@ fun main() {
                 beaconOnMap = beaconOnMap,
                 exceptions = exceptions
             ) {
-                port = null
+                port = "/dev/beacon"
                 retryInterval = 100L
                 connectionTimeout = 3000L
                 parseTimeout = 2500L
                 dataTimeout = 2000L
+
                 delayLimit = 400L
+
+                val height = -1.6
+                val radius = .3
+                heightRange = height - radius..height + radius
             }
             println("done")
 
@@ -88,12 +94,9 @@ fun main() {
                 commandOut = commandToSwitch)
             println("done")
 
+            println("staring data process modules...")
             val exceptionServer = ExceptionServer()
-            val parser = buildParser {
-                this["coroutines"] = { coroutineContext[Job]?.children?.count() }
-                this["exceptions"] = { exceptionServer.get().joinToString("\n") }
-            }
-            startLocationFusion(
+            val filter = startLocationFusion(
                 robotOnOdometry = robotOnOdometry.outputs[0],
                 beaconOnMap = beaconOnMap,
                 robotOnMap = robotOnMap
@@ -106,15 +109,14 @@ fun main() {
                 }
                 painter = remote
             }
-            startPathFollower(
+            val business = business(
                 robotOnMap = robotOnMap,
                 robotOnOdometry = robotOnOdometry.outputs[1],
                 commandOut = commandToObstacle,
-                exceptions = exceptions,
-                consoleParser = parser
+                exceptions = exceptions
             ) {
                 pathInterval = .05
-                searchLength = 1.0
+                localRadius = .5
                 directionLimit = (-120).toDegree()
                 follower {
                     sensorPose = odometry(.2, .0)
@@ -137,13 +139,32 @@ fun main() {
                         commandToRobot.send(command)
                 commandToRobot.close()
             }
+            println("done")
 //            launch {
 //                val topic = "fusion".handler<Msg2DOdometry>()
 //                for ((_, pose) in robotOnMap.outputs[1])
 //                    topic.pushSubData(Msg2DOdometry(Msg2DPose(pose.p.x, pose.p.y, pose.d.asRadian()), null))
 //            }
-
-            GlobalScope.launch { while (isActive) parser.parseFromConsole() }
+            launch {
+                val parser = buildParser {
+                    this["coroutines"] = { coroutineContext[Job]?.children?.count() }
+                    this["exceptions"] = { exceptionServer.get().joinToString("\n") }
+                    this["fusion state"] = {
+                        buildString {
+                            val now = System.currentTimeMillis()
+                            appendln(filter.lastQuery
+                                ?.let { (t, pose) -> "last locate at $pose ${now - t}ms ago" }
+                                ?: "never query pose before")
+                            val (t, quality) = filter.quality
+                            appendln("particles last update ${now - t}ms ago")
+                            appendln("now system is ${if (filter.isConvergent) "" else "not"} ready for work")
+                            append("quality = $quality")
+                        }
+                    }
+                    registerBusinessParser(business, this)
+                }
+                while (isActive) parser.parseFromConsole()
+            }
         }
     } catch (e: CancellationException) {
     } catch (e: ApplicationException) {

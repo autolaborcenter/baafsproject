@@ -2,6 +2,7 @@ package com.faselase
 
 import cn.autolabor.serialport.parser.SerialPortFinder
 import cn.autolabor.serialport.parser.readOrReboot
+import com.fazecast.jSerialComm.SerialPort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.channels.SendChannel
@@ -25,7 +26,7 @@ import kotlin.math.PI
 class FaselaseLidar(
     scope: CoroutineScope,
     exceptions: SendChannel<ExceptionMessage>,
-    portName: String?,
+    name: String?,
     tag: String?,
     launchTimeout: Long,
     connectionTimeout: Long,
@@ -36,14 +37,24 @@ class FaselaseLidar(
     private val engine = engine()
     private val port =
         try {
-            SerialPortFinder.findSerialPort(portName, engine) {
-                baudRate = 460800
-                timeoutMs = launchTimeout
-                bufferSize = BUFFER_SIZE
-                //  启动时发送开始旋转指令
-                activate = "#SF 10\r\n".toByteArray(Charsets.US_ASCII)
-                condition { pack -> pack is LidarPack.Data }
-            }
+            val candidates =
+                name?.let { listOf(SerialPort.getCommPort(it)) }
+                    ?: SerialPort.getCommPorts()
+                        ?.takeIf(Array<*>::isNotEmpty)
+                        ?.toList()
+                    ?: throw RuntimeException("no available port")
+            SerialPortFinder
+                .findSerialPort(
+                    candidates = candidates,
+                    engine = engine
+                ) {
+                    baudRate = 460800
+                    timeoutMs = launchTimeout
+                    bufferSize = BUFFER_SIZE
+                    //  启动时发送开始旋转指令
+                    activate = "#SF 10\r\n".toByteArray(Charsets.US_ASCII)
+                    condition { pack -> pack is LidarPack.Data }
+                }
         } catch (e: RuntimeException) {
             throw DeviceNotExistException(tag ?: "faselase lidar", e.message)
         }
@@ -64,31 +75,33 @@ class FaselaseLidar(
 
     init {
         launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
-            val name = this@FaselaseLidar.tag
+            val deviceTag = this@FaselaseLidar.tag
             while (port.isOpen)
                 port.readOrReboot(buffer, retryInterval) {
-                    exceptions.send(Occurred(DeviceOfflineException(name)))
+                    exceptions.send(Occurred(DeviceOfflineException(deviceTag)))
                 }.takeIf(Collection<*>::isNotEmpty)
                     ?.let { buffer ->
                         launch {
                             connectionWatchDog.feedOrThrowTo(
                                 exceptions,
-                                DeviceOfflineException(name))
+                                DeviceOfflineException(deviceTag)
+                            )
                         }
                         engine(buffer) { pack ->
                             when (pack) {
-                                LidarPack.Nothing    -> logger.log("nothing")
-                                LidarPack.Failed     -> logger.log("failed")
+                                LidarPack.Nothing -> logger.log("nothing")
+                                LidarPack.Failed -> logger.log("failed")
                                 is LidarPack.Invalid -> {
                                     val (theta) = pack
                                     lock.write { refresh(theta) }
                                     logger.log(Double.NaN, theta)
                                 }
-                                is LidarPack.Data    -> {
+                                is LidarPack.Data -> {
                                     launch {
                                         dataWatchDog.feedOrThrowTo(
                                             exceptions,
-                                            DataTimeoutException(name, dataTimeout))
+                                            DataTimeoutException(deviceTag, dataTimeout)
+                                        )
                                     }
                                     val (rho, theta) = pack
                                     lock.write { list.offer(Stamped.stamp(Polar(rho, refresh(theta)))) }

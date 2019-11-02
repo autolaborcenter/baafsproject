@@ -30,6 +30,7 @@ import kotlin.math.*
  */
 class VirtualLightSensorPathFollower
 internal constructor(
+    val global: GlobalPath,
     @DebugTemporary(REDUCE)
     val sensor: VirtualLightSensor,
     private val controller: Filter<Double, Double>,
@@ -38,7 +39,6 @@ internal constructor(
     internal val maxLinearSpeed: Double,
     maxAngularSpeed: Angle
 ) {
-    private var path: GlobalPath? = null
     private var pre = .0
 
     private val cosMinTip = cos(minTipAngle.asRadian())
@@ -52,21 +52,8 @@ internal constructor(
     var tip = Odometry()
         private set
 
-    /** 设置目标路径 */
-    fun setPath(path: GlobalPath) {
-        this.path = path
-        // 重置状态
-        controller.clear()
-    }
-
-    /** 查询/修改进度 */
-    var progress: Double
-        get() = path?.progress ?: 1.0
-        set(value) = path?.run { progress = value } ?: Unit
-
     /** 计算控制量 */
     operator fun invoke(pose: Odometry): FollowCommand {
-        val global = path ?: return Finish
         val bright = sensor.shine(global[pose])
         // 特殊情况提前退出
         var pn = bright.firstOrNull()

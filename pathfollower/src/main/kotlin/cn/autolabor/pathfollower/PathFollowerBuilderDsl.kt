@@ -1,13 +1,14 @@
 package cn.autolabor.pathfollower
 
-import org.mechdancer.shape.Circle
-import org.mechdancer.shape.Shape
+import cn.autolabor.business.GlobalPath
 import org.mechdancer.BuilderDslMarker
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.filters.Filter
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
+import org.mechdancer.shape.Circle
+import org.mechdancer.shape.Shape
 import kotlin.math.PI
 
 @BuilderDslMarker
@@ -21,7 +22,10 @@ class PathFollowerBuilderDsl private constructor() {
     var maxAngularSpeed: Angle = 0.5.toRad()
 
     companion object {
-        fun pathFollower(block: PathFollowerBuilderDsl. () -> Unit) =
+        fun pathFollower(
+            global: GlobalPath,
+            block: PathFollowerBuilderDsl. () -> Unit
+        ) =
             PathFollowerBuilderDsl()
                 .apply(block)
                 .apply {
@@ -32,6 +36,7 @@ class PathFollowerBuilderDsl private constructor() {
                 }
                 .run {
                     VirtualLightSensorPathFollower(
+                        global = global,
                         sensor = VirtualLightSensor(
                             onRobot = sensorPose,
                             lightRange = lightRange),

@@ -2,8 +2,9 @@ package cn.autolabor.baafs
 
 import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
 import cn.autolabor.baafs.CollisionPredictingModuleBuilderDsl.Companion.startCollisionPredictingModule
-import cn.autolabor.business.PathFollowerModuleBuilderDsl.Companion.startPathFollower
+import cn.autolabor.business.BusinessBuilderDsl.Companion.business
 import cn.autolabor.business.parseFromConsole
+import cn.autolabor.business.registerBusinessParser
 import cn.autolabor.core.server.DefaultSetup
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
@@ -54,8 +55,7 @@ fun main() {
     val robotOnMap = channel<Stamped<Odometry>>()
     val beaconOnMap = channel<Stamped<Vector2D>>()
     val exceptions = channel<ExceptionMessage>()
-    val commandToObstacle = channel<NonOmnidirectional>()
-    val commandToSwitch = channel<NonOmnidirectional>()
+    val commandToSwitch = YChannel<NonOmnidirectional>()
     val commandToRobot = channel<NonOmnidirectional>()
     // 任务
     try {
@@ -123,12 +123,9 @@ fun main() {
             }
             println("done")
 
+            println("staring data process modules...")
             val exceptionServer = ExceptionServer()
-            val parser = buildParser {
-                this["coroutines"] = { coroutineContext[Job]?.children?.count() }
-                this["exceptions"] = { exceptionServer.get().joinToString("\n") }
-            }
-            startLocationFusion(
+            val filter = startLocationFusion(
                 robotOnOdometry = robotOnOdometry.outputs[0],
                 beaconOnMap = beaconOnMap,
                 robotOnMap = robotOnMap
@@ -141,15 +138,14 @@ fun main() {
                 }
                 painter = remote
             }
-            startPathFollower(
+            val business = business(
                 robotOnMap = robotOnMap,
                 robotOnOdometry = robotOnOdometry.outputs[1],
-                commandOut = commandToObstacle,
-                exceptions = exceptions,
-                consoleParser = parser
+                commandOut = commandToSwitch.input,
+                exceptions = exceptions
             ) {
                 pathInterval = .05
-                searchLength = 1.0
+                localRadius = .5
                 directionLimit = (-120).toDegree()
                 follower {
                     sensorPose = odometry(.2, .0)
@@ -163,33 +159,45 @@ fun main() {
                 painter = remote
             }
             startCollisionPredictingModule(
-                commandIn = commandToObstacle,
+                commandIn = commandToSwitch.outputs[0],
                 exception = exceptions,
                 lidarSet = lidarSet,
                 robotOutline = robotOutline
             ) {
-                predictingTime = 500L
-                countToContinue = 5
-                countToStop = 5
-                painter = remote
+
             }
             launch {
                 for (e in exceptions)
                     exceptionServer.update(e)
             }
             launch {
-                for (command in commandToSwitch)
+                for (command in commandToSwitch.outputs[1])
                     if (exceptionServer.isEmpty())
                         commandToRobot.send(command)
                 commandToRobot.close()
             }
+            println("done")
 //            launch {
 //                val topic = "fusion".handler<Msg2DOdometry>()
 //                for ((_, pose) in robotOnMap.outputs[1])
 //                    topic.pushSubData(Msg2DOdometry(Msg2DPose(pose.p.x, pose.p.y, pose.d.asRadian()), null))
 //            }
-
-            GlobalScope.launch { while (isActive) parser.parseFromConsole() }
+            launch {
+                val parser = buildParser {
+                    this["coroutines"] = { coroutineContext[Job]?.children?.count() }
+                    this["exceptions"] = { exceptionServer.get().joinToString("\n") }
+                    this["fusion state"] = {
+                        val (t, quality) = filter.quality
+                        buildString {
+                            appendln("particles last update ${System.currentTimeMillis() - t}ms ago")
+                            appendln("now system is ${if (filter.isConvergent) "" else "not"} ready for work")
+                            appendln("quality = $quality")
+                        }
+                    }
+                    registerBusinessParser(business, this)
+                }
+                while (isActive) parser.parseFromConsole()
+            }
         }
     } catch (e: CancellationException) {
     } catch (e: ApplicationException) {

@@ -1,6 +1,8 @@
 package com.marvelmind
 
 import cn.autolabor.serialport.parser.SerialPortFinder
+import cn.autolabor.serialport.parser.readOrReboot
+import com.fazecast.jSerialComm.SerialPort
 import com.marvelmind.BeaconPackage.*
 import com.marvelmind.BeaconPackage.Nothing
 import kotlinx.coroutines.CoroutineScope
@@ -20,7 +22,6 @@ import org.mechdancer.exceptions.device.DataTimeoutException
 import org.mechdancer.exceptions.device.DeviceNotExistException
 import org.mechdancer.exceptions.device.DeviceOfflineException
 import org.mechdancer.exceptions.device.ParseTimeoutException
-import cn.autolabor.serialport.parser.readOrReboot
 import java.util.concurrent.Executors
 
 @BuilderDslMarker
@@ -32,7 +33,10 @@ class MobileBeaconModuleBuilderDsl private constructor() {
     var connectionTimeout: Long = 2000L
     var parseTimeout: Long = 2000L
     var dataTimeout: Long = 2000L
+    // 数据过滤参数
     var delayLimit: Long = 400L
+    var heightRange: ClosedFloatingPointRange<Double> =
+        Double.NEGATIVE_INFINITY..Double.POSITIVE_INFINITY
 
     companion object {
         fun CoroutineScope.startMobileBeacon(
@@ -59,7 +63,9 @@ class MobileBeaconModuleBuilderDsl private constructor() {
                         parseTimeout = parseTimeout,
                         dataTimeout = dataTimeout,
                         retryInterval = retryInterval,
-                        delayLimit = delayLimit)
+                        delayLimit = delayLimit,
+                        heightRange = heightRange
+                    )
                 }
         }
     }
@@ -74,14 +80,26 @@ class MobileBeaconModuleBuilderDsl private constructor() {
         private val parseTimeout: Long,
         private val dataTimeout: Long,
         private val retryInterval: Long,
-        private val delayLimit: Long
+        private val delayLimit: Long,
+        private val heightRange: ClosedFloatingPointRange<Double>
     ) : CoroutineScope by scope {
         private val logger = SimpleLogger(NAME)
         private val buffer = ByteArray(BUFFER_SIZE)
         private val engine = engine()
         private val port =
             try {
-                SerialPortFinder.findSerialPort(name, engine) {
+                val candidates =
+                    name?.let { listOf(SerialPort.getCommPort(it)) }
+                        ?: SerialPort.getCommPorts()
+                            ?.takeIf(Array<*>::isNotEmpty)
+                            ?.groupBy { "marvelmind" in it.systemPortName.toLowerCase() }
+                            ?.flatMap { it.value }
+                            ?.toList()
+                        ?: throw RuntimeException("no available port")
+                SerialPortFinder.findSerialPort(
+                    candidates = candidates,
+                    engine = engine
+                ) {
                     baudRate = 115200
                     timeoutMs = dataTimeout
                     bufferSize = BUFFER_SIZE
@@ -114,7 +132,8 @@ class MobileBeaconModuleBuilderDsl private constructor() {
             launch {
                 connectionWatchDog.feedOrThrowTo(
                     exceptions,
-                    DeviceOfflineException(NAME))
+                    DeviceOfflineException(NAME)
+                )
             }
             engine(array) { pack ->
                 when (pack) {
@@ -124,7 +143,8 @@ class MobileBeaconModuleBuilderDsl private constructor() {
                         launch {
                             parseWatchDog.feedOrThrowTo(
                                 exceptions,
-                                ParseTimeoutException(NAME, parseTimeout))
+                                ParseTimeoutException(NAME, parseTimeout)
+                            )
                         }
                         val (code, payload) = pack
                         if (code != COORDINATE_CODE)
@@ -136,9 +156,9 @@ class MobileBeaconModuleBuilderDsl private constructor() {
                             val y = value.y
                             val z = value.z
                             val delay = value.delay
-                            logger.log("delay = $delay, x = ${x / 1000.0}, y = ${y / 1000.0}")
+                            logger.log("delay = $delay, x = ${x / 1000.0}, y = ${y / 1000.0}, z = ${z / 1000.0}")
 
-                            if (delay !in 1 until delayLimit) return@engine
+                            if (delay !in 1 until delayLimit || z / 1000.0 !in heightRange) return@engine
 
                             val last = memory
                             memory = Triple(x, y, z)
@@ -148,7 +168,8 @@ class MobileBeaconModuleBuilderDsl private constructor() {
                                 beaconOnMap.send(Stamped(now - delay, vector2DOf(x, y) / 1000.0))
                                 dataWatchDog.feedOrThrowTo(
                                     exceptions,
-                                    DataTimeoutException(NAME, dataTimeout))
+                                    DataTimeoutException(NAME, dataTimeout)
+                                )
                             }
                         }
                     }

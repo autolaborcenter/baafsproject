@@ -5,8 +5,9 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
-class YChannel<T>(context: CoroutineContext = Dispatchers.Default, size: Int = 2) {
+class YChannel<T>(context: CoroutineContext = EmptyCoroutineContext, size: Int = 2) {
     private val _input = Channel<T>(Channel.CONFLATED)
     private val _outputs = List(size) { Channel<T>(Channel.CONFLATED) }
 

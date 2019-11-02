@@ -36,14 +36,15 @@ class SerialPortFinder<T> private constructor() {
          * @param block  DSL
          */
         fun <T> findSerialPort(
-            name: String?,
+            candidates: List<SerialPort>,
             engine: ParseEngine<Byte, T>,
-            block: SerialPortFinder<T>.() -> Unit) =
+            block: SerialPortFinder<T>.() -> Unit
+        ) =
             SerialPortFinder<T>()
                 .apply(block)
                 .run {
                     val exceptionMessages = mutableListOf<String>()
-                    (name?.let { arrayOf(SerialPort.getCommPort(it)) } ?: SerialPort.getCommPorts())
+                    candidates
                         .find { port ->
                             // 设置串口
                             port.baudRate = baudRate
@@ -76,7 +77,7 @@ class SerialPortFinder<T> private constructor() {
                             }
                             result
                         }
-                    ?: throw RuntimeException(exceptionMessages.joinToString("\n"))
+                        ?: throw RuntimeException(exceptionMessages.joinToString("\n"))
                 }
     }
 }

@@ -34,52 +34,52 @@ class LocationFusionModuleBuilderDsl private constructor() {
             beaconOnMap: ReceiveChannel<Stamped<Vector2D>>,
             robotOnMap: SendChannel<Stamped<Odometry>>,
             block: LocationFusionModuleBuilderDsl.() -> Unit = {}
-        ) {
-            LocationFusionModuleBuilderDsl()
-                .apply(block)
-                .run {
-                    // 构造滤波器
-                    val filter = particleFilter { for (f in this@run.filterBlocks) f(this) }
-                    painter?.run {
-                        var t0: Long? = null
-                        filter.stepFeedback.add { (t, state) ->
-                            val time = (t - (t0 ?: run { t0 = t;t })).toDouble()
-                            val (measureWeight, particleWeight, quality) = state
-                            paint("定位权重", time, measureWeight)
-                            paint("粒子权重", time, particleWeight)
+        ) = LocationFusionModuleBuilderDsl()
+            .apply(block)
+            .run {
+                // 构造滤波器
+                val filter = particleFilter { for (f in this@run.filterBlocks) f(this) }
+                painter?.run {
+                    var t0: Long? = null
+                    filter.stepFeedback.add { (t, state) ->
+                        val time = (t - (t0 ?: run { t0 = t;t })).toDouble()
+                        val (measureWeight, particleWeight, quality) = state
+                        paint("定位权重", time, measureWeight)
+                        paint("粒子权重", time, particleWeight)
 
-                            val (age, p, d) = quality
-                            paint("稳定性质量", time, age)
-                            paint("位置一致性质量", time, p)
-                            paint("方向一致性质量", time, d)
-                        }
+                        val (age, p, d) = quality
+                        paint("稳定性质量", time, age)
+                        paint("位置一致性质量", time, p)
+                        paint("方向一致性质量", time, d)
                     }
-                    // 使用定位数据
-                    launch {
-                        for (item in beaconOnMap) {
-                            painter?.paint("定位", item.data.x, item.data.y)
-                            filter.measureHelper(item)
-                            if (robotOnOdometry.isClosedForReceive) break
-                        }
+                }
+                // 使用定位数据
+                launch {
+                    for (item in beaconOnMap) {
+                        painter?.paint("定位", item.data.x, item.data.y)
+                        filter.measureHelper(item)
+                        if (robotOnOdometry.isClosedForReceive) break
                     }
-                    // 使用里程计数据
-                    launch {
-                        for (item in robotOnOdometry) {
-                            painter?.paintPose("里程计", item.data)
-                            filter.measureMaster(item)
-                                .also { robotOnMap.send(it) }
-                                .also { (_, data) ->
-                                    logger?.log(data.p.x, data.p.y, data.d.asRadian())
-                                    painter?.run {
-                                        paintPose("粒子滤波", data)
-                                        with(filter.particles) {
-                                            paintPoses("粒子群", map { (p, _) -> p })
-                                        }
+                }
+                // 使用里程计数据
+                launch {
+                    for (item in robotOnOdometry) {
+                        painter?.paintPose("里程计", item.data)
+                        filter.measureMaster(item)
+                            .also { robotOnMap.send(it) }
+                            .also { (_, data) ->
+                                logger?.log(data.p.x, data.p.y, data.d.asRadian())
+                                painter?.run {
+                                    paintPose("粒子滤波", data)
+                                    with(filter.particles) {
+                                        paintPoses("粒子群", map { (p, _) -> p })
                                     }
                                 }
-                        }
-                    }.invokeOnCompletion { robotOnMap.close() }
-                }
-        }
+                            }
+                    }
+                }.invokeOnCompletion { robotOnMap.close() }
+                // 返回滤波器供外部控制
+                filter
+            }
     }
 }
