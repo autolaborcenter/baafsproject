@@ -3,8 +3,8 @@ package cn.autolabor.pathfollower
 import cn.autolabor.pathfollower.PathFollowerModuleDebugerBuilderDsl.Companion.debugPathFollowerModule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.mechdancer.common.Odometry
+import org.mechdancer.common.shape.Circle
 import org.mechdancer.geometry.angle.toRad
-import org.mechdancer.simulation.map.shape.Circle
 
 @ExperimentalCoroutinesApi
 fun main() = debugPathFollowerModule {

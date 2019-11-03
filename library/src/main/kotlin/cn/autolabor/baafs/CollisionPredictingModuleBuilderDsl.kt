@@ -10,6 +10,7 @@ import org.mechdancer.BuilderDslMarker
 import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.common.shape.Polygon
 import org.mechdancer.common.toTransformation
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
@@ -17,7 +18,6 @@ import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import org.mechdancer.paint
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.RemoteHub
-import org.mechdancer.simulation.map.shape.Polygon
 import kotlin.math.max
 import kotlin.math.min
 

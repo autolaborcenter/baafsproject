@@ -5,18 +5,24 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import org.mechdancer.algebra.function.vector.plus
+import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
-import org.mechdancer.common.Odometry.Companion
+import org.mechdancer.common.Odometry.Companion.pose
+import org.mechdancer.common.shape.Circle
+import org.mechdancer.common.shape.Polygon
+import org.mechdancer.common.toTransformation
 import org.mechdancer.networksInfo
 import org.mechdancer.paint
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.remoteHub
-import org.mechdancer.simulation.map.shape.Circle
-import org.mechdancer.simulation.map.shape.Polygon
 import kotlin.math.PI
+
+private fun Polygon.transform(pose: Odometry): Polygon {
+    val tf = pose.toTransformation()
+    return Polygon(vertex.map { tf(it).to2D() })
+}
 
 fun main() = runBlocking(Dispatchers.Default) {
     val remote = remoteHub("测试雷达组").apply {
@@ -40,8 +46,8 @@ fun main() = runBlocking(Dispatchers.Default) {
         vector2DOf(+.25, -.08)
     ))
     launch {
-        val blindA = Circle(.15).sample().map { it + vector2DOf(+.113, 0) }.toList().let(::Polygon)
-        val blindB = Circle(.15).sample().map { it + vector2DOf(-.138, 0) }.toList().let(::Polygon)
+        val blindA = Circle(.15).sample().transform(pose(+.113))
+        val blindB = Circle(.15).sample().transform(pose(-.138))
         while (true) {
             remote.paint("轮廓", robotOutline)
             remote.paint("前雷达盲区", blindA)
@@ -61,7 +67,7 @@ fun main() = runBlocking(Dispatchers.Default) {
         }
         lidar(port = "/dev/pos4") {
             tag = "BackLidar"
-            pose = Companion.pose(-.138, 0, PI / 2)
+            pose = pose(-.138, 0, PI / 2)
             inverse = false
         }
         filter { p ->

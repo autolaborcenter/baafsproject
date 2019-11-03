@@ -7,12 +7,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.channel
+import org.mechdancer.common.shape.Circle
+import org.mechdancer.common.shape.Polygon
 import org.mechdancer.networksInfo
 import org.mechdancer.paint
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.remoteHub
-import org.mechdancer.simulation.map.shape.Circle
-import org.mechdancer.simulation.map.shape.Polygon
 
 fun main() = runBlocking(Dispatchers.Default) {
     val remote = remoteHub("测试雷达组").apply {
@@ -26,9 +26,9 @@ fun main() = runBlocking(Dispatchers.Default) {
         vector2DOf(+.2, -.3)
     ))
     launch {
-        val `10cm` = Circle(.10).sample().toList().let(::Polygon)
-        val `15cm` = Circle(.15).sample().toList().let(::Polygon)
-        val `20cm` = Circle(.20).sample().toList().let(::Polygon)
+        val `10cm` = Circle(.10).sample()
+        val `15cm` = Circle(.15).sample()
+        val `20cm` = Circle(.20).sample()
         while (true) {
             remote.paint("过滤区", blind)
             remote.paint("10cm", `10cm`)

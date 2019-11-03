@@ -9,11 +9,11 @@ import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.invoke
+import org.mechdancer.common.shape.AnalyticalShape
+import org.mechdancer.common.shape.Polygon
+import org.mechdancer.common.shape.Shape
 import org.mechdancer.common.toTransformation
 import org.mechdancer.geometry.angle.toVector
-import org.mechdancer.simulation.map.shape.AnalyticalShape
-import org.mechdancer.simulation.map.shape.Polygon
-import org.mechdancer.simulation.map.shape.Shape
 
 /**
  * 虚拟光感
@@ -23,11 +23,11 @@ import org.mechdancer.simulation.map.shape.Shape
  */
 class VirtualLightSensor(
     onRobot: Odometry,
-    lightRange: Shape
+    private val lightRange: Shape
 ) {
-    private val lightRange = when (lightRange) {
-        is Polygon         -> lightRange
-        is AnalyticalShape -> lightRange.sample().toList().let(::Polygon)
+    private val lightVertex = when (lightRange) {
+        is Polygon         -> lightRange.vertex
+        is AnalyticalShape -> lightRange.sample().vertex
         else               -> throw IllegalArgumentException()
     }
     private val robotToSensor = onRobot.toTransformation().inverse()
@@ -57,14 +57,15 @@ class VirtualLightSensor(
         val local = path.map { robotToSensor(it) }
         // 处理路径丢失情况
         if (local.isEmpty()) return .0
-        // 传感器栅格化
-        val shape = lightRange.vertex
         // 离局部路径终点最近的点序号
-        val index0 = shape.indexNear(local.last(), false)
-        val index1 = shape.indexNear(local.first(), true)
-            .let { if (it < index0) it + shape.size else it }
+        val index0 = lightVertex.indexNear(local.last(), false)
+        val index1 = lightVertex.indexNear(local.first(), true)
+            .let { if (it < index0) it + lightVertex.size else it }
         // 确定填色区域
-        val area = Polygon(local.map { it.p } + List(index1 - index0 + 1) { i -> shape[(index0 + i) % shape.size] })
+        val area =
+            local.map { (p, _) -> p }
+                .plus(List(index1 - index0 + 1) { i -> lightVertex[(index0 + i) % lightVertex.size] })
+                .let(::Polygon)
         this.area = area.vertex.map { sensorToRobot(it).to2D() }
         // 计算误差
         return 2 * (0.5 - area.size / lightRange.size)

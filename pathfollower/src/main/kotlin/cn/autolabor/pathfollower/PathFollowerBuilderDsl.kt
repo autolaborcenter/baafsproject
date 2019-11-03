@@ -4,11 +4,11 @@ import cn.autolabor.business.GlobalPath
 import org.mechdancer.BuilderDslMarker
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.filters.Filter
+import org.mechdancer.common.shape.Circle
+import org.mechdancer.common.shape.Shape
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
-import org.mechdancer.simulation.map.shape.Circle
-import org.mechdancer.simulation.map.shape.Shape
 import kotlin.math.PI
 
 @BuilderDslMarker

@@ -18,9 +18,10 @@ import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
-import org.mechdancer.common.Odometry.Companion
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.common.shape.Circle
+import org.mechdancer.common.shape.Polygon
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
@@ -30,8 +31,6 @@ import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.presets.remoteHub
-import org.mechdancer.simulation.map.shape.Circle
-import org.mechdancer.simulation.map.shape.Polygon
 import kotlin.math.PI
 import kotlin.system.exitProcess
 

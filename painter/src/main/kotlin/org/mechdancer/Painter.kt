@@ -3,6 +3,7 @@ package org.mechdancer
 import org.mechdancer.FrameType.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.common.Odometry
+import org.mechdancer.common.shape.Polygon
 import org.mechdancer.dependency.must
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.protocol.writeEnd
@@ -10,7 +11,6 @@ import org.mechdancer.remote.resources.Command
 import org.mechdancer.remote.resources.MulticastSockets
 import org.mechdancer.remote.resources.Name
 import org.mechdancer.remote.resources.Networks
-import org.mechdancer.simulation.map.shape.Polygon
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 
