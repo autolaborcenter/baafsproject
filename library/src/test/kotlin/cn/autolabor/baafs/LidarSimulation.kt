@@ -31,6 +31,28 @@ private fun Polygon.transform(pose: Odometry): Polygon {
     return Polygon(vertex.map { tf(it).to2D() })
 }
 
+class SimulationLidar(
+    val lidar: Lidar,
+    val onRobot: Odometry
+) {
+    private val queue = PolarFrameCollectorQueue()
+
+    val toRobot = onRobot.toTransformation()
+    val frame get() = queue.get()
+
+    fun update(t: Long, robotOnMap: Odometry, obstacles: List<Polygon>) {
+        lidar
+            .update(t * 1E-3, robotOnMap, onRobot, obstacles)
+            .map { it.data }
+            .forEach {
+                if (it.distance.isNaN())
+                    queue.refresh(it.angle)
+                else
+                    queue += Stamped(t, it.copy(distance = it.distance + Normal.next(sigma = 5E-3)))
+            }
+    }
+}
+
 @ExperimentalCoroutinesApi
 fun main() = runBlocking(Dispatchers.Default) {
     val commands = channel<NonOmnidirectional>()
@@ -56,6 +78,19 @@ fun main() = runBlocking(Dispatchers.Default) {
             listOf(Circle(.14, 32).sample().transform(Odometry.pose(i * .3, +.5)),
                    Circle(.14, 32).sample().transform(Odometry.pose(i * .3, -.5)))
         }.flatten()
+    val moveObstacle = Polygon(listOf(
+        vector2DOf(-.10, +.26),
+        vector2DOf(-.10, +.20),
+        vector2DOf(-.05, +.20),
+        vector2DOf(-.05, -.20),
+        vector2DOf(-.10, -.20),
+        vector2DOf(-.10, -.26),
+        vector2DOf(+.10, -.26),
+        vector2DOf(+.10, -.20),
+        vector2DOf(+.05, -.20),
+        vector2DOf(+.05, +.20),
+        vector2DOf(+.10, +.20),
+        vector2DOf(+.10, +.26)))
     val robotOutline = Polygon(listOf(
         vector2DOf(+.25, +.08),
         vector2DOf(+.10, +.20),
@@ -74,11 +109,18 @@ fun main() = runBlocking(Dispatchers.Default) {
     ))
 
     val chassis = Chassis(Stamped(0L, Odometry.pose()))
-    val lidar = Lidar(.15..8.0, 3600.toDegree(), 5E-4).apply {
-        initialize(.0, Odometry.pose(), 0.toRad())
-    }
-    val lidarOnRobot = Odometry.pose(x = .15)
-    val lidarToRobot = lidarOnRobot.toTransformation()
+    val front = SimulationLidar(
+        Lidar(.15..8.0, 3600.toDegree(), 5E-4).apply {
+            initialize(.0, Odometry.pose(), 0.toRad())
+        }, Odometry.pose(x = +.113))
+    val back = SimulationLidar(
+        Lidar(.15..8.0, 3600.toDegree(), 5E-4).apply {
+            initialize(.0, Odometry.pose(), 0.toRad())
+        }, Odometry.pose(x = -.138))
+    //    val lidarSet = LidarSet(
+    //        mapOf(frontQueue::get to frontLidarToRobot,
+    //              backQueue::get to backLidarToRobot)
+    //    ) { true }
 
     val buffer = AtomicReference<NonOmnidirectional>(Velocity.velocity(0, 0))
     launch {
@@ -91,32 +133,34 @@ fun main() = runBlocking(Dispatchers.Default) {
             delay(5000L)
         }
     }
-    val queue = PolarFrameCollectorQueue()
     var i = 0
     for ((t, v) in speedSimulation { buffer.get() }) {
         val (_, robotOnMap) = chassis.drive(v)
         val robotToMap = robotOnMap.toTransformation()
-        lidar
-            .update(t * 1E-3, robotOnMap, lidarOnRobot, obstacles)
-            .map { it.data }
-            .forEach {
-                if (it.distance.isNaN())
-                    queue.refresh(it.angle)
-                else
-                    queue += Stamped(t, it.copy(distance = it.distance + Normal.next(sigma = 5E-3)))
-            }
+        val addition = moveObstacle.transform(robotOnMap)
+        front.update(t, robotOnMap, obstacles + addition)
+        back.update(t, robotOnMap, obstacles + addition)
 
+        remote.paint("机器人遮挡", addition)
         remote.paint("机器人", robotOutline.transform(robotOnMap))
         if (t > i * 100) {
             ++i
-            val lidarToMap = robotToMap * lidarToRobot
-            val points =
-                queue.get()
+            val frontLidarToMap = robotToMap * front.toRobot
+            val frontPoints =
+                front.frame
                     .map { (_, polar) ->
-                        val (x, y) = lidarToMap(polar.toVector2D()).to2D()
+                        val (x, y) = frontLidarToMap(polar.toVector2D()).to2D()
                         x to y
                     }
-            remote.paintFrame2("雷达", points)
+            val backLidarToMap = robotToMap * back.toRobot
+            val backPoints =
+                back.frame
+                    .map { (_, polar) ->
+                        val (x, y) = backLidarToMap(polar.toVector2D()).to2D()
+                        x to y
+                    }
+            remote.paintFrame2("前雷达", frontPoints)
+            remote.paintFrame2("后雷达", backPoints)
         }
     }
 }

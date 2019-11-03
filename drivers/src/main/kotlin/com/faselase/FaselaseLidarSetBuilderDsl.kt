@@ -6,6 +6,7 @@ import org.mechdancer.algebra.implement.matrix.builder.toDiagonalMatrix
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.toTransformation
+import org.mechdancer.device.LidarSet
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.geometry.transformation.Transformation
 
@@ -70,7 +71,9 @@ class FaselaseLidarSetBuilderDsl private constructor() {
                             it * Transformation(listOf(+1, -1, +1).toDiagonalMatrix())
                         else it
                     }
-                }.let { FaselaseLidarSet(it.toMap(), filter) }
+                }.let {
+                    LidarSet(it.associate { (lidar, tf) -> lidar::frame to tf }, filter)
+                }
             }
     }
 }

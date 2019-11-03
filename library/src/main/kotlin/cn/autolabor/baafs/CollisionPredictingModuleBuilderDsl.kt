@@ -1,6 +1,5 @@
 package cn.autolabor.baafs
 
-import com.faselase.FaselaseLidarSet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -12,6 +11,7 @@ import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.shape.Polygon
 import org.mechdancer.common.toTransformation
+import org.mechdancer.device.LidarSet
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
@@ -32,7 +32,7 @@ class CollisionPredictingModuleBuilderDsl {
         fun CoroutineScope.startCollisionPredictingModule(
             commandIn: ReceiveChannel<NonOmnidirectional>,
             exception: SendChannel<ExceptionMessage>,
-            lidarSet: FaselaseLidarSet,
+            lidarSet: LidarSet,
             robotOutline: Polygon,
             block: CollisionPredictingModuleBuilderDsl.() -> Unit
         ) {
