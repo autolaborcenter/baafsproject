@@ -18,7 +18,7 @@ import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
-import org.mechdancer.common.Odometry.Companion.odometry
+import org.mechdancer.common.Odometry.Companion
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.console.parser.buildParser
@@ -30,8 +30,8 @@ import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.presets.remoteHub
-import org.mechdancer.shape.Circle
-import org.mechdancer.shape.Shape
+import org.mechdancer.simulation.map.shape.Circle
+import org.mechdancer.simulation.map.shape.Polygon
 import kotlin.math.PI
 import kotlin.system.exitProcess
 
@@ -86,7 +86,7 @@ fun main() {
             println("done")
 
             println("trying to connect to faselase lidars...")
-            val robotOutline = listOf(
+            val robotOutline = Polygon(listOf(
                 vector2DOf(+.25, +.08),
                 vector2DOf(+.10, +.20),
                 vector2DOf(+.10, +.28),
@@ -101,7 +101,7 @@ fun main() {
                 vector2DOf(+.10, -.28),
                 vector2DOf(+.10, -.20),
                 vector2DOf(+.25, -.08)
-            ).let(::Shape)
+            ))
             val lidarSet = faselaseLidarSet(exceptions = channel()) {
                 launchTimeout = 5000L
                 connectionTimeout = 800L
@@ -109,12 +109,12 @@ fun main() {
                 retryInterval = 100L
                 lidar(port = "/dev/pos3") {
                     tag = "FrontLidar"
-                    pose = odometry(.113, 0, PI / 2)
+                    pose = Odometry.pose(.113, 0, PI / 2)
                     inverse = false
                 }
                 lidar(port = "/dev/pos4") {
                     tag = "BackLidar"
-                    pose = odometry(-.138, 0, PI / 2)
+                    pose = Odometry.pose(-.138, 0, PI / 2)
                     inverse = false
                 }
                 filter { p ->
@@ -148,7 +148,7 @@ fun main() {
                 localRadius = .5
                 directionLimit = (-120).toDegree()
                 follower {
-                    sensorPose = odometry(.2, .0)
+                    sensorPose = Odometry.pose(.2, .0)
                     lightRange = Circle(.24, 16)
                     controller = Proportion(1.0)
                     minTipAngle = 60.toDegree()

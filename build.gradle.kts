@@ -63,7 +63,7 @@ subprojects {
     dependencies {
         // 子项目自动依赖重要数学和定义库
         implementation(files("../libs/linearalgebra-0.2.6-dev-1.jar"))
-        implementation(files("../libs/simulator-0.0.2.jar"))
+        implementation(files("../libs/simulator-0.0.3.jar"))
     }
 }
 

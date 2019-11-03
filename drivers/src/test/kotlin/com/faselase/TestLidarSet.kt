@@ -11,26 +11,29 @@ import org.mechdancer.networksInfo
 import org.mechdancer.paint
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.remoteHub
-import org.mechdancer.shape.Circle
-import org.mechdancer.shape.Shape
+import org.mechdancer.simulation.map.shape.Circle
+import org.mechdancer.simulation.map.shape.Polygon
 
 fun main() = runBlocking(Dispatchers.Default) {
     val remote = remoteHub("测试雷达组").apply {
         openAllNetworks()
         println(networksInfo())
     }
-    val blind = Shape(listOf(
+    val blind = Polygon(listOf(
         vector2DOf(+.0, +.0),
         vector2DOf(+.0, +.3),
         vector2DOf(+.3, +.3),
         vector2DOf(+.2, -.3)
     ))
     launch {
+        val a = Circle(.10).sample().toList().let(::Polygon)
+        val b = Circle(.15).sample().toList().let(::Polygon)
+        val c = Circle(.20).sample().toList().let(::Polygon)
         while (true) {
             remote.paint("过滤区", blind)
-            remote.paint("10cm", Circle(.10))
-            remote.paint("15cm", Circle(.15))
-            remote.paint("20cm", Circle(.20))
+            remote.paint("10cm", a)
+            remote.paint("15cm", b)
+            remote.paint("20cm", c)
             delay(2000L)
         }
     }

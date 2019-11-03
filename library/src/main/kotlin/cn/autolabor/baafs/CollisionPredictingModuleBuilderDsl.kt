@@ -17,7 +17,7 @@ import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import org.mechdancer.paint
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.RemoteHub
-import org.mechdancer.shape.Shape
+import org.mechdancer.simulation.map.shape.Polygon
 import kotlin.math.max
 import kotlin.math.min
 
@@ -33,7 +33,7 @@ class CollisionPredictingModuleBuilderDsl {
             commandIn: ReceiveChannel<NonOmnidirectional>,
             exception: SendChannel<ExceptionMessage>,
             lidarSet: FaselaseLidarSet,
-            robotOutline: Shape,
+            robotOutline: Polygon,
             block: CollisionPredictingModuleBuilderDsl.() -> Unit
         ) {
             CollisionPredictingModuleBuilderDsl()
@@ -55,7 +55,7 @@ class CollisionPredictingModuleBuilderDsl {
                                 .map(delta::invoke)
                                 .map(Vector::to2D)
                                 .toList()
-                                .let(::Shape)
+                                .let(::Polygon)
                             val points = getting.await()
                             count =
                                 if (points.any { it in outline })

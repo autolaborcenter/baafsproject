@@ -1,6 +1,5 @@
 package cn.autolabor.pathfollower
 
-import org.mechdancer.shape.Shape
 import org.mechdancer.DebugTemporary
 import org.mechdancer.DebugTemporary.Operation.DELETE
 import org.mechdancer.algebra.function.vector.dot
@@ -12,6 +11,9 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.invoke
 import org.mechdancer.common.toTransformation
 import org.mechdancer.geometry.angle.toVector
+import org.mechdancer.simulation.map.shape.AnalyticalShape
+import org.mechdancer.simulation.map.shape.Polygon
+import org.mechdancer.simulation.map.shape.Shape
 
 /**
  * 虚拟光感
@@ -21,8 +23,13 @@ import org.mechdancer.geometry.angle.toVector
  */
 class VirtualLightSensor(
     onRobot: Odometry,
-    private val lightRange: Shape
+    lightRange: Shape
 ) {
+    private val lightRange = when (lightRange) {
+        is Polygon         -> lightRange
+        is AnalyticalShape -> lightRange.sample().toList().let(::Polygon)
+        else               -> throw IllegalArgumentException()
+    }
     private val robotToSensor = onRobot.toTransformation().inverse()
 
     @DebugTemporary(DELETE)
@@ -57,7 +64,7 @@ class VirtualLightSensor(
         val index1 = shape.indexNear(local.first(), true)
             .let { if (it < index0) it + shape.size else it }
         // 确定填色区域
-        val area = Shape(local.map { it.p } + List(index1 - index0 + 1) { i -> shape[(index0 + i) % shape.size] })
+        val area = Polygon(local.map { it.p } + List(index1 - index0 + 1) { i -> shape[(index0 + i) % shape.size] })
         this.area = area.vertex.map { sensorToRobot(it).to2D() }
         // 计算误差
         return 2 * (0.5 - area.size / lightRange.size)

@@ -49,7 +49,7 @@ internal fun CoroutineScope.startChassisOnFramework(
                             odometry.send(
                                 Stamped(
                                     p0.header.stamp,
-                                    Odometry.odometry(data.x, data.y, data.yaw)
+                                    Odometry.pose(data.x, data.y, data.yaw)
                                 )
                             )
                         }

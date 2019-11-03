@@ -90,7 +90,7 @@ class ParticleFilter(
 
     private var stepMemory: Pair<Vector2D, Odometry>? = null
     private lateinit var updatingMemory: Odometry
-    private var visionary = Visionary(Odometry(), Odometry(), .0)
+    private var visionary = Visionary(Odometry.pose(), Odometry.pose(), .0)
 
     @Synchronized
     private fun update() {

@@ -2,9 +2,9 @@ package cn.autolabor.pathfollower
 
 import cn.autolabor.pathfollower.PathFollowerModuleDebugerBuilderDsl.Companion.debugPathFollowerModule
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import org.mechdancer.common.Odometry.Companion.odometry
+import org.mechdancer.common.Odometry
 import org.mechdancer.geometry.angle.toRad
-import org.mechdancer.shape.Circle
+import org.mechdancer.simulation.map.shape.Circle
 
 @ExperimentalCoroutinesApi
 fun main() = debugPathFollowerModule {
@@ -13,7 +13,7 @@ fun main() = debugPathFollowerModule {
     // 导航器配置
     module {
         follower {
-            sensorPose = odometry(.16, .0)
+            sensorPose = Odometry.pose(.16, .0)
             lightRange = Circle(.2, 16)
 
             controller = Proportion(.8)

@@ -51,7 +51,7 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
                     // 里程计周期
                     val odometryPeriod = 1000L / odometryFrequency
                     // 机器人机械结构
-                    val robot = StructBuilderDSL.struct(Chassis(Stamped(T0, Odometry())))
+                    val robot = StructBuilderDSL.struct(Chassis(Stamped(T0, Odometry.pose())))
                     // 里程计采样计数
                     var odometryTimes = 0L
                     // 位姿增量计算

@@ -49,7 +49,7 @@ internal constructor(
     private val logger = SimpleLogger("firstOfLocal")
 
     @DebugTemporary(DELETE)
-    var tip = Odometry()
+    var tip = Odometry.pose()
         private set
 
     /** 计算控制量 */

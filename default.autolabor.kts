@@ -10,13 +10,12 @@ import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocati
 import cn.autolabor.module.networkhub.UDPMulticastBroadcaster
 import cn.autolabor.pathfollower.Proportion
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
-import kotlinx.coroutines.*
 import org.mechdancer.YChannel
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
-import org.mechdancer.common.Odometry.Companion.odometry
+import org.mechdancer.common.Odometry.Companion
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.console.parser.buildParser
@@ -27,7 +26,7 @@ import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
-import org.mechdancer.shape.Circle
+import org.mechdancer.simulation.map.shape.Circle
 import kotlin.system.exitProcess
 
 ServerManager.setSetup(object : DefaultSetup() {
@@ -78,7 +77,10 @@ try {
             dataTimeout = 2000L
 
             delayLimit = 400L
-            heightRange = -2.0..-1.0
+
+            val height = -1.6
+            val radius = .3
+            heightRange = height - radius..height + radius
         }
         println("done")
 
@@ -114,7 +116,7 @@ try {
             localRadius = .5
             directionLimit = (-120).toDegree()
             follower {
-                sensorPose = odometry(.2, .0)
+                sensorPose = Odometry.pose(x = .2)
                 lightRange = Circle(.24, 16)
                 controller = Proportion(1.0)
                 minTipAngle = 60.toDegree()
@@ -148,8 +150,8 @@ try {
                     buildString {
                         val now = System.currentTimeMillis()
                         appendln(filter.lastQuery
-                            ?.let { (t, pose) -> "last locate at $pose ${now - t}ms ago" }
-                            ?: "never query pose before")
+                                     ?.let { (t, pose) -> "last locate at $pose ${now - t}ms ago" }
+                                 ?: "never query pose before")
                         val (t, quality) = filter.quality
                         appendln("particles last update ${now - t}ms ago")
                         appendln("now system is ${if (filter.isConvergent) "" else "not"} ready for work")

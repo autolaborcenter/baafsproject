@@ -7,13 +7,13 @@ import org.mechdancer.common.filters.Filter
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
-import org.mechdancer.shape.Circle
-import org.mechdancer.shape.Shape
+import org.mechdancer.simulation.map.shape.Circle
+import org.mechdancer.simulation.map.shape.Shape
 import kotlin.math.PI
 
 @BuilderDslMarker
 class PathFollowerBuilderDsl private constructor() {
-    var sensorPose: Odometry = Odometry.odometry(0.275, 0)
+    var sensorPose: Odometry = Odometry.pose(0.275, 0)
     var lightRange: Shape = Circle(0.3)
     var controller: Filter<Double, Double> = UnitController
     var minTipAngle: Angle = 60.toDegree()

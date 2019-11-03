@@ -21,7 +21,7 @@ class FaselaseLidarSetBuilderDsl private constructor() {
 
     data class FaselaseLidarConfig internal constructor(
         var tag: String? = null,
-        var pose: Odometry = Odometry(),
+        var pose: Odometry = Odometry.pose(),
         var inverse: Boolean = false)
 
     fun lidar(block: FaselaseLidarConfig.() -> Unit) {

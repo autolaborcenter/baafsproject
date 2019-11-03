@@ -10,7 +10,7 @@ import org.mechdancer.remote.resources.Command
 import org.mechdancer.remote.resources.MulticastSockets
 import org.mechdancer.remote.resources.Name
 import org.mechdancer.remote.resources.Networks
-import org.mechdancer.shape.Shape
+import org.mechdancer.simulation.map.shape.Polygon
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 
@@ -192,7 +192,7 @@ fun RemoteHub.paintVectors(
 
 fun RemoteHub.paint(
     topic: String,
-    shape: Shape
+    shape: Polygon
 ) = paint(topic) {
     DataOutputStream(this).apply {
         writeByte(0)

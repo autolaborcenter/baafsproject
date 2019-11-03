@@ -26,7 +26,7 @@ class PathManager(
             ?.readLines()
             ?.map {
                 val numbers = it.split(',').map(String::toDouble)
-                Odometry.odometry(numbers[0], numbers[1], numbers[2])
+                Odometry.pose(numbers[0], numbers[1], numbers[2])
             }
             ?.toList()
             ?.let { GlobalPath(it, localRadius, searchCount) }
