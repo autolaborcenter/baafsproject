@@ -11,16 +11,13 @@ import org.mechdancer.SimpleLogger
 import org.mechdancer.WatchDog
 import org.mechdancer.common.Polar
 import org.mechdancer.common.Stamped
+import org.mechdancer.device.PolarFrameCollectorQueue
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.device.DataTimeoutException
 import org.mechdancer.exceptions.device.DeviceNotExistException
 import org.mechdancer.exceptions.device.DeviceOfflineException
-import java.util.*
 import java.util.concurrent.Executors
-import java.util.concurrent.locks.ReentrantReadWriteLock
-import kotlin.concurrent.read
-import kotlin.concurrent.write
 import kotlin.math.PI
 
 class FaselaseLidar(
@@ -39,10 +36,10 @@ class FaselaseLidar(
         try {
             val candidates =
                 name?.let { listOf(SerialPort.getCommPort(it)) }
-                    ?: SerialPort.getCommPorts()
-                        ?.takeIf(Array<*>::isNotEmpty)
-                        ?.toList()
-                    ?: throw RuntimeException("no available port")
+                ?: SerialPort.getCommPorts()
+                    ?.takeIf(Array<*>::isNotEmpty)
+                    ?.toList()
+                ?: throw RuntimeException("no available port")
             SerialPortFinder
                 .findSerialPort(
                     candidates = candidates,
@@ -63,13 +60,10 @@ class FaselaseLidar(
     private val connectionWatchDog = WatchDog(connectionTimeout)
     private val dataWatchDog = WatchDog(dataTimeout)
     // 缓存
-    private val list = LinkedList<Stamped<Polar>>()
-    private val lock = ReentrantReadWriteLock()
-    private var offset = .0
-    private var last = .0
+    private val queue = PolarFrameCollectorQueue()
     // 访问
     val tag = tag ?: port.descriptivePortName
-    val frame get() = lock.read { list.toList() }
+    val frame get() = queue.get()
     // 日志
     private val logger = SimpleLogger(this.tag).apply { period = 4096 }
 
@@ -89,14 +83,14 @@ class FaselaseLidar(
                         }
                         engine(buffer) { pack ->
                             when (pack) {
-                                LidarPack.Nothing -> logger.log("nothing")
-                                LidarPack.Failed -> logger.log("failed")
+                                LidarPack.Nothing    -> logger.log("nothing")
+                                LidarPack.Failed     -> logger.log("failed")
                                 is LidarPack.Invalid -> {
                                     val (theta) = pack
-                                    lock.write { refresh(theta) }
+                                    queue.refresh(theta.onPeriod())
                                     logger.log(Double.NaN, theta)
                                 }
-                                is LidarPack.Data -> {
+                                is LidarPack.Data    -> {
                                     launch {
                                         dataWatchDog.feedOrThrowTo(
                                             exceptions,
@@ -104,7 +98,7 @@ class FaselaseLidar(
                                         )
                                     }
                                     val (rho, theta) = pack
-                                    lock.write { list.offer(Stamped.stamp(Polar(rho, refresh(theta)))) }
+                                    queue += Stamped.stamp(Polar(rho, theta.onPeriod()))
                                     logger.log(rho, theta)
                                 }
                             }
@@ -115,13 +109,12 @@ class FaselaseLidar(
         }
     }
 
-    private fun refresh(theta: Double): Double {
-        if (theta < last) offset += 2 * PI
-        last = theta
-        val t = theta + offset
-        val head = t - 2 * PI
-        while (list.firstOrNull()?.data?.angle?.let { it < head } == true) list.poll()
-        return t
+    private var offset = .0
+    private var last = .0
+    private fun Double.onPeriod(): Double {
+        if (this < last) offset += 2 * PI
+        last = this
+        return this + offset
     }
 
     companion object {

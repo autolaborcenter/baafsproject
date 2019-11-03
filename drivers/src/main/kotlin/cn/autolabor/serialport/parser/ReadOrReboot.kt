@@ -4,7 +4,10 @@ import com.fazecast.jSerialComm.SerialPort
 import kotlinx.coroutines.delay
 
 /**
- *
+ * 从串口读取，并在超时时自动重启串口
+ * @param buffer 缓冲区
+ * @param retryInterval 重试间隔
+ * @param block 异常报告回调
  */
 internal suspend fun SerialPort.readOrReboot(
     buffer: ByteArray,

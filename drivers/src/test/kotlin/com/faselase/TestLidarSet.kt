@@ -26,14 +26,14 @@ fun main() = runBlocking(Dispatchers.Default) {
         vector2DOf(+.2, -.3)
     ))
     launch {
-        val a = Circle(.10).sample().toList().let(::Polygon)
-        val b = Circle(.15).sample().toList().let(::Polygon)
-        val c = Circle(.20).sample().toList().let(::Polygon)
+        val `10cm` = Circle(.10).sample().toList().let(::Polygon)
+        val `15cm` = Circle(.15).sample().toList().let(::Polygon)
+        val `20cm` = Circle(.20).sample().toList().let(::Polygon)
         while (true) {
             remote.paint("过滤区", blind)
-            remote.paint("10cm", a)
-            remote.paint("15cm", b)
-            remote.paint("20cm", c)
+            remote.paint("10cm", `10cm`)
+            remote.paint("15cm", `15cm`)
+            remote.paint("20cm", `20cm`)
             delay(2000L)
         }
     }
