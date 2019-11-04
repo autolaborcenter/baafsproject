@@ -49,10 +49,10 @@ class Business(
         if (function is Functions.Recording) return
         function?.job?.cancelAndJoin()
         function = Functions.Recording(
-            scope,
-            robotOnMap,
-            globals,
-            pathInterval
+                scope,
+                robotOnMap,
+                globals,
+                pathInterval
         )
     }
 
@@ -60,17 +60,17 @@ class Business(
         if (function is Functions.Following) return
         function?.job?.cancelAndJoin()
         function = Functions.Following(
-            scope,
-            robotOnMap,
-            robotOnOdometry,
-            commandOut,
-            exceptions,
+                scope,
+                robotOnMap,
+                robotOnOdometry,
+                commandOut,
+                exceptions,
 
-            pathFollower(global, followerConfig),
-            directionLimit,
+                pathFollower(global, followerConfig),
+                directionLimit,
 
-            logger,
-            painter
+                logger,
+                painter
         )
     }
 
@@ -99,8 +99,11 @@ class Business(
                     }
             }
 
-            fun save(fileName: String) =
-                globals.save(fileName, synchronized(list) { list.toList() })
+            fun save(fileName: String): Int {
+                val copy = synchronized(list) { list.toList() }
+                globals.save(fileName, copy)
+                return copy.size
+            }
 
             fun clear() {
                 synchronized(list) { list.clear() }

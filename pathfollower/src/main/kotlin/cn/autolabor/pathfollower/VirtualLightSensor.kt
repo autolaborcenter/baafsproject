@@ -44,12 +44,19 @@ class VirtualLightSensor(
      * 从目标路径获取兴趣区段
      * 获取到的列表中点位于传感器坐标系
      */
-    fun shine(path: Sequence<Odometry>) =
-        path.map { pose -> pose to robotToSensor(pose.p).to2D() }
+    fun shine(path: Sequence<Odometry>): List<Odometry> {
+        var final = true
+        return path
+            .map { pose -> pose to robotToSensor(pose.p).to2D() }
             .dropWhile { (_, p) -> p !in lightRange }
-            .takeWhile { (_, p) -> p in lightRange }
+            .takeWhile { (_, p) ->
+                val last = final
+                final = p in lightRange
+                last
+            }
             .map { (pose, _) -> pose }
             .toList()
+    }
 
     /** 虚拟光值计算 */
     operator fun invoke(path: List<Odometry>): Double {
@@ -58,8 +65,8 @@ class VirtualLightSensor(
         // 处理路径丢失情况
         if (local.isEmpty()) return .0
         // 离局部路径终点最近的点序号
-        val index0 = lightVertex.indexNear(local.last(), false)
-        val index1 = lightVertex.indexNear(local.first(), true)
+        val index0 = lightVertex.indexNear(local.last { it.p in lightRange }, false)
+        val index1 = lightVertex.indexNear(local.first { it.p in lightRange }, true)
             .let { if (it < index0) it + lightVertex.size else it }
         // 确定填色区域
         val area =
@@ -75,9 +82,10 @@ class VirtualLightSensor(
         // 查找与边缘交点
         fun List<Vector2D>.indexNear(pose: Odometry, reverse: Boolean): Int {
             val (p, d) = pose
-            val references = mapIndexed { i, item -> i to item - p }
-            return if (reverse) references.minBy { (_, v) -> v.normalize() dot d.toVector() }!!.first
-            else references.maxBy { (_, v) -> v.normalize() dot d.toVector() }!!.first
+            val dir = d.toVector()
+            val references = mapIndexed { i, v -> i to v - p }
+            return if (reverse) references.minBy { (_, v) -> v.normalize() dot dir }!!.first
+            else references.maxBy { (_, v) -> v.normalize() dot dir }!!.first
         }
     }
 }

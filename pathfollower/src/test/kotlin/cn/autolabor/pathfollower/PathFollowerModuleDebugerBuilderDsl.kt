@@ -8,7 +8,6 @@ import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
-import org.mechdancer.common.Velocity
 import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.console.parser.buildParser
@@ -64,7 +63,7 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
                                     GlobalScope.launch {
                                         val stream = DataInputStream(SimpleInputStream(payload))
                                         @Suppress("BlockingMethodInNonBlockingContext")
-                                        commands.send(Velocity.velocity(stream.readDouble(), stream.readDouble()))
+                                        commands.send(velocity(stream.readDouble(), stream.readDouble()))
                                     }
                             }
                         }

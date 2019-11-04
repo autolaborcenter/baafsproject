@@ -23,9 +23,10 @@ internal class SimulationLidar(
     private fun Polar.addError() =
         copy(distance = distance * Normal.next(expect = 1.0, sigma = errorSigma))
 
-    fun update(t: Long, robotOnMap: Odometry, obstacles: List<Polygon>) {
+    fun update(robotOnMap: Stamped<Odometry>, obstacles: List<Polygon>) {
+        val (t, pose) = robotOnMap
         lidar
-            .update(t * 1E-3, robotOnMap, onRobot, cover, obstacles)
+            .update(t * 1E-3, pose, onRobot, cover, obstacles)
             .map { it.data }
             .forEach {
                 if (it.distance.isNaN())
