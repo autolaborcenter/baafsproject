@@ -5,6 +5,7 @@ import org.mechdancer.*
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Odometry
+import org.mechdancer.common.Odometry.Companion
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
@@ -48,7 +49,7 @@ class SimulationLidar(
                 if (it.distance.isNaN())
                     queue.refresh(it.angle)
                 else
-                    queue += Stamped(t, it.copy(distance = it.distance + Normal.next(sigma = 5E-3)))
+                    queue += Stamped(t, it.copy(distance = it.distance * Normal.next(expect = 1.0, sigma = 6E-2)))
             }
     }
 }
@@ -78,33 +79,38 @@ fun main() = runBlocking(Dispatchers.Default) {
             listOf(Circle(.14, 32).sample().transform(Odometry.pose(i * .3, +.5)),
                    Circle(.14, 32).sample().transform(Odometry.pose(i * .3, -.5)))
         }.flatten()
-    val moveObstacle = Polygon(listOf(
+    val moveObstacle =
+        listOf(
+            Circle(.07).sample().transform(Odometry.pose(-.36)),
+            Polygon(listOf(
+                vector2DOf(-.10, +.26),
+                vector2DOf(-.10, +.20),
+                vector2DOf(-.05, +.20),
+                vector2DOf(-.05, -.20),
+                vector2DOf(-.10, -.20),
+                vector2DOf(-.10, -.26),
+                vector2DOf(+.10, -.26),
+                vector2DOf(+.10, -.20),
+                vector2DOf(+.05, -.20),
+                vector2DOf(+.05, +.20),
+                vector2DOf(+.10, +.20),
+                vector2DOf(+.10, +.26))))
+    val robotOutline = Polygon(listOf(
+        vector2DOf(+.25, +.08),
+        vector2DOf(+.12, +.14),
+        vector2DOf(+.10, +.18),
+        vector2DOf(+.10, +.26),
         vector2DOf(-.10, +.26),
         vector2DOf(-.10, +.20),
-        vector2DOf(-.05, +.20),
-        vector2DOf(-.05, -.20),
+        vector2DOf(-.25, +.20),
+        vector2DOf(-.47, +.12),
+        vector2DOf(-.47, -.12),
+        vector2DOf(-.25, -.20),
         vector2DOf(-.10, -.20),
         vector2DOf(-.10, -.26),
         vector2DOf(+.10, -.26),
-        vector2DOf(+.10, -.20),
-        vector2DOf(+.05, -.20),
-        vector2DOf(+.05, +.20),
-        vector2DOf(+.10, +.20),
-        vector2DOf(+.10, +.26)))
-    val robotOutline = Polygon(listOf(
-        vector2DOf(+.25, +.08),
-        vector2DOf(+.10, +.20),
-        vector2DOf(+.10, +.28),
-        vector2DOf(-.10, +.28),
-        vector2DOf(-.10, +.23),
-        vector2DOf(-.25, +.23),
-        vector2DOf(-.47, +.20),
-        vector2DOf(-.47, -.20),
-        vector2DOf(-.25, -.23),
-        vector2DOf(-.10, -.23),
-        vector2DOf(-.10, -.28),
-        vector2DOf(+.10, -.28),
-        vector2DOf(+.10, -.20),
+        vector2DOf(+.10, -.18),
+        vector2DOf(+.12, -.14),
         vector2DOf(+.25, -.08)
     ))
 
@@ -137,11 +143,13 @@ fun main() = runBlocking(Dispatchers.Default) {
     for ((t, v) in speedSimulation { buffer.get() }) {
         val (_, robotOnMap) = chassis.drive(v)
         val robotToMap = robotOnMap.toTransformation()
-        val addition = moveObstacle.transform(robotOnMap)
+        val addition = moveObstacle.map { it.transform(robotOnMap) }
         front.update(t, robotOnMap, obstacles + addition)
         back.update(t, robotOnMap, obstacles + addition)
 
-        remote.paint("机器人遮挡", addition)
+        addition.forEachIndexed { i, polygon ->
+            remote.paint("机器人遮挡$i", polygon)
+        }
         remote.paint("机器人", robotOutline.transform(robotOnMap))
         if (t > i * 100) {
             ++i
