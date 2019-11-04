@@ -21,7 +21,6 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.shape.Circle
-import org.mechdancer.common.shape.Polygon
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
@@ -85,22 +84,6 @@ fun main() {
             println("done")
 
             println("trying to connect to faselase lidars...")
-            val robotOutline = Polygon(listOf(
-                vector2DOf(+.25, +.08),
-                vector2DOf(+.10, +.20),
-                vector2DOf(+.10, +.28),
-                vector2DOf(-.10, +.28),
-                vector2DOf(-.10, +.23),
-                vector2DOf(-.25, +.23),
-                vector2DOf(-.47, +.20),
-                vector2DOf(-.47, -.20),
-                vector2DOf(-.25, -.23),
-                vector2DOf(-.10, -.23),
-                vector2DOf(-.10, -.28),
-                vector2DOf(+.10, -.28),
-                vector2DOf(+.10, -.20),
-                vector2DOf(+.25, -.08)
-            ))
             val lidarSet = faselaseLidarSet(exceptions = channel()) {
                 launchTimeout = 5000L
                 connectionTimeout = 800L

@@ -11,6 +11,7 @@ import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.common.shape.Polygon
 import org.mechdancer.common.toTransformation
+import org.mechdancer.device.LidarSet
 import org.mechdancer.device.PolarFrameCollectorQueue
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
@@ -25,14 +26,13 @@ import java.io.DataInputStream
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 import kotlin.math.PI
-import kotlin.system.measureTimeMillis
 
 private fun Polygon.transform(pose: Odometry): Polygon {
     val tf = pose.toTransformation()
     return Polygon(vertex.map { tf(it).to2D() })
 }
 
-class SimulationLidar(
+private class SimulationLidar(
     private val lidar: Lidar,
     private val onRobot: Odometry,
     private val cover: List<Polygon>
@@ -98,39 +98,21 @@ fun main() = runBlocking(Dispatchers.Default) {
                     vector2DOf(+.05, +.20),
                     vector2DOf(+.10, +.20),
                     vector2DOf(+.10, +.26))))
-    val robotOutline = Polygon(
-        listOf(
-            vector2DOf(+.25, +.08),
-            vector2DOf(+.12, +.14),
-            vector2DOf(+.10, +.18),
-            vector2DOf(+.10, +.26),
-            vector2DOf(-.10, +.26),
-            vector2DOf(-.10, +.20),
-            vector2DOf(-.25, +.20),
-            vector2DOf(-.47, +.12),
-            vector2DOf(-.47, -.12),
-            vector2DOf(-.25, -.20),
-            vector2DOf(-.10, -.20),
-            vector2DOf(-.10, -.26),
-            vector2DOf(+.10, -.26),
-            vector2DOf(+.10, -.18),
-            vector2DOf(+.12, -.14),
-            vector2DOf(+.25, -.08)
-        ))
 
     val chassis = Chassis(Stamped(0L, Odometry.pose()))
     val front = SimulationLidar(
-        Lidar(.15..8.0, 3600.toDegree(), 5E-4).apply {
+        Lidar(.15..8.0, 3600.toDegree(), 2E-4).apply {
             initialize(.0, Odometry.pose(), 0.toRad())
         }, Odometry.pose(x = +.113), cover)
     val back = SimulationLidar(
-        Lidar(.15..8.0, 3600.toDegree(), 5E-4).apply {
+        Lidar(.15..8.0, 3600.toDegree(), 2E-4).apply {
             initialize(.0, Odometry.pose(), 0.toRad())
         }, Odometry.pose(x = -.138), cover)
-    //    val lidarSet = LidarSet(
-    //        mapOf(frontQueue::get to frontLidarToRobot,
-    //              backQueue::get to backLidarToRobot)
-    //    ) { true }
+    val lidarSet = LidarSet(
+        mapOf(
+            front::frame to front.toRobot,
+            back::frame to back.toRobot)
+    ) { it !in outlineFilter }
 
     val buffer = AtomicReference<NonOmnidirectional>(Velocity.velocity(0, 0))
     launch {
@@ -143,15 +125,12 @@ fun main() = runBlocking(Dispatchers.Default) {
             delay(5000L)
         }
     }
-    val lidarSamplePeriod = 100L
+    val lidarSamplePeriod = 50L
     var lidarSampleCount = 0
     for ((t, v) in speedSimulation { buffer.get() }) {
         val (_, robotOnMap) = chassis.drive(v)
-        val robotToMap = robotOnMap.toTransformation()
-        measureTimeMillis {
-            front.update(t, robotOnMap, obstacles)
-            back.update(t, robotOnMap, obstacles)
-        }.let(::println)
+        front.update(t, robotOnMap, obstacles)
+        back.update(t, robotOnMap, obstacles)
 
         cover.map { it.transform(robotOnMap) }
             .forEachIndexed { i, polygon ->
@@ -160,6 +139,7 @@ fun main() = runBlocking(Dispatchers.Default) {
         remote.paint("机器人", robotOutline.transform(robotOnMap))
         if (t > lidarSampleCount * lidarSamplePeriod) {
             ++lidarSampleCount
+            val robotToMap = robotOnMap.toTransformation()
             val frontLidarToMap = robotToMap * front.toRobot
             val frontPoints =
                 front.frame
@@ -174,8 +154,15 @@ fun main() = runBlocking(Dispatchers.Default) {
                         val (x, y) = backLidarToMap(polar.toVector2D()).to2D()
                         x to y
                     }
+            val filteredPoints =
+                lidarSet.frame
+                    .map {
+                        val (x, y) = robotToMap(it).to2D()
+                        x to y
+                    }
             remote.paintFrame2("前雷达", frontPoints)
             remote.paintFrame2("后雷达", backPoints)
+            remote.paintFrame2("过滤", filteredPoints)
         }
     }
 }
