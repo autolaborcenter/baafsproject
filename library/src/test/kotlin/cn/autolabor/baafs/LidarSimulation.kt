@@ -5,7 +5,6 @@ import org.mechdancer.*
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Odometry
-import org.mechdancer.common.Odometry.Companion
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
@@ -26,6 +25,7 @@ import java.io.DataInputStream
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 import kotlin.math.PI
+import kotlin.system.measureTimeMillis
 
 private fun Polygon.transform(pose: Odometry): Polygon {
     val tf = pose.toTransformation()
@@ -33,8 +33,9 @@ private fun Polygon.transform(pose: Odometry): Polygon {
 }
 
 class SimulationLidar(
-    val lidar: Lidar,
-    val onRobot: Odometry
+    private val lidar: Lidar,
+    private val onRobot: Odometry,
+    private val cover: List<Polygon>
 ) {
     private val queue = PolarFrameCollectorQueue()
 
@@ -43,13 +44,13 @@ class SimulationLidar(
 
     fun update(t: Long, robotOnMap: Odometry, obstacles: List<Polygon>) {
         lidar
-            .update(t * 1E-3, robotOnMap, onRobot, obstacles)
+            .update(t * 1E-3, robotOnMap, onRobot, cover, obstacles)
             .map { it.data }
             .forEach {
                 if (it.distance.isNaN())
                     queue.refresh(it.angle)
                 else
-                    queue += Stamped(t, it.copy(distance = it.distance * Normal.next(expect = 1.0, sigma = 6E-2)))
+                    queue += Stamped(t, it.copy(distance = it.distance * Normal.next(expect = 1.0, sigma = 1E-2)))
             }
     }
 }
@@ -76,53 +77,56 @@ fun main() = runBlocking(Dispatchers.Default) {
 
     val obstacles =
         List(10) { i ->
-            listOf(Circle(.14, 32).sample().transform(Odometry.pose(i * .3, +.5)),
-                   Circle(.14, 32).sample().transform(Odometry.pose(i * .3, -.5)))
+            listOf(
+                Circle(.14, 32).sample().transform(Odometry.pose(i * .3, +.5)),
+                Circle(.14, 32).sample().transform(Odometry.pose(i * .3, -.5)))
         }.flatten()
-    val moveObstacle =
+    val cover =
         listOf(
             Circle(.07).sample().transform(Odometry.pose(-.36)),
-            Polygon(listOf(
-                vector2DOf(-.10, +.26),
-                vector2DOf(-.10, +.20),
-                vector2DOf(-.05, +.20),
-                vector2DOf(-.05, -.20),
-                vector2DOf(-.10, -.20),
-                vector2DOf(-.10, -.26),
-                vector2DOf(+.10, -.26),
-                vector2DOf(+.10, -.20),
-                vector2DOf(+.05, -.20),
-                vector2DOf(+.05, +.20),
-                vector2DOf(+.10, +.20),
-                vector2DOf(+.10, +.26))))
-    val robotOutline = Polygon(listOf(
-        vector2DOf(+.25, +.08),
-        vector2DOf(+.12, +.14),
-        vector2DOf(+.10, +.18),
-        vector2DOf(+.10, +.26),
-        vector2DOf(-.10, +.26),
-        vector2DOf(-.10, +.20),
-        vector2DOf(-.25, +.20),
-        vector2DOf(-.47, +.12),
-        vector2DOf(-.47, -.12),
-        vector2DOf(-.25, -.20),
-        vector2DOf(-.10, -.20),
-        vector2DOf(-.10, -.26),
-        vector2DOf(+.10, -.26),
-        vector2DOf(+.10, -.18),
-        vector2DOf(+.12, -.14),
-        vector2DOf(+.25, -.08)
-    ))
+            Polygon(
+                listOf(
+                    vector2DOf(-.10, +.26),
+                    vector2DOf(-.10, +.20),
+                    vector2DOf(-.05, +.20),
+                    vector2DOf(-.05, -.20),
+                    vector2DOf(-.10, -.20),
+                    vector2DOf(-.10, -.26),
+                    vector2DOf(+.10, -.26),
+                    vector2DOf(+.10, -.20),
+                    vector2DOf(+.05, -.20),
+                    vector2DOf(+.05, +.20),
+                    vector2DOf(+.10, +.20),
+                    vector2DOf(+.10, +.26))))
+    val robotOutline = Polygon(
+        listOf(
+            vector2DOf(+.25, +.08),
+            vector2DOf(+.12, +.14),
+            vector2DOf(+.10, +.18),
+            vector2DOf(+.10, +.26),
+            vector2DOf(-.10, +.26),
+            vector2DOf(-.10, +.20),
+            vector2DOf(-.25, +.20),
+            vector2DOf(-.47, +.12),
+            vector2DOf(-.47, -.12),
+            vector2DOf(-.25, -.20),
+            vector2DOf(-.10, -.20),
+            vector2DOf(-.10, -.26),
+            vector2DOf(+.10, -.26),
+            vector2DOf(+.10, -.18),
+            vector2DOf(+.12, -.14),
+            vector2DOf(+.25, -.08)
+        ))
 
     val chassis = Chassis(Stamped(0L, Odometry.pose()))
     val front = SimulationLidar(
         Lidar(.15..8.0, 3600.toDegree(), 5E-4).apply {
             initialize(.0, Odometry.pose(), 0.toRad())
-        }, Odometry.pose(x = +.113))
+        }, Odometry.pose(x = +.113), cover)
     val back = SimulationLidar(
         Lidar(.15..8.0, 3600.toDegree(), 5E-4).apply {
             initialize(.0, Odometry.pose(), 0.toRad())
-        }, Odometry.pose(x = -.138))
+        }, Odometry.pose(x = -.138), cover)
     //    val lidarSet = LidarSet(
     //        mapOf(frontQueue::get to frontLidarToRobot,
     //              backQueue::get to backLidarToRobot)
@@ -139,20 +143,23 @@ fun main() = runBlocking(Dispatchers.Default) {
             delay(5000L)
         }
     }
-    var i = 0
+    val lidarSamplePeriod = 100L
+    var lidarSampleCount = 0
     for ((t, v) in speedSimulation { buffer.get() }) {
         val (_, robotOnMap) = chassis.drive(v)
         val robotToMap = robotOnMap.toTransformation()
-        val addition = moveObstacle.map { it.transform(robotOnMap) }
-        front.update(t, robotOnMap, obstacles + addition)
-        back.update(t, robotOnMap, obstacles + addition)
+        measureTimeMillis {
+            front.update(t, robotOnMap, obstacles)
+            back.update(t, robotOnMap, obstacles)
+        }.let(::println)
 
-        addition.forEachIndexed { i, polygon ->
-            remote.paint("机器人遮挡$i", polygon)
-        }
+        cover.map { it.transform(robotOnMap) }
+            .forEachIndexed { i, polygon ->
+                remote.paint("机器人遮挡$i", polygon)
+            }
         remote.paint("机器人", robotOutline.transform(robotOnMap))
-        if (t > i * 100) {
-            ++i
+        if (t > lidarSampleCount * lidarSamplePeriod) {
+            ++lidarSampleCount
             val frontLidarToMap = robotToMap * front.toRobot
             val frontPoints =
                 front.frame
