@@ -1,6 +1,7 @@
 package cn.autolabor.baafs
 
 import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
+import cn.autolabor.baafs.CollisionPredictingModuleBuilderDsl.Companion.startCollisionPredictingModule
 import cn.autolabor.business.BusinessBuilderDsl.Companion.business
 import cn.autolabor.business.parseFromConsole
 import cn.autolabor.business.registerBusinessParser
@@ -9,6 +10,7 @@ import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.module.networkhub.UDPMulticastBroadcaster
 import cn.autolabor.pathfollower.Proportion
+import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
 import kotlinx.coroutines.*
 import org.mechdancer.YChannel
@@ -27,6 +29,7 @@ import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
+import kotlin.math.PI
 import kotlin.system.exitProcess
 
 @ExperimentalCoroutinesApi
@@ -50,8 +53,7 @@ fun main() {
     val robotOnMap = channel<Stamped<Odometry>>()
     val beaconOnMap = channel<Stamped<Vector2D>>()
     val exceptions = channel<ExceptionMessage>()
-    val commandToObstacle = channel<NonOmnidirectional>()
-    val commandToSwitch = channel<NonOmnidirectional>()
+    val commandToSwitch = YChannel<NonOmnidirectional>()
     val commandToRobot = channel<NonOmnidirectional>()
     // 任务
     try {
@@ -87,10 +89,25 @@ fun main() {
             println("done")
 
             println("trying to connect to faselase lidars...")
-            startObstacleAvoiding(
-                launchLidar = true,
-                commandIn = commandToObstacle,
-                commandOut = commandToSwitch)
+            val lidarSet = faselaseLidarSet(exceptions = channel()) {
+                launchTimeout = 5000L
+                connectionTimeout = 800L
+                dataTimeout = 400L
+                retryInterval = 100L
+                lidar(port = "/dev/pos3") {
+                    tag = "FrontLidar"
+                    pose = Odometry.pose(.113, 0, PI / 2)
+                    inverse = false
+                }
+                lidar(port = "/dev/pos4") {
+                    tag = "BackLidar"
+                    pose = Odometry.pose(-.138, 0, PI / 2)
+                    inverse = false
+                }
+                filter { p ->
+                    p !in outlineFilter
+                }
+            }
             println("done")
 
             println("staring data process modules...")
@@ -111,7 +128,7 @@ fun main() {
             val business = business(
                 robotOnMap = robotOnMap,
                 robotOnOdometry = robotOnOdometry.outputs[1],
-                commandOut = commandToObstacle,
+                commandOut = commandToSwitch.input,
                 exceptions = exceptions
             ) {
                 pathInterval = .05
@@ -128,14 +145,30 @@ fun main() {
                 }
                 painter = remote
             }
+            startCollisionPredictingModule(
+                commandIn = commandToSwitch.outputs[0],
+                exception = exceptions,
+                lidarSet = lidarSet,
+                robotOutline = robotOutline
+            ) {
+                predictingTime = 1000L
+                painter = remote
+            }
             launch {
                 for (e in exceptions)
                     exceptionServer.update(e)
             }
             launch {
-                for (command in commandToSwitch)
-                    if (exceptionServer.isEmpty())
+                var once = false
+                for (command in commandToSwitch.outputs[1])
+                    if (exceptionServer.isEmpty()) {
+                        once = false
                         commandToRobot.send(command)
+                    } else {
+                        if (!once) commandToRobot.send(NonOmnidirectional(.0, .0))
+                        once = true
+                    }
+
                 commandToRobot.close()
             }
             println("done")

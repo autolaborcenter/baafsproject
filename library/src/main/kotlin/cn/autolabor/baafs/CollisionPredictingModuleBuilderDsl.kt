@@ -16,6 +16,7 @@ import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import org.mechdancer.paint
+import org.mechdancer.paintFrame2
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.RemoteHub
 import kotlin.math.max
@@ -23,7 +24,7 @@ import kotlin.math.min
 
 @BuilderDslMarker
 class CollisionPredictingModuleBuilderDsl {
-    var predictingTime: Long = 100L
+    var predictingTime: Long = 1000L
     var countToContinue: Int = 5
     var countToStop: Int = 5
     var painter: RemoteHub? = null
@@ -62,7 +63,7 @@ class CollisionPredictingModuleBuilderDsl {
                                     min(count + 1, +countToStop)
                                 else
                                     max(count - 1, -countToContinue)
-                            if (count > 0)
+                            if (count < 0)
                                 exception.send(Recovered(CollisionDetectedException))
                             else
                                 exception.send(Occurred(CollisionDetectedException))
@@ -70,6 +71,10 @@ class CollisionPredictingModuleBuilderDsl {
                                 paint("机器人轮廓", robotOutline)
                                 paint("运动预测", outline)
                                 paintVectors("障碍物", points)
+                                paintFrame2("碰撞",
+                                            points
+                                                .filter { it in outline }
+                                                .map { (x, y) -> x to y })
                             }
                         }
                     }
