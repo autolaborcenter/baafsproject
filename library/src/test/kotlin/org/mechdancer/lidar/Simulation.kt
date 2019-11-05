@@ -1,6 +1,8 @@
 package org.mechdancer.lidar
 
+import cn.autolabor.baafs.CollisionPredictingModuleBuilderDsl.Companion.startCollisionPredictingModule
 import cn.autolabor.baafs.outlineFilter
+import cn.autolabor.baafs.robotOutline
 import cn.autolabor.business.BusinessBuilderDsl.Companion.business
 import cn.autolabor.business.parseFromConsole
 import cn.autolabor.business.registerBusinessParser
@@ -51,7 +53,7 @@ fun main() {
 
     // 话题
     val robotOnMap = channel<Stamped<Odometry>>()
-    val commandToRobot = channel<NonOmnidirectional>()
+    val commandToRobot = YChannel<NonOmnidirectional>()
     val exceptions = channel<ExceptionMessage>()
     val command = AtomicReference(Velocity.velocity(.0, .0))
     val exceptionServer = ExceptionServer()
@@ -64,8 +66,14 @@ fun main() {
         val business = business(
                 robotOnMap = robotOnMap,
                 robotOnOdometry = robotOnMap,
-                commandOut = commandToRobot,
+                commandOut = commandToRobot.input,
                 exceptions = exceptions
+        ) { painter = remote }
+        startCollisionPredictingModule(
+                commandIn = commandToRobot.outputs[0],
+                exception = exceptions,
+                lidarSet = lidarSet,
+                robotOutline = robotOutline
         ) { painter = remote }
         // 处理异常
         launch {
@@ -80,7 +88,7 @@ fun main() {
         // 发送指令
         launch {
             val watchDog = WatchDog(3 * dt)
-            for (v in commandToRobot) {
+            for (v in commandToRobot.outputs[1]) {
                 if (!exceptionServer.isEmpty()) continue
                 command.set(v)
                 launch { if (!watchDog.feed()) command.set(Velocity.velocity(0, 0)) }
@@ -99,7 +107,7 @@ fun main() {
             }
         }
         // 运行仿真
-        for ((t, v) in speedSimulation(T0) { command.get() }) {
+        for ((t, v) in speedSimulation(T0, dt, speed) { command.get() }) {
             // 控制机器人行驶
             val actual = chassis.drive(v, t)
             // 更新激光雷达

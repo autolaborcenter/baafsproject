@@ -4,8 +4,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.mechdancer.BuilderDslMarker
+import org.mechdancer.SimpleLogger
 import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.common.Velocity.NonOmnidirectional
@@ -16,7 +18,6 @@ import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import org.mechdancer.paint
-import org.mechdancer.paintFrame2
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.RemoteHub
 import kotlin.math.max
@@ -27,6 +28,7 @@ class CollisionPredictingModuleBuilderDsl {
     var predictingTime: Long = 1000L
     var countToContinue: Int = 5
     var countToStop: Int = 5
+    var logger: SimpleLogger? = SimpleLogger("CollisionPredictingModule")
     var painter: RemoteHub? = null
 
     companion object {
@@ -47,8 +49,27 @@ class CollisionPredictingModuleBuilderDsl {
                 .run {
                     var count = 0
                     val origin = robotOutline.vertex
+                    var updateTime = System.currentTimeMillis()
+                    painter?.run {
+                        launch {
+                            while (true) {
+                                paint("机器人轮廓", robotOutline)
+                                delay(5000L)
+                            }
+                        }
+                        launch {
+                            while (true) {
+                                while (System.currentTimeMillis() - updateTime > 2000L) {
+                                    paintVectors("雷达", lidarSet.frame)
+                                    delay(100L)
+                                }
+                                delay(2000L)
+                            }
+                        }
+                    }
                     launch {
                         for (command in commandIn) {
+                            updateTime = System.currentTimeMillis()
                             val delta = command.toDeltaOdometry(predictingTime / 1000.0).toTransformation()
                             val getting = async { lidarSet.frame }
                             val outline = origin
@@ -59,22 +80,18 @@ class CollisionPredictingModuleBuilderDsl {
                                 .let(::Polygon)
                             val points = getting.await()
                             count =
-                                if (points.any { it in outline })
+                                if (points.none { it in outline })
                                     min(count + 1, +countToStop)
                                 else
                                     max(count - 1, -countToContinue)
-                            if (count < 0)
+                            if (count > 0)
                                 exception.send(Recovered(CollisionDetectedException))
                             else
                                 exception.send(Occurred(CollisionDetectedException))
                             painter?.run {
-                                paint("机器人轮廓", robotOutline)
                                 paint("运动预测", outline)
-                                paintVectors("障碍物", points)
-                                paintFrame2("碰撞",
-                                            points
-                                                .filter { it in outline }
-                                                .map { (x, y) -> x to y })
+                                paintVectors("雷达", points)
+                                paintVectors("碰撞", points.filter { it in outline })
                             }
                         }
                     }

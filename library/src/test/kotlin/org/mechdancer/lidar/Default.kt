@@ -78,9 +78,10 @@ internal fun Polygon.transform(pose: Odometry): Polygon {
 
 internal fun RemoteHub.paintRobot(robotOnMap: Odometry) {
     // 绘制机器人外轮廓和遮挡物
-    cover.map { it.transform(robotOnMap) }
+    cover
+        .map { it.transform(robotOnMap) }
         .forEachIndexed { i, polygon ->
-            Default.remote.paint("机器人遮挡$i", polygon)
+            remote.paint("机器人遮挡$i", polygon)
         }
     remote.paint("机器人", robotOutline.transform(robotOnMap))
     remote.paint("过滤范围", outlineFilter.transform(robotOnMap))

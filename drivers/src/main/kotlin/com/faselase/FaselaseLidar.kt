@@ -20,11 +20,16 @@ import org.mechdancer.exceptions.device.DeviceOfflineException
 import java.util.concurrent.Executors
 import kotlin.math.PI
 
-class FaselaseLidar(
+/**
+ * 砝石雷达资源控制
+ */
+internal class FaselaseLidar(
     scope: CoroutineScope,
-    exceptions: SendChannel<ExceptionMessage>,
-    name: String?,
+    private val exceptions: SendChannel<ExceptionMessage>,
+
+    portName: String?,
     tag: String?,
+
     launchTimeout: Long,
     connectionTimeout: Long,
     private val dataTimeout: Long,
@@ -35,15 +40,15 @@ class FaselaseLidar(
     private val port =
         try {
             val candidates =
-                name?.let { listOf(SerialPort.getCommPort(it)) }
+                portName?.let { listOf(SerialPort.getCommPort(it)) }
                 ?: SerialPort.getCommPorts()
                     ?.takeIf(Array<*>::isNotEmpty)
                     ?.toList()
                 ?: throw RuntimeException("no available port")
             SerialPortFinder
                 .findSerialPort(
-                    candidates = candidates,
-                    engine = engine
+                        candidates = candidates,
+                        engine = engine
                 ) {
                     baudRate = 460800
                     timeoutMs = launchTimeout
@@ -55,57 +60,54 @@ class FaselaseLidar(
         } catch (e: RuntimeException) {
             throw DeviceNotExistException(tag ?: "faselase lidar", e.message)
         }
-    // 接收
-    private val buffer = ByteArray(BUFFER_SIZE)
-    private val connectionWatchDog = WatchDog(connectionTimeout)
-    private val dataWatchDog = WatchDog(dataTimeout)
+
     // 缓存
     private val queue = PolarFrameCollectorQueue()
     // 访问
     val tag = tag ?: port.descriptivePortName
     val frame get() = queue.get()
-    // 日志
-    private val logger = SimpleLogger(this.tag).apply { period = 4096 }
 
     init {
         launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
-            val deviceTag = this@FaselaseLidar.tag
+            val buffer = ByteArray(BUFFER_SIZE)
             while (port.isOpen)
                 port.readOrReboot(buffer, retryInterval) {
-                    exceptions.send(Occurred(DeviceOfflineException(deviceTag)))
-                }.takeIf(Collection<*>::isNotEmpty)
-                    ?.let { buffer ->
-                        launch {
-                            connectionWatchDog.feedOrThrowTo(
-                                exceptions,
-                                DeviceOfflineException(deviceTag)
-                            )
-                        }
-                        engine(buffer) { pack ->
-                            when (pack) {
-                                LidarPack.Nothing    -> logger.log("nothing")
-                                LidarPack.Failed     -> logger.log("failed")
-                                is LidarPack.Invalid -> {
-                                    val (theta) = pack
-                                    queue.refresh(theta.onPeriod())
-                                    logger.log(Double.NaN, theta)
-                                }
-                                is LidarPack.Data    -> {
-                                    launch {
-                                        dataWatchDog.feedOrThrowTo(
-                                            exceptions,
-                                            DataTimeoutException(deviceTag, dataTimeout)
-                                        )
-                                    }
-                                    val (rho, theta) = pack
-                                    queue += Stamped.stamp(Polar(rho, theta.onPeriod()))
-                                    logger.log(rho, theta)
-                                }
-                            }
-                        }
-                    }
+                    exceptions.send(Occurred(DeviceOfflineException(this@FaselaseLidar.tag)))
+                }.takeIf(Collection<*>::isNotEmpty)?.let(::write)
         }.invokeOnCompletion {
             port.closePort()
+        }
+    }
+
+    private val connectionWatchDog = WatchDog(connectionTimeout)
+    private val dataWatchDog = WatchDog(dataTimeout)
+    private val logger = SimpleLogger(this.tag)
+    private fun write(list: List<Byte>) {
+        launch {
+            connectionWatchDog.feedOrThrowTo(
+                    exceptions,
+                    DeviceOfflineException(tag))
+        }
+        engine(list) { pack ->
+            when (pack) {
+                LidarPack.Nothing    -> logger.log("nothing")
+                LidarPack.Failed     -> logger.log("failed")
+                is LidarPack.Invalid -> {
+                    val (theta) = pack
+                    queue.refresh(theta.onPeriod())
+                    logger.log(Double.NaN, theta)
+                }
+                is LidarPack.Data    -> {
+                    launch {
+                        dataWatchDog.feedOrThrowTo(
+                                exceptions,
+                                DataTimeoutException(tag, dataTimeout))
+                    }
+                    val (rho, theta) = pack
+                    queue += Stamped.stamp(Polar(rho, theta.onPeriod()))
+                    logger.log(rho, theta)
+                }
+            }
         }
     }
 
