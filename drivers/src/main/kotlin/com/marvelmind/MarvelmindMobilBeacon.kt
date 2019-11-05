@@ -14,6 +14,8 @@ import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Stamped
 import org.mechdancer.exceptions.ExceptionMessage
+import org.mechdancer.exceptions.ExceptionMessage.Occurred
+import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import org.mechdancer.exceptions.device.DataTimeoutException
 import org.mechdancer.exceptions.device.DeviceNotExistException
 import org.mechdancer.exceptions.device.DeviceOfflineException
@@ -44,9 +46,14 @@ internal class MarvelmindMobilBeacon(
     // 协议解析引擎
     private val engine = engine()
     // 超时异常监控
-    private val connectionWatchDog = WatchDog(connectionTimeout)
-    private val parseWatchDog = WatchDog(parseTimeout)
-    private val dataWatchDog = WatchDog(dataTimeout)
+    private val offlineException = DeviceOfflineException(NAME)
+    private val connectionWatchDog = WatchDog(this, connectionTimeout) { exceptions.send(Occurred(offlineException)) }
+
+    private val parseTimeoutException = ParseTimeoutException(NAME, parseTimeout)
+    private val parseWatchDog = WatchDog(this, parseTimeout) { exceptions.send(Occurred(parseTimeoutException)) }
+
+    private val dataTimeoutException = DataTimeoutException(NAME, dataTimeout)
+    private val dataWatchDog = WatchDog(this, dataTimeout) { exceptions.send(Occurred(dataTimeoutException)) }
     // 数据过滤
     private val delayRange = 1..delayLimit
     private val zRange = heightRange.start.roundToInt()..heightRange.endInclusive.roundToInt()
@@ -90,7 +97,7 @@ internal class MarvelmindMobilBeacon(
             val buffer = ByteArray(BUFFER_SIZE)
             while (true)
                 port.readOrReboot(buffer, retryInterval) {
-                    exceptions.send(ExceptionMessage.Occurred(DeviceOfflineException(NAME)))
+                    exceptions.send(Occurred(DeviceOfflineException(NAME)))
                 }.takeUnless(List<*>::isEmpty)?.let(::write)
         }.invokeOnCompletion {
             port.closePort()
@@ -106,21 +113,15 @@ internal class MarvelmindMobilBeacon(
     }
 
     private fun write(array: List<Byte>) {
-        launch {
-            connectionWatchDog.feedOrThrowTo(
-                    exceptions,
-                    DeviceOfflineException(NAME))
-        }
+        connectionWatchDog.feed()
+        launch { exceptions.send(Recovered(offlineException)) }
         engine(array) { pack ->
             when (pack) {
                 is BeaconPackage.Nothing -> logger?.log("nothing")
                 is BeaconPackage.Failed  -> logger?.log("failed")
                 is BeaconPackage.Data    -> {
-                    launch {
-                        parseWatchDog.feedOrThrowTo(
-                                exceptions,
-                                ParseTimeoutException(NAME, parseTimeout))
-                    }
+                    parseWatchDog.feed()
+                    launch { exceptions.send(Recovered(parseTimeoutException)) }
                     val (code, payload) = pack
                     if (code != COORDINATE_CODE)
                         logger?.log("code = $code")
@@ -140,9 +141,8 @@ internal class MarvelmindMobilBeacon(
                             beaconOnMap.send(Stamped(
                                     now - delay,
                                     vector2DOf(x, y) / 1000.0))
-                            dataWatchDog.feedOrThrowTo(
-                                    exceptions,
-                                    DataTimeoutException(NAME, dataTimeout))
+                            dataWatchDog.feed()
+                            launch { exceptions.send(Recovered(dataTimeoutException)) }
                         }
                     }
                 }

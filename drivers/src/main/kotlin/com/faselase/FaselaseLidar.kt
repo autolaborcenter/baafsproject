@@ -14,6 +14,7 @@ import org.mechdancer.common.Stamped
 import org.mechdancer.device.PolarFrameCollectorQueue
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
+import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import org.mechdancer.exceptions.device.DataTimeoutException
 import org.mechdancer.exceptions.device.DeviceNotExistException
 import org.mechdancer.exceptions.device.DeviceOfflineException
@@ -79,15 +80,18 @@ internal class FaselaseLidar(
         }
     }
 
-    private val connectionWatchDog = WatchDog(connectionTimeout)
-    private val dataWatchDog = WatchDog(dataTimeout)
+    private val offlineException = DeviceOfflineException(this.tag)
+    private val connectionWatchDog =
+        WatchDog(this, connectionTimeout) { exceptions.send(Occurred(offlineException)) }
+
+    private val dataTimeoutException = DataTimeoutException(this.tag, dataTimeout)
+    private val dataWatchDog =
+        WatchDog(this, dataTimeout) { exceptions.send(Occurred(dataTimeoutException)) }
+
     private val logger = SimpleLogger(this.tag)
     private fun write(list: List<Byte>) {
-        launch {
-            connectionWatchDog.feedOrThrowTo(
-                    exceptions,
-                    DeviceOfflineException(tag))
-        }
+        connectionWatchDog.feed()
+        launch { exceptions.send(Recovered(offlineException)) }
         engine(list) { pack ->
             when (pack) {
                 LidarPack.Nothing    -> logger.log("nothing")
@@ -98,11 +102,8 @@ internal class FaselaseLidar(
                     logger.log(Double.NaN, theta)
                 }
                 is LidarPack.Data    -> {
-                    launch {
-                        dataWatchDog.feedOrThrowTo(
-                                exceptions,
-                                DataTimeoutException(tag, dataTimeout))
-                    }
+                    dataWatchDog.feed()
+                    launch { exceptions.send(Recovered(dataTimeoutException)) }
                     val (rho, theta) = pack
                     queue += Stamped.stamp(Polar(rho, theta.onPeriod()))
                     logger.log(rho, theta)

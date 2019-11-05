@@ -103,11 +103,11 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
                                 command.set(velocity(0.2 * v, 0.8 * w))
                         }
                         launch {
-                            val watchDog = WatchDog(3 * dt)
+                            val watchDog = WatchDog(this, 3 * dt) { command.set(velocity(0, 0)) }
                             for (v in commandToRobot) {
                                 if (!exceptionServer.isEmpty()) continue
+                                watchDog.feed()
                                 command.set(v)
-                                launch { if (!watchDog.feed()) command.set(velocity(0, 0)) }
                             }
                         }
                         launch {

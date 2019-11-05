@@ -87,11 +87,11 @@ fun main() {
         }
         // 发送指令
         launch {
-            val watchDog = WatchDog(3 * dt)
+            val watchDog = WatchDog(this, 3 * dt) { command.set(Velocity.velocity(0, 0)) }
             for (v in commandToRobot.outputs[1]) {
                 if (!exceptionServer.isEmpty()) continue
+                watchDog.feed()
                 command.set(v)
-                launch { if (!watchDog.feed()) command.set(Velocity.velocity(0, 0)) }
             }
         }
         // 处理控制台

@@ -63,18 +63,15 @@ class ChassisModuleBuilderDsl private constructor() {
             // 启动指令接收
             launch {
                 val logger = SimpleLogger("ChassisCommand")
-                val watchDog = WatchDog(parameters.controlTimeout)
+                val watchDog = WatchDog(this, parameters.controlTimeout) {
+                    PM1.setCommandEnabled(false)
+                    logger.log("give up control")
+                }
                 for ((v, w) in command) {
+                    watchDog.feed()
+                    PM1.setCommandEnabled(true)
                     PM1.drive(v, w)
                     logger.log(v, w)
-                    // 取得底盘控制权，但超时无指令则交出控制权
-                    launch {
-                        PM1.setCommandEnabled(true)
-                        if (!watchDog.feed()) {
-                            PM1.setCommandEnabled(false)
-                            logger.log("give up control")
-                        }
-                    }
                 }
             }
         }

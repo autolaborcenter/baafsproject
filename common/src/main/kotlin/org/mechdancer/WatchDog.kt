@@ -1,27 +1,33 @@
 package org.mechdancer
 
-import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import org.mechdancer.exceptions.ExceptionMessage
-import org.mechdancer.exceptions.ExceptionMessage.Occurred
-import org.mechdancer.exceptions.ExceptionMessage.Recovered
-import org.mechdancer.exceptions.RecoverableException
+import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
-class WatchDog(private val timeout: Long) {
-    private val i = AtomicLong(0)
+class WatchDog(
+    scope: CoroutineScope,
+    private val timeout: Long,
+    private val block: suspend () -> Unit
+) : CoroutineScope by scope {
+    private val lastFeed = AtomicLong(0)
+    private val job = AtomicReference<Job>(launch { })
 
-    suspend fun feed(): Boolean {
-        val mark = i.incrementAndGet()
-        delay(timeout)
-        return mark != i.get()
-    }
-
-    suspend fun feedOrThrowTo(
-        exceptions: SendChannel<ExceptionMessage>,
-        exception: RecoverableException
-    ) {
-        exceptions.send(Recovered(exception))
-        if (!feed()) exceptions.send(Occurred(exception))
+    fun feed() {
+        lastFeed.set(System.currentTimeMillis())
+        job.updateAndGet { last ->
+            last.takeIf { it.isActive }
+            ?: launch {
+                delay(timeout)
+                while (true)
+                    (lastFeed.get() + timeout - System.currentTimeMillis())
+                        .takeIf { it > 0 }
+                        ?.let { delay(it) }
+                    ?: break
+                block()
+            }
+        }
     }
 }

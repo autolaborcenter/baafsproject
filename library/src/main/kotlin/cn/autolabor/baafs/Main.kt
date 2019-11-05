@@ -14,6 +14,7 @@ import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
 import kotlinx.coroutines.*
 import org.mechdancer.YChannel
+import org.mechdancer.algebra.function.vector.euclid
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.channel
@@ -60,8 +61,8 @@ fun main() {
         runBlocking(Dispatchers.Default) {
             println("trying to connect to pm1 chassis...")
             startChassis(
-                odometry = robotOnOdometry.input,
-                command = commandToRobot
+                    odometry = robotOnOdometry.input,
+                    command = commandToRobot
             ) {
                 port = null
                 period = 40L
@@ -71,8 +72,8 @@ fun main() {
 
             println("trying to connect to marvelmind mobile beacon...")
             startMobileBeacon(
-                beaconOnMap = beaconOnMap,
-                exceptions = exceptions
+                    beaconOnMap = beaconOnMap,
+                    exceptions = exceptions
             ) {
                 port = "/dev/beacon"
                 retryInterval = 100L
@@ -104,8 +105,9 @@ fun main() {
                     pose = Odometry.pose(-.138, 0, PI / 2)
                     inverse = false
                 }
+                val wonder = vector2DOf(+.12, +.14)
                 filter { p ->
-                    p !in outlineFilter
+                    p euclid wonder > .1 && p !in outlineFilter
                 }
             }
             println("done")
@@ -113,9 +115,9 @@ fun main() {
             println("staring data process modules...")
             val exceptionServer = ExceptionServer()
             val filter = startLocationFusion(
-                robotOnOdometry = robotOnOdometry.outputs[0],
-                beaconOnMap = beaconOnMap,
-                robotOnMap = robotOnMap
+                    robotOnOdometry = robotOnOdometry.outputs[0],
+                    beaconOnMap = beaconOnMap,
+                    robotOnMap = robotOnMap
             ) {
                 filter {
                     beaconOnRobot = vector2DOf(-.01, -.02)
@@ -126,10 +128,10 @@ fun main() {
                 painter = remote
             }
             val business = business(
-                robotOnMap = robotOnMap,
-                robotOnOdometry = robotOnOdometry.outputs[1],
-                commandOut = commandToSwitch.input,
-                exceptions = exceptions
+                    robotOnMap = robotOnMap,
+                    robotOnOdometry = robotOnOdometry.outputs[1],
+                    commandOut = commandToSwitch.input,
+                    exceptions = exceptions
             ) {
                 pathInterval = .05
                 localRadius = .5
@@ -146,10 +148,10 @@ fun main() {
                 painter = remote
             }
             startCollisionPredictingModule(
-                commandIn = commandToSwitch.outputs[0],
-                exception = exceptions,
-                lidarSet = lidarSet,
-                robotOutline = robotOutline
+                    commandIn = commandToSwitch.outputs[0],
+                    exception = exceptions,
+                    lidarSet = lidarSet,
+                    robotOutline = robotOutline
             ) {
                 predictingTime = 1000L
                 painter = remote
@@ -189,7 +191,7 @@ fun main() {
                                      ?: "never query pose before")
                             val (t, quality) = filter.quality
                             appendln("particles last update ${now - t}ms ago")
-                            appendln("now system is ${if (filter.isConvergent) "" else "not"} ready for work")
+                            appendln("now system is ${if (filter.isConvergent) "" else "not "}ready for work")
                             append("quality = $quality")
                         }
                     }
