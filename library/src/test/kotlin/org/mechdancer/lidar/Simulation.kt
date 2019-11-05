@@ -18,7 +18,7 @@ import org.mechdancer.common.toTransformation
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.device.LidarSet
 import org.mechdancer.exceptions.ExceptionMessage
-import org.mechdancer.exceptions.ExceptionServer
+import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.exceptionServer
 import org.mechdancer.lidar.Default.commands
 import org.mechdancer.lidar.Default.remote
 import org.mechdancer.lidar.Default.simulationLidar
@@ -56,13 +56,10 @@ fun main() {
     val commandToRobot = YChannel<NonOmnidirectional>()
     val exceptions = channel<ExceptionMessage>()
     val command = AtomicReference(Velocity.velocity(.0, .0))
-    val exceptionServer = ExceptionServer()
-    val parser = buildParser {
-        this["exceptions"] = {
-            exceptionServer.get().joinToString("\n")
-        }
-    }
     runBlocking(Dispatchers.Default) {
+        val exceptionServer = exceptionServer {
+            exceptionOccur { command.set(Velocity.velocity(.0, .0)) }
+        }
         val business = business(
                 robotOnMap = robotOnMap,
                 robotOnOdometry = robotOnMap,
@@ -96,7 +93,12 @@ fun main() {
         }
         // 处理控制台
         launch {
-            registerBusinessParser(business, parser)
+            val parser = buildParser {
+                this["exceptions"] = {
+                    exceptionServer.get().joinToString("\n")
+                }
+                registerBusinessParser(business, this)
+            }
             while (isActive) parser.parseFromConsole()
         }
         // 刷新障碍物显示

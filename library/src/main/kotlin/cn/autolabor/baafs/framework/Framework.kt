@@ -1,4 +1,4 @@
-package cn.autolabor.baafs
+package cn.autolabor.baafs.framework
 
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.core.server.message.MessageHandle

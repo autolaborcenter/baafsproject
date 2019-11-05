@@ -20,12 +20,13 @@ import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
+import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
-import org.mechdancer.exceptions.ExceptionServer
+import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.exceptionServer
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.networksInfo
@@ -113,8 +114,10 @@ fun main() {
             println("done")
 
             println("staring data process modules...")
-            val exceptionServer = ExceptionServer()
-            val filter = startLocationFusion(
+            val exceptionServer = exceptionServer {
+                exceptionOccur { launch { commandToRobot.send(velocity(.0, .0)) } }
+            }
+            val fusion = startLocationFusion(
                     robotOnOdometry = robotOnOdometry.outputs[0],
                     beaconOnMap = beaconOnMap,
                     robotOnMap = robotOnMap
@@ -161,16 +164,9 @@ fun main() {
                     exceptionServer.update(e)
             }
             launch {
-                var once = false
                 for (command in commandToSwitch.outputs[1])
-                    if (exceptionServer.isEmpty()) {
-                        once = false
+                    if (exceptionServer.isEmpty())
                         commandToRobot.send(command)
-                    } else {
-                        if (!once) commandToRobot.send(NonOmnidirectional(.0, .0))
-                        once = true
-                    }
-
                 commandToRobot.close()
             }
             println("done")
@@ -186,12 +182,12 @@ fun main() {
                     this["fusion state"] = {
                         buildString {
                             val now = System.currentTimeMillis()
-                            appendln(filter.lastQuery
+                            appendln(fusion.lastQuery
                                          ?.let { (t, pose) -> "last locate at $pose ${now - t}ms ago" }
                                      ?: "never query pose before")
-                            val (t, quality) = filter.quality
+                            val (t, quality) = fusion.quality
                             appendln("particles last update ${now - t}ms ago")
-                            appendln("now system is ${if (filter.isConvergent) "" else "not "}ready for work")
+                            appendln("now system is ${if (fusion.isConvergent) "" else "not "}ready for work")
                             append("quality = $quality")
                         }
                     }

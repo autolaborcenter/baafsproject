@@ -9,7 +9,10 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
 import kotlin.concurrent.write
 
-class ExceptionServer {
+class ExceptionServer(
+    private val recoverAll: () -> Unit,
+    private val exceptionOccur: () -> Unit
+) {
     private val set = mutableSetOf<RecoverableException>()
     private val logger = SimpleLogger("exceptions")
     private val lock = ReentrantReadWriteLock()
@@ -22,8 +25,16 @@ class ExceptionServer {
         val what = exception.what
         lock.write {
             when (exception) {
-                is Occurred  -> if (set.add(what)) record(what.toString())
-                is Recovered -> if (set.remove(what)) record("${what::class.java.simpleName}: recovered")
+                is Occurred  ->
+                    if (set.add(what)) {
+                        record(what.toString())
+                        if (set.size == 1) exceptionOccur()
+                    }
+                is Recovered ->
+                    if (set.remove(what)) {
+                        record("${what::class.java.simpleName}: recovered")
+                        if (set.size == 0) recoverAll()
+                    }
             }
         }
     }

@@ -1,8 +1,10 @@
-package cn.autolabor.baafs
+package cn.autolabor.baafs.framework
 
 import cn.autolabor.FilterTwistTask
 import cn.autolabor.ObstacleDetectionTask
 import cn.autolabor.PoseDetectionTask
+import cn.autolabor.baafs.FaselaseTask
+import cn.autolabor.baafs.LaserFilterTask
 import cn.autolabor.core.server.ServerManager
 import cn.autolabor.message.navigation.Msg2DOdometry
 import cn.autolabor.message.navigation.Msg2DTwist

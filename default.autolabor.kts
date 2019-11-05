@@ -1,6 +1,7 @@
 package cn.autolabor.baafs
 
 import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
+import cn.autolabor.baafs.CollisionPredictingModuleBuilderDsl.Companion.startCollisionPredictingModule
 import cn.autolabor.business.BusinessBuilderDsl.Companion.business
 import cn.autolabor.business.parseFromConsole
 import cn.autolabor.business.registerBusinessParser
@@ -9,24 +10,27 @@ import cn.autolabor.core.server.ServerManager
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.module.networkhub.UDPMulticastBroadcaster
 import cn.autolabor.pathfollower.Proportion
+import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
-import kotlinx.coroutines.*
 import org.mechdancer.YChannel
+import org.mechdancer.algebra.function.vector.euclid
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
+import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
-import org.mechdancer.exceptions.ExceptionServer
+import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.exceptionServer
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
+import kotlin.math.PI
 import kotlin.system.exitProcess
 
 ServerManager.setSetup(object : DefaultSetup() {
@@ -48,16 +52,15 @@ val robotOnOdometry = YChannel<Stamped<Odometry>>()
 val robotOnMap = channel<Stamped<Odometry>>()
 val beaconOnMap = channel<Stamped<Vector2D>>()
 val exceptions = channel<ExceptionMessage>()
-val commandToObstacle = channel<NonOmnidirectional>()
-val commandToSwitch = channel<NonOmnidirectional>()
+val commandToSwitch = YChannel<NonOmnidirectional>()
 val commandToRobot = channel<NonOmnidirectional>()
 // 任务
 try {
     runBlocking(Dispatchers.Default) {
         println("trying to connect to pm1 chassis...")
         startChassis(
-            odometry = robotOnOdometry.input,
-            command = commandToRobot
+                odometry = robotOnOdometry.input,
+                command = commandToRobot
         ) {
             port = null
             period = 40L
@@ -67,8 +70,8 @@ try {
 
         println("trying to connect to marvelmind mobile beacon...")
         startMobileBeacon(
-            beaconOnMap = beaconOnMap,
-            exceptions = exceptions
+                beaconOnMap = beaconOnMap,
+                exceptions = exceptions
         ) {
             port = "/dev/beacon"
             retryInterval = 100L
@@ -85,18 +88,36 @@ try {
         println("done")
 
         println("trying to connect to faselase lidars...")
-        startObstacleAvoiding(
-            launchLidar = true,
-            commandIn = commandToObstacle,
-            commandOut = commandToSwitch)
+        val lidarSet = faselaseLidarSet(exceptions = channel()) {
+            launchTimeout = 5000L
+            connectionTimeout = 800L
+            dataTimeout = 400L
+            retryInterval = 100L
+            lidar(port = "/dev/pos3") {
+                tag = "FrontLidar"
+                pose = Odometry.pose(.113, 0, PI / 2)
+                inverse = false
+            }
+            lidar(port = "/dev/pos4") {
+                tag = "BackLidar"
+                pose = Odometry.pose(-.138, 0, PI / 2)
+                inverse = false
+            }
+            val wonder = vector2DOf(+.12, +.14)
+            filter { p ->
+                p euclid wonder > .1 && p !in outlineFilter
+            }
+        }
         println("done")
 
         println("staring data process modules...")
-        val exceptionServer = ExceptionServer()
-        val filter = startLocationFusion(
-            robotOnOdometry = robotOnOdometry.outputs[0],
-            beaconOnMap = beaconOnMap,
-            robotOnMap = robotOnMap
+        val exceptionServer = exceptionServer {
+            exceptionOccur { launch { commandToRobot.send(velocity(.0, .0)) } }
+        }
+        val fusion = startLocationFusion(
+                robotOnOdometry = robotOnOdometry.outputs[0],
+                beaconOnMap = beaconOnMap,
+                robotOnMap = robotOnMap
         ) {
             filter {
                 beaconOnRobot = vector2DOf(-.01, -.02)
@@ -107,10 +128,10 @@ try {
             painter = remote
         }
         val business = business(
-            robotOnMap = robotOnMap,
-            robotOnOdometry = robotOnOdometry.outputs[1],
-            commandOut = commandToObstacle,
-            exceptions = exceptions
+                robotOnMap = robotOnMap,
+                robotOnOdometry = robotOnOdometry.outputs[1],
+                commandOut = commandToSwitch.input,
+                exceptions = exceptions
         ) {
             pathInterval = .05
             localRadius = .5
@@ -126,12 +147,21 @@ try {
             }
             painter = remote
         }
+        startCollisionPredictingModule(
+                commandIn = commandToSwitch.outputs[0],
+                exception = exceptions,
+                lidarSet = lidarSet,
+                robotOutline = robotOutline
+        ) {
+            predictingTime = 1000L
+            painter = remote
+        }
         launch {
             for (e in exceptions)
                 exceptionServer.update(e)
         }
         launch {
-            for (command in commandToSwitch)
+            for (command in commandToSwitch.outputs[1])
                 if (exceptionServer.isEmpty())
                     commandToRobot.send(command)
             commandToRobot.close()
@@ -149,12 +179,12 @@ try {
                 this["fusion state"] = {
                     buildString {
                         val now = System.currentTimeMillis()
-                        appendln(filter.lastQuery
+                        appendln(fusion.lastQuery
                                      ?.let { (t, pose) -> "last locate at $pose ${now - t}ms ago" }
                                  ?: "never query pose before")
-                        val (t, quality) = filter.quality
+                        val (t, quality) = fusion.quality
                         appendln("particles last update ${now - t}ms ago")
-                        appendln("now system is ${if (filter.isConvergent) "" else "not"} ready for work")
+                        appendln("now system is ${if (fusion.isConvergent) "" else "not "}ready for work")
                         append("quality = $quality")
                     }
                 }

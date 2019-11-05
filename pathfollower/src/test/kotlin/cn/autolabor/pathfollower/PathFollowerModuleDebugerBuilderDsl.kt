@@ -12,7 +12,7 @@ import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ExceptionMessage
-import org.mechdancer.exceptions.ExceptionServer
+import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.exceptionServer
 import org.mechdancer.remote.modules.multicast.multicastListener
 import org.mechdancer.remote.presets.remoteHub
 import org.mechdancer.remote.protocol.SimpleInputStream
@@ -77,19 +77,16 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
                     val commandToRobot = channel<NonOmnidirectional>()
                     val exceptions = channel<ExceptionMessage>()
                     val command = AtomicReference(velocity(.0, .0))
-                    val exceptionServer = ExceptionServer()
-                    val parser = buildParser {
-                        this["exceptions"] = {
-                            exceptionServer.get().joinToString("\n")
-                        }
-                    }
                     runBlocking {
+                        val exceptionServer = exceptionServer {
+                            exceptionOccur { launch { commandToRobot.send(velocity(.0, .0)) } }
+                        }
                         // 任务
                         val business = business(
-                            robotOnMap = robotOnMap,
-                            robotOnOdometry = robotOnMap,
-                            commandOut = commandToRobot,
-                            exceptions = exceptions
+                                robotOnMap = robotOnMap,
+                                robotOnOdometry = robotOnMap,
+                                commandOut = commandToRobot,
+                                exceptions = exceptions
                         ) {
                             this@run.config(this)
                             painter = remote
@@ -111,7 +108,12 @@ class PathFollowerModuleDebugerBuilderDsl private constructor() {
                             }
                         }
                         launch {
-                            registerBusinessParser(business, parser)
+                            val parser = buildParser {
+                                this["exceptions"] = {
+                                    exceptionServer.get().joinToString("\n")
+                                }
+                                registerBusinessParser(business, this)
+                            }
                             while (isActive) parser.parseFromConsole()
                         }
                         // 运行仿真

@@ -53,14 +53,14 @@ class CollisionPredictingModuleBuilderDsl {
                     painter?.run {
                         launch {
                             while (true) {
-                                paint("机器人轮廓", robotOutline)
+                                paint("R 机器人轮廓", robotOutline)
                                 delay(5000L)
                             }
                         }
                         launch {
                             while (true) {
                                 while (System.currentTimeMillis() - updateTime > 2000L) {
-                                    paintVectors("雷达", lidarSet.frame)
+                                    paintVectors("R 雷达", lidarSet.frame)
                                     delay(100L)
                                 }
                                 delay(2000L)
@@ -84,14 +84,15 @@ class CollisionPredictingModuleBuilderDsl {
                                     min(count + 1, +countToStop)
                                 else
                                     max(count - 1, -countToContinue)
+                            logger?.log("count = $count")
                             if (count > 0)
                                 exception.send(Recovered(CollisionDetectedException))
                             else
                                 exception.send(Occurred(CollisionDetectedException))
                             painter?.run {
-                                paint("运动预测", outline)
-                                paintVectors("雷达", points)
-                                paintVectors("碰撞", points.filter { it in outline })
+                                paint("R 运动预测", outline)
+                                paintVectors("R 雷达", points)
+                                paintVectors("R 碰撞", points.filter { it in outline })
                             }
                         }
                     }
