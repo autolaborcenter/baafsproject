@@ -83,10 +83,7 @@ try {
             dataTimeout = 2000L
 
             delayLimit = 400L
-
-            val height = -1.6
-            val radius = .3
-            heightRange = height - radius..height + radius
+            heightRange = -3.0..0.0
         }
         println("done")
 
