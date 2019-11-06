@@ -8,6 +8,7 @@ import cn.autolabor.business.parseFromConsole
 import cn.autolabor.business.registerBusinessParser
 import kotlinx.coroutines.*
 import org.mechdancer.*
+import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
@@ -19,12 +20,15 @@ import org.mechdancer.console.parser.buildParser
 import org.mechdancer.device.LidarSet
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.exceptionServer
+import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.lidar.Default.commands
 import org.mechdancer.lidar.Default.remote
 import org.mechdancer.lidar.Default.simulationLidar
 import org.mechdancer.simulation.Chassis
 import org.mechdancer.simulation.speedSimulation
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.PI
+import kotlin.math.absoluteValue
 
 private val obstacles =
     List(10) { i ->
@@ -65,7 +69,14 @@ fun main() {
                 robotOnOdometry = robotOnMap,
                 commandOut = commandToRobot.input,
                 exceptions = exceptions
-        ) { painter = remote }
+        ) {
+            localFirst {
+                it.p.norm() < localRadius
+                && it.p.toAngle().asRadian().absoluteValue < PI / 3
+                && it.d.asRadian().absoluteValue < PI / 3
+            }
+            painter = remote
+        }
         startCollisionPredictingModule(
                 commandIn = commandToRobot.outputs[0],
                 exception = exceptions,

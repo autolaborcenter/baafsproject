@@ -15,6 +15,7 @@ import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
 import kotlinx.coroutines.*
 import org.mechdancer.YChannel
 import org.mechdancer.algebra.function.vector.euclid
+import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.channel
@@ -27,6 +28,7 @@ import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.exceptionServer
+import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.networksInfo
@@ -148,6 +150,11 @@ fun main() {
                     maxLinearSpeed = .1
                     maxAngularSpeed = .3.toRad()
                 }
+                localFirst {
+                    it.p.norm() < localRadius
+                    && it.p.toAngle().asRadian() in -PI / 3..+PI / 3
+                    && it.d.asRadian() in -PI / 3..+PI / 3
+                }
                 painter = remote
             }
             startCollisionPredictingModule(
@@ -170,11 +177,11 @@ fun main() {
                 commandToRobot.close()
             }
             println("done")
-//            launch {
-//                val topic = "fusion".handler<Msg2DOdometry>()
-//                for ((_, pose) in robotOnMap.outputs[1])
-//                    topic.pushSubData(Msg2DOdometry(Msg2DPose(pose.p.x, pose.p.y, pose.d.asRadian()), null))
-//            }
+//          launch {
+//              val topic = "fusion".handler<Msg2DOdometry>()
+//              for ((_, pose) in robotOnMap.outputs[1])
+//                  topic.pushSubData(Msg2DOdometry(Msg2DPose(pose.p.x, pose.p.y, pose.d.asRadian()), null))
+//          }
             launch {
                 val parser = buildParser {
                     this["coroutines"] = { coroutineContext[Job]?.children?.count() }

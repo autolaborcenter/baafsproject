@@ -3,8 +3,8 @@ package cn.autolabor.business
 import org.mechdancer.algebra.function.vector.euclid
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.common.Odometry
-import org.mechdancer.common.invoke
 import org.mechdancer.common.toTransformation
+import org.mechdancer.common.transform
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -14,7 +14,8 @@ import java.util.concurrent.atomic.AtomicInteger
 class GlobalPath(
     core: List<Odometry>,
     private val localRadius: Double,
-    private val searchCount: Int
+    private val searchCount: Int,
+    private val localFirst: (Odometry) -> Boolean
 ) : List<Odometry> by core {
     // 当前位置
     private val index = AtomicInteger(0)
@@ -42,34 +43,39 @@ class GlobalPath(
     /** 根据 [robotOnMap] 查询局部路径并更新进度 */
     operator fun get(robotOnMap: Odometry): Sequence<Odometry> {
         val (p, _) = robotOnMap
+        val mapToRobot = robotOnMap.toTransformation().inverse()
         // 推进进度
         val i = index.updateAndGet { old ->
             val end = when {
                 searchAll || old == 0 -> size
-                else -> kotlin.math.min(old + searchCount, size)
+                else                  -> kotlin.math.min(old + searchCount, size)
             }
             searchAll = false
-            var dn = get(old).p euclid p
-            (old + 1 until end)
-                .firstOrNull { i ->
-                    val `dn-1` = dn
-                    dn = get(i).p euclid p
-                    `dn-1` < localRadius && `dn-1` < dn
-                }
-                ?.let { it - 1 }
-                ?: if (dn < localRadius) end - 1 else old
+            (old until end)
+                .asSequence()
+                .firstOrNull { localFirst(mapToRobot.transform(get(it))) }
+            ?: old
         }
         // 产生全局路径（机器人坐标系下）
         return when {
             get(i).p euclid p < localRadius -> {
-                val mapToRobot = robotOnMap.toTransformation().inverse()
                 asSequence()
                     .drop(i)
-                    .map { mapToRobot(it) }
+                    .map(mapToRobot::transform)
                     .takeWhile { it.p.norm() < searchCount }
             }
-            else ->
+            else                            ->
                 emptySequence()
         }
     }
 }
+
+//fun <T, R : Comparable<R>>
+//        Sequence<T>.greedy(init: R, block: (T) -> R): T? {
+//    var xn = init
+//    return firstOrNull {
+//        val `xn-1` = xn
+//        xn = block(it)
+//        `xn-1` < xn
+//    }
+//}

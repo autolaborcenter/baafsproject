@@ -12,8 +12,10 @@ import cn.autolabor.module.networkhub.UDPMulticastBroadcaster
 import cn.autolabor.pathfollower.Proportion
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
+import kotlinx.coroutines.*
 import org.mechdancer.YChannel
 import org.mechdancer.algebra.function.vector.euclid
+import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.channel
@@ -26,6 +28,7 @@ import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.exceptionServer
+import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.networksInfo
@@ -144,6 +147,11 @@ try {
                 minTurnAngle = 15.toDegree()
                 maxLinearSpeed = .1
                 maxAngularSpeed = .3.toRad()
+            }
+            localFirst {
+                it.p.norm() < localRadius
+                && it.p.toAngle().asRadian() in -PI / 3..+PI / 3
+                && it.d.asRadian() in -PI / 3..+PI / 3
             }
             painter = remote
         }

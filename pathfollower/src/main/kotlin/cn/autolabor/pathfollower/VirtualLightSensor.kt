@@ -8,11 +8,11 @@ import org.mechdancer.algebra.function.vector.normalize
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.common.Odometry
-import org.mechdancer.common.invoke
 import org.mechdancer.common.shape.AnalyticalShape
 import org.mechdancer.common.shape.Polygon
 import org.mechdancer.common.shape.Shape
 import org.mechdancer.common.toTransformation
+import org.mechdancer.common.transform
 import org.mechdancer.geometry.angle.toVector
 
 /**
@@ -61,7 +61,7 @@ class VirtualLightSensor(
     /** 虚拟光值计算 */
     operator fun invoke(path: List<Odometry>): Double {
         // 转化路径到传感器坐标系并约束局部路径
-        val local = path.map { robotToSensor(it) }
+        val local = path.map { robotToSensor.transform(it) }
         // 处理路径丢失情况
         if (local.isEmpty()) return .0
         // 离局部路径终点最近的点序号

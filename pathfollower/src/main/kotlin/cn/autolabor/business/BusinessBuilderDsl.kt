@@ -6,6 +6,7 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.BuilderDslMarker
 import org.mechdancer.SimpleLogger
+import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
@@ -21,8 +22,14 @@ class BusinessBuilderDsl private constructor() {
 
     var localRadius: Double = .5
     var pathInterval: Double = .05
+    private var localFirst: (Odometry) -> Boolean = { it.p.norm() < localRadius }
+
     var logger: SimpleLogger? = SimpleLogger("Business")
     var painter: RemoteHub? = null
+
+    fun localFirst(block: (Odometry) -> Boolean) {
+        localFirst = block
+    }
 
     fun follower(block: PathFollowerBuilderDsl.() -> Unit) {
         followerConfig = block
@@ -43,21 +50,21 @@ class BusinessBuilderDsl private constructor() {
             }
             .run {
                 Business(
-                    scope = this@business,
-                    robotOnMap = robotOnMap,
-                    robotOnOdometry = robotOnOdometry,
-                    commandOut = commandOut,
-                    exceptions = exceptions,
+                        scope = this@business,
+                        robotOnMap = robotOnMap,
+                        robotOnOdometry = robotOnOdometry,
+                        commandOut = commandOut,
+                        exceptions = exceptions,
 
-                    followerConfig = followerConfig,
-                    directionLimit = directionLimit,
+                        followerConfig = followerConfig,
+                        directionLimit = directionLimit,
 
-                    localRadius = localRadius,
-                    pathInterval = pathInterval,
+                        localRadius = localRadius,
+                        pathInterval = pathInterval,
+                        localFirst = localFirst,
 
-                    logger = logger,
-                    painter = painter
-                )
+                        logger = logger,
+                        painter = painter)
             }
     }
 }

@@ -37,13 +37,15 @@ class Business(
 
     localRadius: Double,
     private val pathInterval: Double,
+    localFirst: (Odometry) -> Boolean,
+
     private val logger: SimpleLogger?,
     private val painter: RemoteHub?
 ) {
     var function: Functions? = null
         private set
 
-    val globals = PathManager(localRadius, pathInterval, logger, painter)
+    val globals = PathManager(localRadius, pathInterval, localFirst, logger, painter)
 
     suspend fun startRecording() {
         if (function is Functions.Recording) return
@@ -164,7 +166,7 @@ class Business(
                             ?.map { robotToMap(it).to2D() }
                             ?.let { it + it.first() }
                             ?.also { paintVectors("传感器区域", it) }
-                        paintPoses("尖点", listOf(robotToMap(follower.tip)))
+                        paintPoses("尖点", listOf(robotToMap.transform(follower.tip)))
                     }
                 }
             }
