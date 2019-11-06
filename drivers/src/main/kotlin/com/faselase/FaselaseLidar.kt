@@ -68,6 +68,16 @@ internal class FaselaseLidar(
     val tag = tag ?: port.descriptivePortName
     val frame get() = queue.get()
 
+    private val offlineException = DeviceOfflineException(this.tag)
+    private val connectionWatchDog =
+        WatchDog(this, connectionTimeout) { exceptions.send(Occurred(offlineException)) }
+
+    private val dataTimeoutException = DataTimeoutException(this.tag, dataTimeout)
+    private val dataWatchDog =
+        WatchDog(this, dataTimeout) { exceptions.send(Occurred(dataTimeoutException)) }
+
+    private val logger = SimpleLogger(this.tag).apply { period = 65536 }
+
     init {
         launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
             val buffer = ByteArray(BUFFER_SIZE)
@@ -80,15 +90,6 @@ internal class FaselaseLidar(
         }
     }
 
-    private val offlineException = DeviceOfflineException(this.tag)
-    private val connectionWatchDog =
-        WatchDog(this, connectionTimeout) { exceptions.send(Occurred(offlineException)) }
-
-    private val dataTimeoutException = DataTimeoutException(this.tag, dataTimeout)
-    private val dataWatchDog =
-        WatchDog(this, dataTimeout) { exceptions.send(Occurred(dataTimeoutException)) }
-
-    private val logger = SimpleLogger(this.tag)
     private fun write(list: List<Byte>) {
         connectionWatchDog.feed()
         launch { exceptions.send(Recovered(offlineException)) }

@@ -12,7 +12,7 @@ class SimpleLogger(vararg names: String) {
     private val name = "${names.joinToString("_")}.txt"
     private val file by lazy { File(currentLogPath.toString(), name) }
 
-    var period = 0x40
+    var period = 512
 
     /** 记录一行无时间的日志 */
     infix fun logWithoutStamp(msg: String) {

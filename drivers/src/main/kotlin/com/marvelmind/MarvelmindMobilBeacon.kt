@@ -34,9 +34,9 @@ internal class MarvelmindMobilBeacon(
     portName: String?,
 
     connectionTimeout: Long,
-    private val parseTimeout: Long,
-    private val dataTimeout: Long,
-    private val retryInterval: Long,
+    parseTimeout: Long,
+    dataTimeout: Long,
+    retryInterval: Long,
 
     delayLimit: Long,
     heightRange: ClosedFloatingPointRange<Double>,
@@ -56,7 +56,7 @@ internal class MarvelmindMobilBeacon(
     private val dataWatchDog = WatchDog(this, dataTimeout) { exceptions.send(Occurred(dataTimeoutException)) }
     // 数据过滤
     private val delayRange = 1..delayLimit
-    private val zRange = heightRange.start.roundToInt()..heightRange.endInclusive.roundToInt()
+    private val zRange = (heightRange.start * 1000).roundToInt()..(heightRange.endInclusive * 1000).roundToInt()
 
     // 常量参数
     private companion object {
