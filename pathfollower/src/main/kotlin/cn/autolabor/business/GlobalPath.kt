@@ -69,13 +69,3 @@ class GlobalPath(
         }
     }
 }
-
-//fun <T, R : Comparable<R>>
-//        Sequence<T>.greedy(init: R, block: (T) -> R): T? {
-//    var xn = init
-//    return firstOrNull {
-//        val `xn-1` = xn
-//        xn = block(it)
-//        `xn-1` < xn
-//    }
-//}
