@@ -38,6 +38,7 @@ class Business(
     localRadius: Double,
     private val pathInterval: Double,
     localFirst: (Odometry) -> Boolean,
+    localPlanner: (Sequence<Odometry>) -> Sequence<Odometry>,
 
     private val logger: SimpleLogger?,
     private val painter: RemoteHub?
@@ -45,7 +46,7 @@ class Business(
     var function: Functions? = null
         private set
 
-    val globals = PathManager(localRadius, pathInterval, localFirst, logger, painter)
+    val globals = PathManager(localRadius, pathInterval, localFirst, localPlanner, logger, painter)
 
     suspend fun startRecording() {
         if (function is Functions.Recording) return

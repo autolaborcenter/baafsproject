@@ -22,13 +22,19 @@ class BusinessBuilderDsl private constructor() {
 
     var localRadius: Double = .5
     var pathInterval: Double = .05
+
     private var localFirst: (Odometry) -> Boolean = { it.p.norm() < localRadius }
+    private var localPlanner: (Sequence<Odometry>) -> Sequence<Odometry> = { it }
 
     var logger: SimpleLogger? = SimpleLogger("Business")
     var painter: RemoteHub? = null
 
     fun localFirst(block: (Odometry) -> Boolean) {
         localFirst = block
+    }
+
+    fun localPlanner(block: (Sequence<Odometry>) -> Sequence<Odometry>) {
+        localPlanner = block
     }
 
     fun follower(block: PathFollowerBuilderDsl.() -> Unit) {
@@ -62,6 +68,7 @@ class BusinessBuilderDsl private constructor() {
                         localRadius = localRadius,
                         pathInterval = pathInterval,
                         localFirst = localFirst,
+                        localPlanner = localPlanner,
 
                         logger = logger,
                         painter = painter)

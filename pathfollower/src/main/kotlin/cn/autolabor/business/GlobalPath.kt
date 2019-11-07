@@ -15,7 +15,8 @@ class GlobalPath(
     core: List<Odometry>,
     private val localRadius: Double,
     private val searchCount: Int,
-    private val localFirst: (Odometry) -> Boolean
+    private val localFirst: (Odometry) -> Boolean,
+    private val localPlanner: (Sequence<Odometry>) -> Sequence<Odometry>
 ) : List<Odometry> by core {
     // 当前位置
     private val index = AtomicInteger(0)
@@ -63,6 +64,7 @@ class GlobalPath(
                     .drop(i)
                     .map(mapToRobot::transform)
                     .takeWhile { it.p.norm() < searchCount }
+                    .let(localPlanner)
             }
             else                            ->
                 emptySequence()

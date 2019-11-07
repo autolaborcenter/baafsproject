@@ -13,7 +13,10 @@ import kotlin.math.roundToInt
 class PathManager(
     private val localRadius: Double,
     pathInterval: Double,
+
     private val localFirst: (Odometry) -> Boolean,
+    private val localPlanner: (Sequence<Odometry>) -> Sequence<Odometry>,
+
     private val logger: SimpleLogger?,
     private val painter: RemoteHub?
 ) {
@@ -30,7 +33,7 @@ class PathManager(
                 Odometry.pose(numbers[0], numbers[1], numbers[2])
             }
             ?.toList()
-            ?.let { GlobalPath(it, localRadius, searchCount, localFirst) }
+            ?.let { GlobalPath(it, localRadius, searchCount, localFirst, localPlanner) }
             ?.also { global ->
                 global.progress = progress
                 globals[pathName] = global

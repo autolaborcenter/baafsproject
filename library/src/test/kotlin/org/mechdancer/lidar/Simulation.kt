@@ -6,6 +6,7 @@ import cn.autolabor.baafs.robotOutline
 import cn.autolabor.business.BusinessBuilderDsl.Companion.business
 import cn.autolabor.business.parseFromConsole
 import cn.autolabor.business.registerBusinessParser
+import cn.autolabor.localplanner.PotentialFieldLocalPlanner
 import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.algebra.function.vector.norm
@@ -64,6 +65,11 @@ fun main() {
         val exceptionServer = exceptionServer {
             exceptionOccur { command.set(Velocity.velocity(.0, .0)) }
         }
+        val planner = PotentialFieldLocalPlanner(
+                attractRange = .3,
+                repelRange = .4,
+                step = .02,
+                ka = 10.0)
         val business = business(
                 robotOnMap = robotOnMap,
                 robotOnOdometry = robotOnMap,
@@ -74,6 +80,9 @@ fun main() {
                 it.p.norm() < localRadius
                 && it.p.toAngle().asRadian().absoluteValue < PI / 3
                 && it.d.asRadian().absoluteValue < PI / 3
+            }
+            localPlanner {
+                planner.modify(it, lidarSet.frame)
             }
             painter = remote
         }

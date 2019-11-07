@@ -105,9 +105,9 @@ fun main() {
                     pose = Odometry.pose(-.138, 0, PI / 2)
                     inverse = false
                 }
-                val wonder = vector2DOf(+.12, +.14)
+                val wonder = vector2DOf(+.12, -.14)
                 filter { p ->
-                    p euclid wonder > .1 && p !in outlineFilter
+                    p euclid wonder > .05 && p !in outlineFilter
                 }
             }
             println("done")
