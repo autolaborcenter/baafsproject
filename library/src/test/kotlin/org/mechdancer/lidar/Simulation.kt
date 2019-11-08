@@ -16,6 +16,7 @@ import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.shape.Circle
+import org.mechdancer.common.shape.Ellipse
 import org.mechdancer.common.toTransformation
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.device.LidarSet
@@ -31,10 +32,13 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.PI
 import kotlin.math.absoluteValue
 
+private val pot = Circle(.14, 32).sample()
+
 private val obstacles =
     List(10) { i ->
-        listOf(Circle(.14, 32).sample().transform(Odometry.pose(i * .3, +.5)),
-               Circle(.14, 32).sample().transform(Odometry.pose(i * .3, -.5)))
+        listOf(pot.transform(Odometry.pose(i * .3, +.5)),
+               pot.transform(Odometry.pose(i * .3, -.5)),
+               pot.transform(Odometry.pose(i * .3, 1.5)))
     }.flatten()
 
 private const val T0 = 0L
@@ -66,10 +70,10 @@ fun main() {
             exceptionOccur { command.set(Velocity.velocity(.0, .0)) }
         }
         val planner = PotentialFieldLocalPlanner(
-                attractRange = .3,
-                repelRange = .4,
-                step = .02,
-                ka = 10.0)
+                attractRange = Ellipse(.3, .8),
+                repelRange = Ellipse(.4, .5),
+                step = .05,
+                ka = 5.0)
         val business = business(
                 robotOnMap = robotOnMap,
                 robotOnOdometry = robotOnMap,

@@ -55,8 +55,7 @@ class Business(
                 scope,
                 robotOnMap,
                 globals,
-                pathInterval
-        )
+                pathInterval)
     }
 
     suspend fun startFollowing(global: GlobalPath) {
@@ -73,8 +72,7 @@ class Business(
                 directionLimit,
 
                 logger,
-                painter
-        )
+                painter)
     }
 
     suspend fun cancel() {

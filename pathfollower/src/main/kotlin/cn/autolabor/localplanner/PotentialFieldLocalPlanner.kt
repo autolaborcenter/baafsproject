@@ -7,12 +7,14 @@ import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.common.Odometry
+import org.mechdancer.common.shape.Shape
 import org.mechdancer.geometry.angle.toAngle
+import org.mechdancer.geometry.angle.toVector
 import kotlin.math.max
 
 class PotentialFieldLocalPlanner(
-    private val attractRange: Double,
-    private val repelRange: Double,
+    private val attractRange: Shape,
+    private val repelRange: Shape,
     private val step: Double,
     private val ka: Double
 ) {
@@ -30,9 +32,9 @@ class PotentialFieldLocalPlanner(
         val list = globalIter.consume()?.let { mutableListOf(it) } ?: return@sequence
         var pose = Odometry.pose()
         while (true) {
-            val (p0, _) = pose
+            val (p0, d0) = pose
 
-            while (list.last().p euclid p0 < attractRange)
+            while (list.last().p in attractRange)
                 list += globalIter.consume() ?: break
 
             var dn = list.first().p euclid p0
@@ -43,24 +45,27 @@ class PotentialFieldLocalPlanner(
                 else break
             }
 
-            val fa = list.fold(vector2DOfZero()) { sum, (p, _) ->
-                sum + (p - p0).to2D()
+            val fa = list.foldIndexed(vector2DOfZero()) { i, sum, (p, _) ->
+                sum + (p - p0).to2D() * (list.size - i)
             }
             val fr = repulsionPoints.fold(vector2DOfZero()) { sum, p ->
                 val v = (p0 - p)
                 val l = v.norm()
-                when {
-                    l > repelRange -> sum
-                    else           -> sum + v * (1 / l - 1 / repelRange) / (l * l * l)
+                when (p) {
+                    !in repelRange -> sum
+                    else           -> sum + v / (l * l * l)
                 }
             }.let { (x, y) -> vector2DOf(max(x, .0), y) }
-            val f = (fa * ka + fr).normalize().to2D()
-            if (doubleEquals(f.norm(), .0)) break
-            pose = Odometry(p0 + f * step, fa.toAngle())
-//            println("fa = ${fa.rowView()}, fr = ${fr.rowView()}, pose = $pose")
+            val f = (fa / ((list.size + 1) * list.size / 2) * ka + fr / repulsionPoints.size).normalize().to2D()
+            pose =
+                if (doubleEquals(f.norm(), .0))
+                    Odometry(p0 + vector2DOf(step, 0), d0)
+                else
+                    Odometry(p0 + f * step, list.fold(vector2DOfZero()) { sum, it -> sum + it.d.toVector() }.toAngle())
+//            println("fa = ${fa.rowView()}, fr = ${fr.rowView()}, f = ${f.rowView()}, pose = $pose")
             yield(pose)
         }
-    }
+    }.take(50)
 
     private companion object {
         fun <T> Iterator<T>.consume() =
