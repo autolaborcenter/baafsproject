@@ -10,6 +10,7 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.shape.Shape
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toVector
+import java.util.*
 import kotlin.math.max
 
 class PotentialFieldLocalPlanner(
@@ -22,33 +23,34 @@ class PotentialFieldLocalPlanner(
      * 修饰函数
      *
      * @param global 机器人坐标系上的全局路径
-     * @param repulsionPoints 斥力点
+     * @param repelPoints 斥力点
      */
     fun modify(
         global: Sequence<Odometry>,
-        repulsionPoints: Collection<Vector2D>
+        repelPoints: Collection<Vector2D>
     ): Sequence<Odometry> = sequence {
         val globalIter = global.iterator()
-        val list = globalIter.consume()?.let { mutableListOf(it) } ?: return@sequence
+        val attractPoints = globalIter.consume()?.let { mutableListOf(it) } ?: return@sequence
+        val list: Queue<Vector2D> = LinkedList<Vector2D>()
         var pose = Odometry.pose()
         while (true) {
             val (p0, d0) = pose
-
-            while (list.last().p in attractRange)
-                list += globalIter.consume() ?: break
-
-            var dn = list.first().p euclid p0
+            // 从全局生产
+            while (attractPoints.last().p in attractRange)
+                attractPoints += globalIter.consume() ?: break
+            // 从缓冲消费
+            var dn = attractPoints.first().p euclid p0
             while (true) {
                 val `dn-1` = dn
-                dn = list.getOrNull(1)?.p?.euclid(p0) ?: break
-                if (dn < `dn-1`) list.removeAt(0)
+                dn = attractPoints.getOrNull(1)?.p?.euclid(p0) ?: break
+                if (dn < `dn-1`) attractPoints.removeAt(0)
                 else break
             }
-
-            val fa = list.foldIndexed(vector2DOfZero()) { i, sum, (p, _) ->
-                sum + (p - p0).to2D() * (list.size - i)
+            // 计算受力
+            val fa = attractPoints.foldIndexed(vector2DOfZero()) { i, sum, (p, _) ->
+                sum + (p - p0).to2D() * (attractPoints.size - i)
             }
-            val fr = repulsionPoints.fold(vector2DOfZero()) { sum, p ->
+            val fr = repelPoints.fold(vector2DOfZero()) { sum, p ->
                 val v = (p0 - p)
                 val l = v.norm()
                 when (p) {
@@ -56,13 +58,18 @@ class PotentialFieldLocalPlanner(
                     else           -> sum + v / (l * l * l)
                 }
             }.let { (x, y) -> vector2DOf(max(x, .0), y) }
-            val f = (fa / ((list.size + 1) * list.size / 2) * ka + fr / repulsionPoints.size).normalize().to2D()
+            val f =
+                (fa / ((attractPoints.size + 1) * attractPoints.size / 2) * ka + fr / repelPoints.size)
+                    .normalize().to2D()
             pose =
                 if (doubleEquals(f.norm(), .0))
                     Odometry(p0 + vector2DOf(step, 0), d0)
                 else
-                    Odometry(p0 + f * step, list.fold(vector2DOfZero()) { sum, it -> sum + it.d.toVector() }.toAngle())
-//            println("fa = ${fa.rowView()}, fr = ${fr.rowView()}, f = ${f.rowView()}, pose = $pose")
+                    Odometry(p0 + f * step,
+                             attractPoints.fold(vector2DOfZero()) { sum, it -> sum + it.d.toVector() }.toAngle())
+            if (list.any { doubleEquals(it euclid pose.p, .0) }) break
+            if (list.size >= 5) list.poll()
+            list.offer(pose.p)
             yield(pose)
         }
     }.take(50)

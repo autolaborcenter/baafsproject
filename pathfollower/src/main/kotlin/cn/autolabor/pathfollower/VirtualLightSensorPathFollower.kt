@@ -55,6 +55,7 @@ internal constructor(
     /** 计算控制量 */
     operator fun invoke(pose: Odometry): FollowCommand {
         val bright = sensor.shine(global[pose])
+        if (bright.size == 1 && global.progress == 1.0) return Finish
         // 特殊情况提前退出
         var pn = bright.firstOrNull()
                      ?.also { (p, d) -> logger.log(p.x, p.y, d.asRadian()) }

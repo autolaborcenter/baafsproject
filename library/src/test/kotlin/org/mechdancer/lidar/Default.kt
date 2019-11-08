@@ -41,7 +41,10 @@ internal object Default {
             }
         }
     }.apply {
-        openAllNetworks()
+        openAllNetworks {
+            println(it.displayName)
+            true
+        }
         println(networksInfo())
         thread(isDaemon = true) { while (true) invoke() }
     }
