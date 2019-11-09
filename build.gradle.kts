@@ -19,14 +19,14 @@ plugins {
 buildScan {
     termsOfServiceUrl = "https://gradle.com/terms-of-service"
     termsOfServiceAgree = "yes"
-//    publishAlways()
+//  publishAlways()
 }
 
 // 包括主项目的构建脚本
 allprojects {
     apply(plugin = "kotlin")
     group = "cn.autolabor"
-    version = "v0.0.9"
+    version = "v0.1.0"
     repositories {
         mavenCentral()
         jcenter()
@@ -96,7 +96,6 @@ dependencies {
         group = JavaBasePlugin.BUILD_TASK_NAME
         description = "copy configuration files to target direction"
         from("$rootDir")
-        include("conf/**")
         include("*.autolabor.kts")
         into("$buildDir/libs")
     }
