@@ -1,6 +1,5 @@
 package cn.autolabor.pathfollower
 
-import cn.autolabor.business.GlobalPath
 import org.mechdancer.BuilderDslMarker
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.filters.Filter
@@ -22,10 +21,7 @@ class PathFollowerBuilderDsl private constructor() {
     var maxAngularSpeed: Angle = 0.5.toRad()
 
     companion object {
-        fun pathFollower(
-            global: GlobalPath,
-            block: PathFollowerBuilderDsl. () -> Unit
-        ) =
+        fun pathFollower(block: PathFollowerBuilderDsl. () -> Unit = {}) =
             PathFollowerBuilderDsl()
                 .apply(block)
                 .apply {
@@ -36,7 +32,6 @@ class PathFollowerBuilderDsl private constructor() {
                 }
                 .run {
                     VirtualLightSensorPathFollower(
-                        global = global,
                         sensor = VirtualLightSensor(
                             onRobot = sensorPose,
                             lightRange = lightRange),

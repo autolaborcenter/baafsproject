@@ -1,6 +1,5 @@
 package cn.autolabor.pathfollower
 
-import cn.autolabor.business.GlobalPath
 import cn.autolabor.pathfollower.FollowCommand.*
 import org.mechdancer.DebugTemporary
 import org.mechdancer.DebugTemporary.Operation.DELETE
@@ -30,20 +29,19 @@ import kotlin.math.*
  */
 class VirtualLightSensorPathFollower
 internal constructor(
-    val global: GlobalPath,
     @DebugTemporary(REDUCE)
     val sensor: VirtualLightSensor,
     private val controller: Filter<Double, Double>,
     minTipAngle: Angle,
     minTurnAngle: Angle,
-    internal val maxLinearSpeed: Double,
+    private val maxLinearSpeed: Double,
     maxAngularSpeed: Angle
 ) {
     private var pre = .0
 
     private val cosMinTip = cos(minTipAngle.asRadian())
     private val minTurnRad = minTurnAngle.asRadian()
-    internal val maxOmegaRad = maxAngularSpeed.asRadian()
+    private val maxOmegaRad = maxAngularSpeed.asRadian()
 
     @DebugTemporary(DELETE)
     private val logger = SimpleLogger("firstOfLocal")
@@ -53,16 +51,16 @@ internal constructor(
         private set
 
     /** 计算控制量 */
-    operator fun invoke(pose: Odometry): FollowCommand {
-        val bright = sensor.shine(global[pose])
-        if (bright.size == 1 && global.progress == 1.0) return Finish
+    operator fun invoke(local: Sequence<Odometry>, progress: Double): FollowCommand {
+        val bright = sensor.shine(local)
+        if (bright.size == 1 && progress == 1.0) return Finish
         // 特殊情况提前退出
         var pn = bright.firstOrNull()
                      ?.also { (p, d) -> logger.log(p.x, p.y, d.asRadian()) }
                  ?: return when {
-                     global.progress == 1.0 -> Finish
-                     abs(pre) > minTurnRad  -> Turn(pre)
-                     else                   -> Error
+                     progress == 1.0       -> Finish
+                     abs(pre) > minTurnRad -> Turn(maxOmegaRad, pre)
+                     else                  -> Error
                  }
         // 查找尖点
         val (tip, i) =
@@ -83,9 +81,8 @@ internal constructor(
             i in 1..4 -> pre = tip.d.adjust().asRadian()
             i > 4     -> pre = .0
             else      -> {
-                global += i + 1
                 val target = (tip.p + tip.d.toVector() * 0.2).toAngle().adjust().asRadian()
-                if (abs(target) > minTurnRad) return Turn(target)
+                if (abs(target) > minTurnRad) return Turn(maxOmegaRad, target)
             }
         }
         // 计算控制量

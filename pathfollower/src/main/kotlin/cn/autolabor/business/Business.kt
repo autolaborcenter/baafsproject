@@ -12,8 +12,6 @@ import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
 import org.mechdancer.SimpleLogger
 import org.mechdancer.algebra.function.vector.euclid
-import org.mechdancer.algebra.function.vector.minus
-import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.common.*
 import org.mechdancer.exceptions.ExceptionMessage
@@ -28,6 +26,8 @@ import kotlin.math.sign
 class Business(
     private val scope: CoroutineScope,
     private val robotOnMap: ReceiveChannel<Stamped<Odometry>>,
+//    private val globalOnRobot: SendChannel<Pair<Sequence<Odometry>, Double>>,
+
     private val robotOnOdometry: ReceiveChannel<Stamped<Odometry>>,
     private val commandOut: SendChannel<Velocity.NonOmnidirectional>,
     private val exceptions: SendChannel<ExceptionMessage>,
@@ -52,27 +52,28 @@ class Business(
         if (function is Functions.Recording) return
         function?.job?.cancelAndJoin()
         function = Functions.Recording(
-                scope,
-                robotOnMap,
-                globals,
-                pathInterval)
+            scope,
+            robotOnMap,
+            globals,
+            pathInterval)
     }
 
     suspend fun startFollowing(global: GlobalPath) {
         if (function is Functions.Following) return
         function?.job?.cancelAndJoin()
         function = Functions.Following(
-                scope,
-                robotOnMap,
-                robotOnOdometry,
-                commandOut,
-                exceptions,
+            scope,
+            robotOnMap,
+            robotOnOdometry,
+            commandOut,
+            exceptions,
 
-                pathFollower(global, followerConfig),
-                directionLimit,
+            global,
+            pathFollower(followerConfig),
+            directionLimit,
 
-                logger,
-                painter)
+            logger,
+            painter)
     }
 
     suspend fun cancel() {
@@ -118,21 +119,21 @@ class Business(
             private val commandOut: SendChannel<Velocity.NonOmnidirectional>,
             private val exceptions: SendChannel<ExceptionMessage>,
 
+            val global: GlobalPath,
             private val follower: VirtualLightSensorPathFollower,
             directionLimit: Angle,
 
-            val logger: SimpleLogger?,
-            val painter: RemoteHub?
+            private val logger: SimpleLogger?,
+            private val painter: RemoteHub?
         ) : Functions() {
             private val turnDirectionRad = directionLimit.asRadian()
 
-            val global = follower.global
             var isEnabled = false
             var loop = false
 
             override val job = scope.launch {
                 `for`@ for ((_, pose) in robotOnMap) {
-                    val command = follower(pose)
+                    val command = follower(global[pose], global.progress)
                     logger?.log(command)
                     if (command !is FollowCommand.Error) {
                         exceptions.send(ExceptionMessage.Recovered(FollowFailedException))
@@ -142,14 +143,14 @@ class Business(
                                 drive(v, w)
                             }
                             is FollowCommand.Turn   -> {
-                                val (angle) = command
+                                val (w, angle) = command
                                 stop()
-                                turn(follower.maxOmegaRad, angle)
+                                turn(w, angle)
                                 stop()
                             }
                             is FollowCommand.Finish -> {
                                 if (loop)
-                                    follower.global.progress = .0
+                                    global.progress = .0
                                 else {
                                     stop()
                                     break@`for`
@@ -176,15 +177,6 @@ class Business(
 
             private suspend fun stop() {
                 commandOut.send(Velocity.velocity(.0, .0))
-            }
-
-            @Suppress("unused")
-            private suspend fun goStraight(v: Double, distance: Double) {
-                val (p0, _) = robotOnOdometry.receive().data
-                for ((_, pose) in robotOnOdometry) {
-                    if ((pose.p - p0).norm() > distance) break
-                    drive(v, 0)
-                }
             }
 
             private suspend fun turn(omega: Double, angle: Double) {

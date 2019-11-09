@@ -27,7 +27,7 @@ class GlobalPath(
     private var searchAll = false
 
     init {
-        require(isNotEmpty())
+        require(core.isNotEmpty())
     }
 
     /** 查询/修改进度 */
@@ -39,11 +39,6 @@ class GlobalPath(
             searchAll = true
         }
 
-    /** 推进进度 */
-    operator fun plusAssign(i: Int) {
-        index.updateAndGet { old -> min(old + i, lastIndex) }
-    }
-
     /** 根据 [robotOnMap] 查询局部路径并更新进度 */
     operator fun get(robotOnMap: Odometry): Sequence<Odometry> {
         val mapToRobot = robotOnMap.toTransformation().inverse()
@@ -54,15 +49,18 @@ class GlobalPath(
                 else                  -> min(old + searchCount, size)
             }
             searchAll = false
-            (old until end)
+            val candidates =
+                (old until end).map { i -> i to mapToRobot.transform(get(i)) }
+            candidates
+                .firstOrNull { (_, pose) -> localFirst(pose) }
+                ?.first
+            ?: candidates
                 .asSequence()
-                .firstOrNull { localFirst(mapToRobot.transform(get(it))) }
-            ?: (old + 1 until end)
-                .asSequence()
-                .firstOrNull {
-                    val (p, d) = mapToRobot.transform(get(it))
-                    p.norm() < localRadius
+                .drop(1)
+                .firstOrNull { (_, pose) ->
+                    pose.p.norm() < localRadius
                 }
+                ?.first
             ?: old
         }
         // 产生全局路径（机器人坐标系下）
