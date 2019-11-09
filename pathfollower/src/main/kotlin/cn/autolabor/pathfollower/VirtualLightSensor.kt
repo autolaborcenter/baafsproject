@@ -33,9 +33,9 @@ class VirtualLightSensor(
     private val robotToSensor = onRobot.toTransformation().inverse()
 
     @DebugTemporary(DELETE)
-    val sensorToRobot = onRobot.toTransformation()
+    private val sensorToRobot = onRobot.toTransformation()
     @DebugTemporary(DELETE)
-    var area = listOf<Vector2D>()
+    var area: Polygon? = null
         private set
 
     /**
@@ -73,7 +73,7 @@ class VirtualLightSensor(
             local.map { (p, _) -> p }
                 .plus(List(index1 - index0 + 1) { i -> lightVertex[(index0 + i) % lightVertex.size] })
                 .let(::Polygon)
-        this.area = area.vertex.map { sensorToRobot(it).to2D() }
+        this.area = area.vertex.map { sensorToRobot(it).to2D() }.let(::Polygon)
         // 计算误差
         return 2 * (0.5 - area.size / lightRange.size)
     }

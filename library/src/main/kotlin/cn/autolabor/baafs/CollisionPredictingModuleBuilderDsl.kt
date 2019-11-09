@@ -53,12 +53,6 @@ class CollisionPredictingModuleBuilderDsl {
                     painter?.run {
                         launch {
                             while (true) {
-                                paint("R 机器人轮廓", robotOutline)
-                                delay(5000L)
-                            }
-                        }
-                        launch {
-                            while (true) {
                                 while (System.currentTimeMillis() - updateTime > 2000L) {
                                     paintVectors("R 雷达", lidarSet.frame)
                                     delay(100L)

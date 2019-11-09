@@ -8,6 +8,7 @@ import org.mechdancer.common.shape.Shape
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
+import org.mechdancer.remote.presets.RemoteHub
 import kotlin.math.PI
 
 @BuilderDslMarker
@@ -19,6 +20,8 @@ class PathFollowerBuilderDsl private constructor() {
     var minTurnAngle: Angle = 15.toDegree()
     var maxLinearSpeed: Double = 0.1
     var maxAngularSpeed: Angle = 0.5.toRad()
+
+    var painter: RemoteHub? = null
 
     companion object {
         fun pathFollower(block: PathFollowerBuilderDsl. () -> Unit = {}) =
@@ -39,7 +42,8 @@ class PathFollowerBuilderDsl private constructor() {
                         minTipAngle = minTipAngle,
                         minTurnAngle = minTurnAngle,
                         maxLinearSpeed = maxLinearSpeed,
-                        maxAngularSpeed = maxAngularSpeed)
+                        maxAngularSpeed = maxAngularSpeed,
+                        painter = painter)
                 }
     }
 }

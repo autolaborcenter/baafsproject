@@ -1,7 +1,6 @@
 package cn.autolabor.pathfollower
 
 import cn.autolabor.pathfollower.FollowCommand.*
-import org.mechdancer.SimpleLogger
 import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.plus
 import org.mechdancer.algebra.function.vector.times
@@ -11,6 +10,9 @@ import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.adjust
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toVector
+import org.mechdancer.paint
+import org.mechdancer.paintPoses
+import org.mechdancer.remote.presets.RemoteHub
 import kotlin.math.*
 
 /**
@@ -30,7 +32,9 @@ class VirtualLightSensorPathFollower(
     minTipAngle: Angle,
     minTurnAngle: Angle,
     private val maxLinearSpeed: Double,
-    maxAngularSpeed: Angle
+    maxAngularSpeed: Angle,
+
+    private val painter: RemoteHub?
 ) {
     private var pre = .0
 
@@ -38,20 +42,18 @@ class VirtualLightSensorPathFollower(
     private val minTurnRad = minTurnAngle.asRadian()
     private val maxOmegaRad = maxAngularSpeed.asRadian()
 
-    private val logger = SimpleLogger("firstOfLocal")
-
     /** 计算控制量 */
     operator fun invoke(local: Sequence<Odometry>, progress: Double): FollowCommand {
+        if (progress == 1.0) return Finish
+        // 光感采样
         val bright = sensor.shine(local)
-        if (bright.size == 1 && progress == 1.0) return Finish
-        // 特殊情况提前退出
-        var pn = bright.firstOrNull()
-                     ?.also { (p, d) -> logger.log(p.x, p.y, d.asRadian()) }
-                 ?: return when {
-                     progress == 1.0       -> Finish
-                     abs(pre) > minTurnRad -> Turn(maxOmegaRad, pre)
-                     else                  -> Error
-                 }
+        // 处理异常
+        var pn =
+            bright.firstOrNull()
+            ?: return when {
+                abs(pre) > minTurnRad -> Turn(maxOmegaRad, pre)
+                else                  -> Error
+            }
         // 查找尖点
         val (tip, i) =
             bright
@@ -64,6 +66,7 @@ class VirtualLightSensorPathFollower(
                     pn.d.toVector() dot `pn-1`.d.toVector() < cosMinTip
                 }
             ?: (bright.last() to bright.lastIndex)
+        painter?.paintPoses("R 尖点", listOf(tip))
         // 处理尖点
         when {
             i in 1..4 -> pre = tip.d.adjust().asRadian()
@@ -77,6 +80,9 @@ class VirtualLightSensorPathFollower(
         return Follow(v = maxLinearSpeed,
                       w = controller
                           .update(new = sensor(bright.take(i + 1)))
-                          .run { sign * min(maxOmegaRad, absoluteValue) })
+                          .run {
+                              sensor.area?.let { painter?.paint("R 传感器区域", it) }
+                              sign * min(maxOmegaRad, absoluteValue)
+                          })
     }
 }

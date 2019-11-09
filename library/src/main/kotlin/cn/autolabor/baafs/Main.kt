@@ -165,6 +165,8 @@ fun main() {
                     minTurnAngle = 15.toDegree()
                     maxLinearSpeed = .1
                     maxAngularSpeed = .3.toRad()
+
+                    painter = remote
                 }
             // 指令器
             val commander =

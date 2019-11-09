@@ -57,6 +57,9 @@ private val odometrySampler = Sampler(20.0)
 fun main() {
     val dt = 1000 / frequency
 
+    val attractRange = Ellipse(.3, .8)
+    val repelRange = Ellipse(.4, .5)
+
     val chassis = Chassis(Stamped(T0, Odometry.pose()))
     val front = simulationLidar(Odometry.pose(x = +.113))
     val back = simulationLidar(Odometry.pose(x = -.138))
@@ -72,6 +75,21 @@ fun main() {
     val exceptions = channel<ExceptionMessage>()
     val command = AtomicReference(Velocity.velocity(.0, .0))
     runBlocking(Dispatchers.Default) {
+        // 刷新固定显示
+        launch {
+            val a = attractRange.sample()
+            val r = repelRange.sample()
+            val o = obstacles.flatMap { it.vertex }
+
+            while (isActive) {
+                remote.paint("R 机器人轮廓", robotOutline)
+                remote.paint("R 引力区域", a)
+                remote.paint("R 斥力区域", r)
+                remote.paintVectors("障碍物", o)
+                delay(5000L)
+            }
+        }
+
         val exceptionServer =
             startExceptionServer(exceptions) {
                 exceptionOccur { command.set(Velocity.velocity(.0, .0)) }
@@ -94,8 +112,8 @@ fun main() {
         // 局部规划器（势场法）
         val localPlanner =
             potentialFieldLocalPlanner {
-                attractRange = Ellipse(.3, .8)
-                repelRange = Ellipse(.4, .5)
+                this.attractRange = attractRange
+                this.repelRange = repelRange
                 stepLength = .05
                 attractWeight = 5.0
             }
@@ -109,6 +127,8 @@ fun main() {
                 minTurnAngle = 15.toDegree()
                 maxLinearSpeed = .1
                 maxAngularSpeed = .3.toRad()
+
+                painter = remote
             }
         // 指令器
         val commander =
@@ -167,13 +187,6 @@ fun main() {
         }
         // 处理控制台
         launch { while (isActive) parser.parseFromConsole() }
-        // 刷新障碍物显示
-        launch {
-            while (isActive) {
-                remote.paintVectors("障碍物", obstacles.flatMap { it.vertex })
-                delay(5000L)
-            }
-        }
         // 运行仿真
         for ((t, v) in speedSimulation(T0, dt, speed) { command.get() }) {
             // 控制机器人行驶
