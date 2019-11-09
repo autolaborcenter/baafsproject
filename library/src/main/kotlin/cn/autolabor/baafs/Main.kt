@@ -2,13 +2,14 @@ package cn.autolabor.baafs
 
 import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
 import cn.autolabor.baafs.CollisionPredictingModuleBuilderDsl.Companion.startCollisionPredictingModule
-import cn.autolabor.business.BusinessBuilderDsl.Companion.business
+import cn.autolabor.business.Business.Functions.Following
+import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.business.parseFromConsole
 import cn.autolabor.business.registerBusinessParser
-import cn.autolabor.core.server.DefaultSetup
-import cn.autolabor.core.server.ServerManager
+import cn.autolabor.localplanner.PotentialFieldLocalPlanner
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
-import cn.autolabor.module.networkhub.UDPMulticastBroadcaster
+import cn.autolabor.pathfollower.Commander
+import cn.autolabor.pathfollower.PathFollowerBuilderDsl
 import cn.autolabor.pathfollower.Proportion
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
@@ -24,10 +25,11 @@ import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.shape.Circle
+import org.mechdancer.common.shape.Ellipse
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
-import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.exceptionServer
+import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.startExceptionServer
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
@@ -38,12 +40,6 @@ import kotlin.system.exitProcess
 
 @ExperimentalCoroutinesApi
 fun main() {
-    ServerManager.setSetup(object : DefaultSetup() {
-        override fun start() {
-            ServerManager.me().register(UDPMulticastBroadcaster())
-        }
-    })
-
     val remote by lazy {
         remoteHub("painter")
             .apply {
@@ -57,6 +53,7 @@ fun main() {
     val robotOnMap = channel<Stamped<Odometry>>()
     val beaconOnMap = channel<Stamped<Vector2D>>()
     val exceptions = channel<ExceptionMessage>()
+    val globalOnRobot = channel<Pair<Sequence<Odometry>, Double>>()
     val commandToSwitch = YChannel<NonOmnidirectional>()
     val commandToRobot = channel<NonOmnidirectional>()
     // 任务
@@ -64,8 +61,8 @@ fun main() {
         runBlocking(Dispatchers.Default) {
             println("trying to connect to pm1 chassis...")
             startChassis(
-                    odometry = robotOnOdometry.input,
-                    command = commandToRobot
+                odometry = robotOnOdometry.input,
+                command = commandToRobot
             ) {
                 port = null
                 period = 40L
@@ -75,8 +72,8 @@ fun main() {
 
             println("trying to connect to marvelmind mobile beacon...")
             startMobileBeacon(
-                    beaconOnMap = beaconOnMap,
-                    exceptions = exceptions
+                beaconOnMap = beaconOnMap,
+                exceptions = exceptions
             ) {
                 port = "/dev/beacon"
                 retryInterval = 100L
@@ -113,56 +110,81 @@ fun main() {
             println("done")
 
             println("staring data process modules...")
-            val exceptionServer = exceptionServer {
-                exceptionOccur { launch { commandToRobot.send(velocity(.0, .0)) } }
-            }
-            val fusion = startLocationFusion(
+            // 构造异常服务器
+            val exceptionServer =
+                startExceptionServer(exceptions) {
+                    exceptionOccur { launch { commandToRobot.send(velocity(.0, .0)) } }
+                }
+            // 启动定位融合模块
+            val fusion =
+                startLocationFusion(
                     robotOnOdometry = robotOnOdometry.outputs[0],
                     beaconOnMap = beaconOnMap,
                     robotOnMap = robotOnMap
-            ) {
-                filter {
-                    beaconOnRobot = vector2DOf(-.01, -.02)
-                    maxInconsistency = .1
-                    convergence { (age, _, d) -> age > .2 && d > .9 }
-                    divergence { (age, _, _) -> age < .1 }
+                ) {
+                    filter {
+                        beaconOnRobot = vector2DOf(-.01, -.02)
+                        maxInconsistency = .1
+                        convergence { (age, _, d) -> age > .2 && d > .9 }
+                        divergence { (age, _, _) -> age < .1 }
+                    }
+                    painter = remote
                 }
-                painter = remote
-            }
-            val business = business(
+            // 业务交互后台
+            val business =
+                startBusiness(
                     robotOnMap = robotOnMap,
-                    robotOnOdometry = robotOnOdometry.outputs[1],
-                    commandOut = commandToSwitch.input,
-                    exceptions = exceptions
-            ) {
-                pathInterval = .05
-                localRadius = .5
-                directionLimit = (-120).toDegree()
-                follower {
-                    sensorPose = Odometry.pose(x = .2)
-                    lightRange = Circle(.24, 16)
-                    controller = Proportion(1.0)
-                    minTipAngle = 60.toDegree()
-                    minTurnAngle = 15.toDegree()
-                    maxLinearSpeed = .1
-                    maxAngularSpeed = .3.toRad()
+                    globalOnRobot = globalOnRobot
+                ) {
+                    localFirst {
+                        it.p.norm() < localRadius
+                        && it.p.toAngle().asRadian() in -PI / 3..+PI / 3
+                        && it.d.asRadian() in -PI / 3..+PI / 3
+                    }
                 }
-                localFirst {
-                    it.p.norm() < localRadius
-                    && it.p.toAngle().asRadian() in -PI / 3..+PI / 3
-                    && it.d.asRadian() in -PI / 3..+PI / 3
-                }
-                painter = remote
+            // 局部规划器
+            val localPlanner = PotentialFieldLocalPlanner(
+                attractRange = Ellipse(.3, .8),
+                repelRange = Ellipse(.4, .5),
+                step = .05,
+                ka = 5.0)
+            // 循径器
+            val pathFollower = PathFollowerBuilderDsl.pathFollower {
+                sensorPose = Odometry.pose(x = .2)
+                lightRange = Circle(.24, 16)
+                controller = Proportion(1.0)
+                minTipAngle = 60.toDegree()
+                minTurnAngle = 15.toDegree()
+                maxLinearSpeed = .1
+                maxAngularSpeed = .3.toRad()
             }
+            // 指令器
+            val commander = Commander(
+                robotOnOdometry = robotOnOdometry.outputs[1],
+                commandOut = commandToSwitch.input,
+                exceptions = exceptions,
+                directionLimit = (-120).toDegree()) {
+                (business.function as? Following)?.run {
+                    if (loop) global.progress = .0
+                    else business.cancel()
+                }
+            }
+            // 启动循径模块
+            launch {
+                for ((global, progress) in globalOnRobot)
+                    commander(pathFollower(localPlanner.modify(global, lidarSet.frame), progress))
+            }.invokeOnCompletion { commandToSwitch.input.close(it) }
+            // 启动碰撞预警模块
             startCollisionPredictingModule(
-                    commandIn = commandToSwitch.outputs[0],
-                    exception = exceptions,
-                    lidarSet = lidarSet,
-                    robotOutline = robotOutline
+                commandIn = commandToSwitch.outputs[0],
+                exception = exceptions,
+                lidarSet = lidarSet,
+                robotOutline = robotOutline
             ) {
                 predictingTime = 1000L
                 painter = remote
             }
+            // 启动异常处理模块
             launch {
                 for (e in exceptions)
                     exceptionServer.update(e)
@@ -171,14 +193,8 @@ fun main() {
                 for (command in commandToSwitch.outputs[1])
                     if (exceptionServer.isEmpty())
                         commandToRobot.send(command)
-                commandToRobot.close()
-            }
+            }.invokeOnCompletion { commandToRobot.close(it) }
             println("done")
-//          launch {
-//              val topic = "fusion".handler<Msg2DOdometry>()
-//              for ((_, pose) in robotOnMap.outputs[1])
-//                  topic.pushSubData(Msg2DOdometry(Msg2DPose(pose.p.x, pose.p.y, pose.d.asRadian()), null))
-//          }
             launch {
                 val parser = buildParser {
                     this["coroutines"] = { coroutineContext[Job]?.children?.count() }
@@ -194,6 +210,12 @@ fun main() {
                             appendln("now system is ${if (fusion.isConvergent) "" else "not "}ready for work")
                             append("quality = $quality")
                         }
+                    }
+                    this["\'"] = {
+                        (business.function as? Following)?.let {
+                            commander.isEnabled = !commander.isEnabled
+                            if (commander.isEnabled) "continue" else "pause"
+                        } ?: "cannot set enabled unless when following"
                     }
                     registerBusinessParser(business, this)
                 }

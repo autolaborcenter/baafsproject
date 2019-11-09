@@ -1,9 +1,12 @@
 package org.mechdancer
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
@@ -16,8 +19,8 @@ class YChannel<T>(context: CoroutineContext = EmptyCoroutineContext, size: Int =
 
     init {
         GlobalScope.launch(context) {
-            for (item in _input) _outputs.forEach { it.send(item) }
-            _outputs.forEach { it.close() }
+            for (item in _input) for (output in _outputs) output.send(item)
+            for (output in _outputs) output.close()
         }
     }
 

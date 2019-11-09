@@ -3,10 +3,13 @@ package org.mechdancer.lidar
 import cn.autolabor.baafs.CollisionPredictingModuleBuilderDsl.Companion.startCollisionPredictingModule
 import cn.autolabor.baafs.outlineFilter
 import cn.autolabor.baafs.robotOutline
-import cn.autolabor.business.BusinessBuilderDsl.Companion.business
+import cn.autolabor.business.Business.Functions.Following
+import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.business.parseFromConsole
 import cn.autolabor.business.registerBusinessParser
 import cn.autolabor.localplanner.PotentialFieldLocalPlanner
+import cn.autolabor.pathfollower.Commander
+import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.algebra.function.vector.norm
@@ -21,8 +24,9 @@ import org.mechdancer.common.toTransformation
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.device.LidarSet
 import org.mechdancer.exceptions.ExceptionMessage
-import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.exceptionServer
+import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.startExceptionServer
 import org.mechdancer.geometry.angle.toAngle
+import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.lidar.Default.commands
 import org.mechdancer.lidar.Default.remote
 import org.mechdancer.lidar.Default.simulationLidar
@@ -61,46 +65,55 @@ fun main() {
         ) { it !in outlineFilter }
 
     // 话题
-    val robotOnMap = channel<Stamped<Odometry>>()
+    val robotOnMap = YChannel<Stamped<Odometry>>()
+    val globalOnRobot = channel<Pair<Sequence<Odometry>, Double>>()
     val commandToRobot = YChannel<NonOmnidirectional>()
     val exceptions = channel<ExceptionMessage>()
     val command = AtomicReference(Velocity.velocity(.0, .0))
     runBlocking(Dispatchers.Default) {
-        val exceptionServer = exceptionServer {
-            exceptionOccur { command.set(Velocity.velocity(.0, .0)) }
-        }
+        val exceptionServer =
+            startExceptionServer(exceptions) {
+                exceptionOccur { command.set(Velocity.velocity(.0, .0)) }
+            }
+        val business =
+            startBusiness(
+                robotOnMap = robotOnMap.outputs[0],
+                globalOnRobot = globalOnRobot
+            ) {
+                localFirst {
+                    it.p.norm() < localRadius
+                    && it.p.toAngle().asRadian().absoluteValue < PI / 3
+                    && it.d.asRadian().absoluteValue < PI / 3
+                }
+            }
         val planner = PotentialFieldLocalPlanner(
-                attractRange = Ellipse(.3, .8),
-                repelRange = Ellipse(.4, .5),
-                step = .05,
-                ka = 5.0)
-        val business = business(
-                robotOnMap = robotOnMap,
-                robotOnOdometry = robotOnMap,
-                commandOut = commandToRobot.input,
-                exceptions = exceptions
-        ) {
-            localFirst {
-                it.p.norm() < localRadius
-                && it.p.toAngle().asRadian().absoluteValue < PI / 3
-                && it.d.asRadian().absoluteValue < PI / 3
+            attractRange = Ellipse(.3, .8),
+            repelRange = Ellipse(.4, .5),
+            step = .05,
+            ka = 5.0)
+        val pathFollower = pathFollower {}
+        val commander = Commander(
+            robotOnOdometry = robotOnMap.outputs[1],
+            commandOut = commandToRobot.input,
+            exceptions = exceptions,
+            directionLimit = (-120).toDegree()) {
+            (business.function as? Following)?.run {
+                if (loop) global.progress = .0
+                else business.cancel()
             }
-            localPlanner {
-                planner.modify(it, lidarSet.frame)
-            }
-            painter = remote
         }
-        startCollisionPredictingModule(
-                commandIn = commandToRobot.outputs[0],
-                exception = exceptions,
-                lidarSet = lidarSet,
-                robotOutline = robotOutline
-        ) { painter = remote }
-        // 处理异常
+        // 启动循径模块
         launch {
-            for (exception in exceptions)
-                exceptionServer.update(exception)
-        }
+            for ((global, progress) in globalOnRobot)
+                commander(pathFollower(planner.modify(global, lidarSet.frame), progress))
+        }.invokeOnCompletion { commandToRobot.input.close() }
+        // 启动避障模块
+        startCollisionPredictingModule(
+            commandIn = commandToRobot.outputs[0],
+            exception = exceptions,
+            lidarSet = lidarSet,
+            robotOutline = robotOutline
+        ) { painter = remote }
         // 接收指令
         launch {
             for ((v, w) in commands)
@@ -115,19 +128,22 @@ fun main() {
                 command.set(v)
             }
         }
-        // 处理控制台
-        launch {
-            val parser = buildParser {
-                this["exceptions"] = {
-                    exceptionServer.get().joinToString("\n")
-                }
-                registerBusinessParser(business, this)
+        val parser = buildParser {
+            this["coroutines"] = { coroutineContext[Job]?.children?.count() }
+            this["exceptions"] = { exceptionServer.get().joinToString("\n") }
+            this["\'"] = {
+                (business.function as? Following)?.let {
+                    commander.isEnabled = !commander.isEnabled
+                    if (commander.isEnabled) "continue" else "pause"
+                } ?: "cannot set enabled unless when following"
             }
-            while (isActive) parser.parseFromConsole()
+            registerBusinessParser(business, this)
         }
+        // 处理控制台
+        launch { while (isActive) parser.parseFromConsole() }
         // 刷新障碍物显示
         launch {
-            while (true) {
+            while (isActive) {
                 remote.paintVectors("障碍物", obstacles.flatMap { it.vertex })
                 delay(5000L)
             }
@@ -143,7 +159,7 @@ fun main() {
             remote.paintRobot(actual.data)
             remote.paintPose("实际", actual.data)
             if (odometrySampler.trySample(t))
-                robotOnMap.send(actual)
+                robotOnMap.input.send(actual)
             // 激光雷达采样
             if (lidarSampler.trySample(t)) {
                 val robotToMap = actual.data.toTransformation()

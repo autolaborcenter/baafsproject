@@ -102,14 +102,6 @@ fun CoroutineScope.registerBusinessParser(
             ?.let { it.loop = false; "loop off" }
         ?: "cannot set loop unless when following"
     }
-    parser["\'"] = {
-        (business.function as? Following)
-            ?.let {
-                it.isEnabled = !it.isEnabled
-                if (it.isEnabled) "continue" else "pause"
-            }
-        ?: "cannot set enabled unless when following"
-    }
 
     parser["function"] = { business.function?.toString() ?: "Idle" }
     parser["shutdown"] = { cancel(); "Bye~" }
