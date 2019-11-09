@@ -7,9 +7,10 @@ import cn.autolabor.business.Business.Functions.Following
 import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.business.parseFromConsole
 import cn.autolabor.business.registerBusinessParser
-import cn.autolabor.localplanner.PotentialFieldLocalPlanner
-import cn.autolabor.pathfollower.Commander
+import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
+import cn.autolabor.pathfollower.CommanderBuilderDsl.Companion.commander
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
+import cn.autolabor.pathfollower.Proportion
 import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.algebra.function.vector.norm
@@ -27,6 +28,7 @@ import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.startExceptionServer
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toDegree
+import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.lidar.Default.commands
 import org.mechdancer.lidar.Default.remote
 import org.mechdancer.lidar.Default.simulationLidar
@@ -34,7 +36,6 @@ import org.mechdancer.simulation.Chassis
 import org.mechdancer.simulation.speedSimulation
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.PI
-import kotlin.math.absoluteValue
 
 private val pot = Circle(.14, 32).sample()
 
@@ -75,45 +76,70 @@ fun main() {
             startExceptionServer(exceptions) {
                 exceptionOccur { command.set(Velocity.velocity(.0, .0)) }
             }
+        // 启动业务交互后台
         val business =
             startBusiness(
                 robotOnMap = robotOnMap.outputs[0],
                 globalOnRobot = globalOnRobot
             ) {
+                localRadius = .5
+                pathInterval = .05
                 localFirst {
                     it.p.norm() < localRadius
-                    && it.p.toAngle().asRadian().absoluteValue < PI / 3
-                    && it.d.asRadian().absoluteValue < PI / 3
+                    && it.p.toAngle().asRadian() in -PI / 3..+PI / 3
+                    && it.d.asRadian() in -PI / 3..+PI / 3
+                }
+                painter = remote
+            }
+        // 局部规划器（势场法）
+        val localPlanner =
+            potentialFieldLocalPlanner {
+                attractRange = Ellipse(.3, .8)
+                repelRange = Ellipse(.4, .5)
+                stepLength = .05
+                attractWeight = 5.0
+            }
+        // 循径器（虚拟光感法）
+        val pathFollower =
+            pathFollower {
+                sensorPose = Odometry.pose(x = .2)
+                lightRange = Circle(.24, 16)
+                controller = Proportion(1.0)
+                minTipAngle = 60.toDegree()
+                minTurnAngle = 15.toDegree()
+                maxLinearSpeed = .1
+                maxAngularSpeed = .3.toRad()
+            }
+        // 指令器
+        val commander =
+            commander(
+                robotOnOdometry = robotOnMap.outputs[1],
+                commandOut = commandToRobot.input,
+                exceptions = exceptions
+            ) {
+                directionLimit = (-120).toDegree()
+                onFinish {
+                    (business.function as? Following)?.run {
+                        if (loop) global.progress = .0
+                        else business.cancel()
+                    }
                 }
             }
-        val planner = PotentialFieldLocalPlanner(
-            attractRange = Ellipse(.3, .8),
-            repelRange = Ellipse(.4, .5),
-            step = .05,
-            ka = 5.0)
-        val pathFollower = pathFollower {}
-        val commander = Commander(
-            robotOnOdometry = robotOnMap.outputs[1],
-            commandOut = commandToRobot.input,
-            exceptions = exceptions,
-            directionLimit = (-120).toDegree()) {
-            (business.function as? Following)?.run {
-                if (loop) global.progress = .0
-                else business.cancel()
-            }
-        }
         // 启动循径模块
         launch {
             for ((global, progress) in globalOnRobot)
-                commander(pathFollower(planner.modify(global, lidarSet.frame), progress))
-        }.invokeOnCompletion { commandToRobot.input.close() }
-        // 启动避障模块
+                commander(pathFollower(localPlanner.modify(global, lidarSet.frame), progress))
+        }.invokeOnCompletion { commandToRobot.input.close(it) }
+        // 启动碰撞预警模块
         startCollisionPredictingModule(
             commandIn = commandToRobot.outputs[0],
             exception = exceptions,
             lidarSet = lidarSet,
             robotOutline = robotOutline
-        ) { painter = remote }
+        ) {
+            predictingTime = 1000L
+            painter = remote
+        }
         // 接收指令
         launch {
             for ((v, w) in commands)
@@ -163,29 +189,7 @@ fun main() {
             // 激光雷达采样
             if (lidarSampler.trySample(t)) {
                 val robotToMap = actual.data.toTransformation()
-                val frontLidarToMap = robotToMap * front.toRobot
-                val frontPoints =
-                    front.frame
-                        .map { (_, polar) ->
-                            val (x, y) = frontLidarToMap(polar.toVector2D()).to2D()
-                            x to y
-                        }
-                val backLidarToMap = robotToMap * back.toRobot
-                val backPoints =
-                    back.frame
-                        .map { (_, polar) ->
-                            val (x, y) = backLidarToMap(polar.toVector2D()).to2D()
-                            x to y
-                        }
-                val filteredPoints =
-                    lidarSet.frame
-                        .map {
-                            val (x, y) = robotToMap(it).to2D()
-                            x to y
-                        }
-                remote.paintFrame2("前雷达", frontPoints)
-                remote.paintFrame2("后雷达", backPoints)
-                remote.paintFrame2("过滤", filteredPoints)
+                remote.paintVectors("过滤", lidarSet.frame.map { robotToMap(it).to2D() })
             }
         }
     }

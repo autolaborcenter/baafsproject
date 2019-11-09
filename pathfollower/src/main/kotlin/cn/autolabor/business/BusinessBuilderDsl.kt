@@ -8,14 +8,10 @@ import org.mechdancer.SimpleLogger
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
-import org.mechdancer.geometry.angle.Angle
-import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.remote.presets.RemoteHub
 
 @BuilderDslMarker
 class BusinessBuilderDsl private constructor() {
-    var directionLimit: Angle = 180.toDegree()
-
     var localRadius: Double = .5
     var pathInterval: Double = .05
 
@@ -25,8 +21,8 @@ class BusinessBuilderDsl private constructor() {
         localFirst = block
     }
 
-    var pathLogger: SimpleLogger? = SimpleLogger("PathManager")
-    var pathPainter: RemoteHub? = null
+    var logger: SimpleLogger? = SimpleLogger("PathManager")
+    var painter: RemoteHub? = null
 
     companion object {
         fun CoroutineScope.startBusiness(
@@ -49,8 +45,8 @@ class BusinessBuilderDsl private constructor() {
                     pathInterval = pathInterval,
                     localFirst = localFirst,
 
-                    pathLogger = pathLogger,
-                    pathPainter = pathPainter)
+                    pathLogger = logger,
+                    pathPainter = painter)
             }
     }
 }

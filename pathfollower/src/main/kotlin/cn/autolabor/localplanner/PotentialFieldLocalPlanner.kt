@@ -13,11 +13,12 @@ import org.mechdancer.geometry.angle.toVector
 import java.util.*
 import kotlin.math.max
 
-class PotentialFieldLocalPlanner(
+class PotentialFieldLocalPlanner
+internal constructor(
     private val attractRange: Shape,
     private val repelRange: Shape,
-    private val step: Double,
-    private val ka: Double
+    private val stepLength: Double,
+    private val attractWeight: Double
 ) {
     /**
      * 修饰函数
@@ -59,13 +60,13 @@ class PotentialFieldLocalPlanner(
                 }
             }.let { (x, y) -> vector2DOf(max(x, .0), y) }
             val f =
-                (fa / ((attractPoints.size + 1) * attractPoints.size / 2) * ka + fr / repelPoints.size)
+                (fa / ((attractPoints.size + 1) * attractPoints.size / 2) * attractWeight + fr / repelPoints.size)
                     .normalize().to2D()
             pose =
                 if (doubleEquals(f.norm(), .0))
-                    Odometry(p0 + vector2DOf(step, 0), d0)
+                    Odometry(p0 + vector2DOf(stepLength, 0), d0)
                 else
-                    Odometry(p0 + f * step,
+                    Odometry(p0 + f * stepLength,
                              attractPoints.fold(vector2DOfZero()) { sum, it -> sum + it.d.toVector() }.toAngle())
             if (list.any { doubleEquals(it euclid pose.p, .0) }) break
             if (list.size >= 5) list.poll()

@@ -6,10 +6,10 @@ import cn.autolabor.business.Business.Functions.Following
 import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.business.parseFromConsole
 import cn.autolabor.business.registerBusinessParser
-import cn.autolabor.localplanner.PotentialFieldLocalPlanner
+import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
-import cn.autolabor.pathfollower.Commander
-import cn.autolabor.pathfollower.PathFollowerBuilderDsl
+import cn.autolabor.pathfollower.CommanderBuilderDsl.Companion.commander
+import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import cn.autolabor.pathfollower.Proportion
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
@@ -40,6 +40,7 @@ import kotlin.system.exitProcess
 
 @ExperimentalCoroutinesApi
 fun main() {
+    // 画图
     val remote by lazy {
         remoteHub("painter")
             .apply {
@@ -47,18 +48,19 @@ fun main() {
                 println(networksInfo())
             }
     }
-
     // 话题
+    val exceptions = channel<ExceptionMessage>()
     val robotOnOdometry = YChannel<Stamped<Odometry>>()
     val robotOnMap = channel<Stamped<Odometry>>()
     val beaconOnMap = channel<Stamped<Vector2D>>()
-    val exceptions = channel<ExceptionMessage>()
     val globalOnRobot = channel<Pair<Sequence<Odometry>, Double>>()
     val commandToSwitch = YChannel<NonOmnidirectional>()
     val commandToRobot = channel<NonOmnidirectional>()
     // 任务
     try {
         runBlocking(Dispatchers.Default) {
+            // 连接外设
+            // 连接底盘
             println("trying to connect to pm1 chassis...")
             startChassis(
                 odometry = robotOnOdometry.input,
@@ -69,7 +71,7 @@ fun main() {
                 controlTimeout = 400L
             }
             println("done")
-
+            // 连接定位标签
             println("trying to connect to marvelmind mobile beacon...")
             startMobileBeacon(
                 beaconOnMap = beaconOnMap,
@@ -85,7 +87,7 @@ fun main() {
                 heightRange = -3.0..0.0
             }
             println("done")
-
+            // 连接激光雷达
             println("trying to connect to faselase lidars...")
             val lidarSet = faselaseLidarSet(exceptions = channel()) {
                 launchTimeout = 5000L
@@ -108,15 +110,15 @@ fun main() {
                 }
             }
             println("done")
-
+            // 启动服务
             println("staring data process modules...")
-            // 构造异常服务器
+            // 启动异常服务器
             val exceptionServer =
                 startExceptionServer(exceptions) {
                     exceptionOccur { launch { commandToRobot.send(velocity(.0, .0)) } }
                 }
-            // 启动定位融合模块
-            val fusion =
+            // 启动定位融合模块（粒子滤波器）
+            val particleFilter =
                 startLocationFusion(
                     robotOnOdometry = robotOnOdometry.outputs[0],
                     beaconOnMap = beaconOnMap,
@@ -130,45 +132,55 @@ fun main() {
                     }
                     painter = remote
                 }
-            // 业务交互后台
+            // 启动业务交互后台
             val business =
                 startBusiness(
                     robotOnMap = robotOnMap,
                     globalOnRobot = globalOnRobot
                 ) {
+                    localRadius = .5
+                    pathInterval = .05
                     localFirst {
                         it.p.norm() < localRadius
                         && it.p.toAngle().asRadian() in -PI / 3..+PI / 3
                         && it.d.asRadian() in -PI / 3..+PI / 3
                     }
+                    painter = remote
                 }
-            // 局部规划器
-            val localPlanner = PotentialFieldLocalPlanner(
-                attractRange = Ellipse(.3, .8),
-                repelRange = Ellipse(.4, .5),
-                step = .05,
-                ka = 5.0)
-            // 循径器
-            val pathFollower = PathFollowerBuilderDsl.pathFollower {
-                sensorPose = Odometry.pose(x = .2)
-                lightRange = Circle(.24, 16)
-                controller = Proportion(1.0)
-                minTipAngle = 60.toDegree()
-                minTurnAngle = 15.toDegree()
-                maxLinearSpeed = .1
-                maxAngularSpeed = .3.toRad()
-            }
+            // 局部规划器（势场法）
+            val localPlanner =
+                potentialFieldLocalPlanner {
+                    attractRange = Ellipse(.3, .8)
+                    repelRange = Ellipse(.4, .5)
+                    stepLength = .05
+                    attractWeight = 5.0
+                }
+            // 循径器（虚拟光感法）
+            val pathFollower =
+                pathFollower {
+                    sensorPose = Odometry.pose(x = .2)
+                    lightRange = Circle(.24, 16)
+                    controller = Proportion(1.0)
+                    minTipAngle = 60.toDegree()
+                    minTurnAngle = 15.toDegree()
+                    maxLinearSpeed = .1
+                    maxAngularSpeed = .3.toRad()
+                }
             // 指令器
-            val commander = Commander(
-                robotOnOdometry = robotOnOdometry.outputs[1],
-                commandOut = commandToSwitch.input,
-                exceptions = exceptions,
-                directionLimit = (-120).toDegree()) {
-                (business.function as? Following)?.run {
-                    if (loop) global.progress = .0
-                    else business.cancel()
+            val commander =
+                commander(
+                    robotOnOdometry = robotOnOdometry.outputs[1],
+                    commandOut = commandToSwitch.input,
+                    exceptions = exceptions
+                ) {
+                    directionLimit = (-120).toDegree()
+                    onFinish {
+                        (business.function as? Following)?.run {
+                            if (loop) global.progress = .0
+                            else business.cancel()
+                        }
+                    }
                 }
-            }
             // 启动循径模块
             launch {
                 for ((global, progress) in globalOnRobot)
@@ -184,43 +196,38 @@ fun main() {
                 predictingTime = 1000L
                 painter = remote
             }
-            // 启动异常处理模块
-            launch {
-                for (e in exceptions)
-                    exceptionServer.update(e)
-            }
+            // 启动指令转发
             launch {
                 for (command in commandToSwitch.outputs[1])
                     if (exceptionServer.isEmpty())
                         commandToRobot.send(command)
             }.invokeOnCompletion { commandToRobot.close(it) }
             println("done")
-            launch {
-                val parser = buildParser {
-                    this["coroutines"] = { coroutineContext[Job]?.children?.count() }
-                    this["exceptions"] = { exceptionServer.get().joinToString("\n") }
-                    this["fusion state"] = {
-                        buildString {
-                            val now = System.currentTimeMillis()
-                            appendln(fusion.lastQuery
-                                         ?.let { (t, pose) -> "last locate at $pose ${now - t}ms ago" }
-                                     ?: "never query pose before")
-                            val (t, quality) = fusion.quality
-                            appendln("particles last update ${now - t}ms ago")
-                            appendln("now system is ${if (fusion.isConvergent) "" else "not "}ready for work")
-                            append("quality = $quality")
-                        }
+            // 指令解析器
+            val parser = buildParser {
+                this["coroutines"] = { coroutineContext[Job]?.children?.count() }
+                this["exceptions"] = { exceptionServer.get().joinToString("\n") }
+                this["fusion state"] = {
+                    buildString {
+                        val now = System.currentTimeMillis()
+                        appendln(particleFilter.lastQuery
+                                     ?.let { (t, pose) -> "last locate at $pose ${now - t}ms ago" }
+                                 ?: "never query pose before")
+                        val (t, quality) = particleFilter.quality
+                        appendln("particles last update ${now - t}ms ago")
+                        appendln("now system is ${if (particleFilter.isConvergent) "" else "not "}ready for work")
+                        append("quality = $quality")
                     }
-                    this["\'"] = {
-                        (business.function as? Following)?.let {
-                            commander.isEnabled = !commander.isEnabled
-                            if (commander.isEnabled) "continue" else "pause"
-                        } ?: "cannot set enabled unless when following"
-                    }
-                    registerBusinessParser(business, this)
                 }
-                while (isActive) parser.parseFromConsole()
+                this["\'"] = {
+                    (business.function as? Following)?.let {
+                        commander.isEnabled = !commander.isEnabled
+                        if (commander.isEnabled) "continue" else "pause"
+                    } ?: "cannot set enabled unless when following"
+                }
+                registerBusinessParser(business, this)
             }
+            launch { while (isActive) parser.parseFromConsole() }
         }
     } catch (e: CancellationException) {
     } catch (e: ApplicationException) {

@@ -1,9 +1,6 @@
 package cn.autolabor.pathfollower
 
 import cn.autolabor.pathfollower.FollowCommand.*
-import org.mechdancer.DebugTemporary
-import org.mechdancer.DebugTemporary.Operation.DELETE
-import org.mechdancer.DebugTemporary.Operation.REDUCE
 import org.mechdancer.SimpleLogger
 import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.plus
@@ -27,10 +24,8 @@ import kotlin.math.*
  *   * 最大线速度 [maxLinearSpeed]
  *   * 最大角速度 [maxAngularSpeed]
  */
-class VirtualLightSensorPathFollower
-internal constructor(
-    @DebugTemporary(REDUCE)
-    val sensor: VirtualLightSensor,
+class VirtualLightSensorPathFollower(
+    private val sensor: VirtualLightSensor,
     private val controller: Filter<Double, Double>,
     minTipAngle: Angle,
     minTurnAngle: Angle,
@@ -43,12 +38,7 @@ internal constructor(
     private val minTurnRad = minTurnAngle.asRadian()
     private val maxOmegaRad = maxAngularSpeed.asRadian()
 
-    @DebugTemporary(DELETE)
     private val logger = SimpleLogger("firstOfLocal")
-
-    @DebugTemporary(DELETE)
-    var tip = Odometry.pose()
-        private set
 
     /** 计算控制量 */
     operator fun invoke(local: Sequence<Odometry>, progress: Double): FollowCommand {
@@ -74,8 +64,6 @@ internal constructor(
                     pn.d.toVector() dot `pn-1`.d.toVector() < cosMinTip
                 }
             ?: (bright.last() to bright.lastIndex)
-        @DebugTemporary(DELETE)
-        this.tip = tip
         // 处理尖点
         when {
             i in 1..4 -> pre = tip.d.adjust().asRadian()
