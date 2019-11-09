@@ -1,5 +1,7 @@
 package cn.autolabor.baafs;
 
+import cn.autolabor.FaselaseTask;
+import cn.autolabor.LaserFilterTask;
 import cn.autolabor.ObstacleDetectionTask;
 import cn.autolabor.core.annotation.InjectMessage;
 import cn.autolabor.core.annotation.TaskProperties;

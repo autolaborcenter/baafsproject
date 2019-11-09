@@ -1,4 +1,4 @@
-package cn.autolabor.baafs;
+package cn.autolabor;
 
 import cn.autolabor.core.annotation.*;
 import cn.autolabor.core.server.executor.AbstractTask;
