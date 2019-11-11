@@ -15,8 +15,8 @@ import kotlin.math.max
 
 class PotentialFieldLocalPlanner
 internal constructor(
-    private val attractRange: Shape,
-    private val repelRange: Shape,
+    val attractRange: Shape,
+    val repelRange: Shape,
     private val stepLength: Double,
     private val attractWeight: Double
 ) {
@@ -32,7 +32,7 @@ internal constructor(
     ): Sequence<Odometry> = sequence {
         val globalIter = global.iterator()
         val attractPoints = globalIter.consume()?.let { mutableListOf(it) } ?: return@sequence
-        val list: Queue<Vector2D> = LinkedList<Vector2D>()
+        val list: Queue<Vector2D> = LinkedList()
         var pose = Odometry.pose()
         while (true) {
             val (p0, d0) = pose

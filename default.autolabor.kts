@@ -13,7 +13,6 @@ import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import cn.autolabor.pathfollower.Proportion
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
-import kotlinx.coroutines.*
 import org.mechdancer.YChannel
 import org.mechdancer.algebra.function.vector.euclid
 import org.mechdancer.algebra.function.vector.norm
@@ -24,6 +23,7 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.common.shape.AnalyticalShape
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.common.shape.Ellipse
 import org.mechdancer.console.parser.buildParser
@@ -34,6 +34,7 @@ import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.networksInfo
+import org.mechdancer.paint
 import org.mechdancer.remote.presets.remoteHub
 import kotlin.math.PI
 import kotlin.system.exitProcess
@@ -61,8 +62,8 @@ try {
         // 连接底盘
         println("trying to connect to pm1 chassis...")
         startChassis(
-            odometry = robotOnOdometry.input,
-            command = commandToRobot
+                odometry = robotOnOdometry.input,
+                command = commandToRobot
         ) {
             port = null
             period = 40L
@@ -72,8 +73,8 @@ try {
         // 连接定位标签
         println("trying to connect to marvelmind mobile beacon...")
         startMobileBeacon(
-            beaconOnMap = beaconOnMap,
-            exceptions = exceptions
+                beaconOnMap = beaconOnMap,
+                exceptions = exceptions
         ) {
             port = "/dev/beacon"
             retryInterval = 100L
@@ -118,9 +119,9 @@ try {
         // 启动定位融合模块（粒子滤波器）
         val particleFilter =
             startLocationFusion(
-                robotOnOdometry = robotOnOdometry.outputs[0],
-                beaconOnMap = beaconOnMap,
-                robotOnMap = robotOnMap
+                    robotOnOdometry = robotOnOdometry.outputs[0],
+                    beaconOnMap = beaconOnMap,
+                    robotOnMap = robotOnMap
             ) {
                 filter {
                     beaconOnRobot = vector2DOf(-.01, -.02)
@@ -133,8 +134,8 @@ try {
         // 启动业务交互后台
         val business =
             startBusiness(
-                robotOnMap = robotOnMap,
-                globalOnRobot = globalOnRobot
+                    robotOnMap = robotOnMap,
+                    globalOnRobot = globalOnRobot
             ) {
                 localRadius = .5
                 pathInterval = .05
@@ -163,13 +164,15 @@ try {
                 minTurnAngle = 15.toDegree()
                 maxLinearSpeed = .1
                 maxAngularSpeed = .3.toRad()
+
+                painter = remote
             }
         // 指令器
         val commander =
             commander(
-                robotOnOdometry = robotOnOdometry.outputs[1],
-                commandOut = commandToSwitch.input,
-                exceptions = exceptions
+                    robotOnOdometry = robotOnOdometry.outputs[1],
+                    commandOut = commandToSwitch.input,
+                    exceptions = exceptions
             ) {
                 directionLimit = (-120).toDegree()
                 onFinish {
@@ -186,18 +189,13 @@ try {
         }.invokeOnCompletion { commandToSwitch.input.close(it) }
         // 启动碰撞预警模块
         startCollisionPredictingModule(
-            commandIn = commandToSwitch.outputs[0],
-            exception = exceptions,
-            lidarSet = lidarSet,
-            robotOutline = robotOutline
+                commandIn = commandToSwitch.outputs[0],
+                exception = exceptions,
+                lidarSet = lidarSet,
+                robotOutline = robotOutline
         ) {
             predictingTime = 1000L
             painter = remote
-        }
-        // 启动异常处理模块
-        launch {
-            for (e in exceptions)
-                exceptionServer.update(e)
         }
         // 启动指令转发
         launch {
@@ -231,6 +229,18 @@ try {
             registerBusinessParser(business, this)
         }
         launch { while (isActive) parser.parseFromConsole() }
+        // 刷新固定显示
+        launch {
+            val a = (localPlanner.attractRange as AnalyticalShape).sample()
+            val r = (localPlanner.repelRange as AnalyticalShape).sample()
+
+            while (isActive) {
+                remote.paint("R 机器人轮廓", robotOutline)
+                remote.paint("R 引力区域", a)
+                remote.paint("R 斥力区域", r)
+                delay(5000L)
+            }
+        }
     }
 } catch (e: CancellationException) {
 } catch (e: ApplicationException) {

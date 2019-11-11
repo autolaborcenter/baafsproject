@@ -19,6 +19,7 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.common.shape.AnalyticalShape
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.common.shape.Ellipse
 import org.mechdancer.common.toTransformation
@@ -57,9 +58,6 @@ private val odometrySampler = Sampler(20.0)
 fun main() {
     val dt = 1000 / frequency
 
-    val attractRange = Ellipse(.3, .8)
-    val repelRange = Ellipse(.4, .5)
-
     val chassis = Chassis(Stamped(T0, Odometry.pose()))
     val front = simulationLidar(Odometry.pose(x = +.113))
     val back = simulationLidar(Odometry.pose(x = -.138))
@@ -75,21 +73,6 @@ fun main() {
     val exceptions = channel<ExceptionMessage>()
     val command = AtomicReference(Velocity.velocity(.0, .0))
     runBlocking(Dispatchers.Default) {
-        // 刷新固定显示
-        launch {
-            val a = attractRange.sample()
-            val r = repelRange.sample()
-            val o = obstacles.flatMap { it.vertex }
-
-            while (isActive) {
-                remote.paint("R 机器人轮廓", robotOutline)
-                remote.paint("R 引力区域", a)
-                remote.paint("R 斥力区域", r)
-                remote.paintVectors("障碍物", o)
-                delay(5000L)
-            }
-        }
-
         val exceptionServer =
             startExceptionServer(exceptions) {
                 exceptionOccur { command.set(Velocity.velocity(.0, .0)) }
@@ -97,8 +80,8 @@ fun main() {
         // 启动业务交互后台
         val business =
             startBusiness(
-                robotOnMap = robotOnMap.outputs[0],
-                globalOnRobot = globalOnRobot
+                    robotOnMap = robotOnMap.outputs[0],
+                    globalOnRobot = globalOnRobot
             ) {
                 localRadius = .5
                 pathInterval = .05
@@ -112,10 +95,10 @@ fun main() {
         // 局部规划器（势场法）
         val localPlanner =
             potentialFieldLocalPlanner {
-                this.attractRange = attractRange
-                this.repelRange = repelRange
+                this.attractRange = Ellipse(.3, .8)
+                this.repelRange = Ellipse(.4, .68)
                 stepLength = .05
-                attractWeight = 5.0
+                attractWeight = 9.0
             }
         // 循径器（虚拟光感法）
         val pathFollower =
@@ -133,9 +116,9 @@ fun main() {
         // 指令器
         val commander =
             commander(
-                robotOnOdometry = robotOnMap.outputs[1],
-                commandOut = commandToRobot.input,
-                exceptions = exceptions
+                    robotOnOdometry = robotOnMap.outputs[1],
+                    commandOut = commandToRobot.input,
+                    exceptions = exceptions
             ) {
                 directionLimit = (-120).toDegree()
                 onFinish {
@@ -152,10 +135,10 @@ fun main() {
         }.invokeOnCompletion { commandToRobot.input.close(it) }
         // 启动碰撞预警模块
         startCollisionPredictingModule(
-            commandIn = commandToRobot.outputs[0],
-            exception = exceptions,
-            lidarSet = lidarSet,
-            robotOutline = robotOutline
+                commandIn = commandToRobot.outputs[0],
+                exception = exceptions,
+                lidarSet = lidarSet,
+                robotOutline = robotOutline
         ) {
             predictingTime = 1000L
             painter = remote
@@ -187,6 +170,20 @@ fun main() {
         }
         // 处理控制台
         launch { while (isActive) parser.parseFromConsole() }
+        // 刷新固定显示
+        launch {
+            val a = (localPlanner.attractRange as AnalyticalShape).sample()
+            val r = (localPlanner.repelRange as AnalyticalShape).sample()
+            val o = obstacles.flatMap { it.vertex }
+
+            while (isActive) {
+                remote.paint("R 机器人轮廓", robotOutline)
+                remote.paint("R 引力区域", a)
+                remote.paint("R 斥力区域", r)
+                remote.paintVectors("障碍物", o)
+                delay(5000L)
+            }
+        }
         // 运行仿真
         for ((t, v) in speedSimulation(T0, dt, speed) { command.get() }) {
             // 控制机器人行驶
