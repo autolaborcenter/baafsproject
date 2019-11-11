@@ -3,6 +3,7 @@ package org.mechdancer.lidar
 import cn.autolabor.baafs.CollisionPredictingModuleBuilderDsl.Companion.startCollisionPredictingModule
 import cn.autolabor.baafs.outlineFilter
 import cn.autolabor.baafs.robotOutline
+import cn.autolabor.baafs.sampleArea
 import cn.autolabor.business.Business.Functions.Following
 import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.business.parseFromConsole
@@ -19,7 +20,6 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
-import org.mechdancer.common.shape.AnalyticalShape
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.common.shape.Ellipse
 import org.mechdancer.common.toTransformation
@@ -172,10 +172,8 @@ fun main() {
         launch { while (isActive) parser.parseFromConsole() }
         // 刷新固定显示
         launch {
-            val a = (localPlanner.attractRange as AnalyticalShape).sample()
-            val r = (localPlanner.repelRange as AnalyticalShape).sample()
+            val (a, r) = localPlanner.sampleArea()
             val o = obstacles.flatMap { it.vertex }
-
             while (isActive) {
                 remote.paint("R 机器人轮廓", robotOutline)
                 remote.paint("R 引力区域", a)

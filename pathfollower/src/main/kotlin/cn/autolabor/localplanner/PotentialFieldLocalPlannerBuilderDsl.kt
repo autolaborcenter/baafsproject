@@ -24,10 +24,10 @@ private constructor() {
                 }
                 .run {
                     PotentialFieldLocalPlanner(
-                        attractRange = attractRange,
-                        repelRange = repelRange,
-                        stepLength = stepLength,
-                        attractWeight = attractWeight)
+                            attractArea = attractRange,
+                            repelArea = repelRange,
+                            stepLength = stepLength,
+                            attractWeight = attractWeight)
                 }
     }
 }

@@ -24,7 +24,6 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
-import org.mechdancer.common.shape.AnalyticalShape
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.common.shape.Ellipse
 import org.mechdancer.console.parser.buildParser
@@ -36,6 +35,7 @@ import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.networksInfo
 import org.mechdancer.paint
+import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.presets.remoteHub
 import kotlin.math.PI
 import kotlin.system.exitProcess
@@ -43,13 +43,12 @@ import kotlin.system.exitProcess
 @ExperimentalCoroutinesApi
 fun main() {
     // 画图
-    val remote by lazy {
+    val remote: RemoteHub? =
         remoteHub("painter")
             .apply {
                 openAllNetworks()
                 println(networksInfo())
             }
-    }
     // 话题
     val exceptions = channel<ExceptionMessage>()
     val robotOnOdometry = YChannel<Stamped<Odometry>>()
@@ -233,17 +232,16 @@ fun main() {
             }
             launch { while (isActive) parser.parseFromConsole() }
             // 刷新固定显示
-            launch {
-                val a = (localPlanner.attractRange as AnalyticalShape).sample()
-                val r = (localPlanner.repelRange as AnalyticalShape).sample()
-
-                while (isActive) {
-                    remote.paint("R 机器人轮廓", robotOutline)
-                    remote.paint("R 引力区域", a)
-                    remote.paint("R 斥力区域", r)
-                    delay(5000L)
+            if (remote != null)
+                launch {
+                    val (a, r) = localPlanner.sampleArea()
+                    while (isActive) {
+                        remote.paint("R 机器人轮廓", robotOutline)
+                        remote.paint("R 引力区域", a)
+                        remote.paint("R 斥力区域", r)
+                        delay(5000L)
+                    }
                 }
-            }
         }
     } catch (e: CancellationException) {
     } catch (e: ApplicationException) {

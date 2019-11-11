@@ -15,8 +15,8 @@ import kotlin.math.max
 
 class PotentialFieldLocalPlanner
 internal constructor(
-    val attractRange: Shape,
-    val repelRange: Shape,
+    val attractArea: Shape,
+    val repelArea: Shape,
     private val stepLength: Double,
     private val attractWeight: Double
 ) {
@@ -37,7 +37,7 @@ internal constructor(
         while (true) {
             val (p0, d0) = pose
             // 从全局生产
-            while (attractPoints.last().p in attractRange)
+            while (attractPoints.last().p in attractArea)
                 attractPoints += globalIter.consume() ?: break
             // 从缓冲消费
             var dn = attractPoints.first().p euclid p0
@@ -55,8 +55,8 @@ internal constructor(
                 val v = (p0 - p)
                 val l = v.norm()
                 when (p) {
-                    !in repelRange -> sum
-                    else           -> sum + v / (l * l * l)
+                    !in repelArea -> sum
+                    else          -> sum + v / (l * l * l)
                 }
             }.let { (x, y) -> vector2DOf(max(x, .0), y) }
             val f =

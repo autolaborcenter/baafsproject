@@ -1,8 +1,11 @@
 package cn.autolabor.baafs
 
+import cn.autolabor.localplanner.PotentialFieldLocalPlanner
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.common.shape.AnalyticalShape
 import org.mechdancer.common.shape.Polygon
+import org.mechdancer.common.shape.Shape
 
 // 镜像点列表
 private fun List<Vector2D>.mirror() =
@@ -30,3 +33,13 @@ val outlineFilter = Polygon(
                vector2DOf(-.25, +.18),
                vector2DOf(-.47, +.12)
         ).mirror())
+
+private fun Shape.sample() =
+    when (this) {
+        is Polygon         -> this
+        is AnalyticalShape -> this.sample()
+        else               -> throw TypeCastException()
+    }
+
+fun PotentialFieldLocalPlanner.sampleArea() =
+    attractArea.sample() to repelArea.sample()

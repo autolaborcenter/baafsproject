@@ -56,9 +56,7 @@ class GlobalPath(
             ?: candidates
                 .asSequence()
                 .drop(1)
-                .firstOrNull { (_, pose) ->
-                    pose.p.norm() < localRadius
-                }
+                .firstOrNull { (_, pose) -> pose.p.norm() < localRadius }
                 ?.first
             ?: old
         }
