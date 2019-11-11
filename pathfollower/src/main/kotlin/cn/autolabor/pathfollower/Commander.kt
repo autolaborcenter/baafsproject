@@ -3,6 +3,7 @@ package cn.autolabor.pathfollower
 import cn.autolabor.business.FollowFailedException
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
+import org.mechdancer.algebra.function.vector.euclid
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity
@@ -20,6 +21,7 @@ class Commander(
     directionLimit: Angle,
     private val onFinish: suspend () -> Unit
 ) {
+    private var vMemory = .1
     private val turnDirectionRad = directionLimit.asRadian()
     var isEnabled = false
 
@@ -29,12 +31,14 @@ class Commander(
             when (command) {
                 is FollowCommand.Follow -> {
                     val (v, w) = command
+                    vMemory = v
                     drive(v, w)
                 }
                 is FollowCommand.Turn   -> {
                     val (w, angle) = command
                     stop()
                     turn(w, angle)
+                    goStraight(vMemory, .1)
                     stop()
                 }
                 is FollowCommand.Finish -> {
@@ -52,6 +56,14 @@ class Commander(
 
     private suspend fun stop() {
         commandOut.send(Velocity.velocity(.0, .0))
+    }
+
+    private suspend fun goStraight(v: Double, distance: Double) {
+        val p0 = robotOnOdometry.receive().data.p
+        for ((_, pose) in robotOnOdometry) {
+            if (pose.p euclid p0 > distance) break
+            drive(v, 0)
+        }
     }
 
     private suspend fun turn(omega: Double, angle: Double) {

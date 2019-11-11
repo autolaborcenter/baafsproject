@@ -152,10 +152,10 @@ fun main() {
             // 局部规划器（势场法）
             val localPlanner =
                 potentialFieldLocalPlanner {
-                    attractRange = Ellipse(.3, .8)
-                    repelRange = Ellipse(.4, .5)
+                    attractRange = Ellipse(.36, .8)
+                    repelRange = Ellipse(.40, .66)
                     stepLength = .05
-                    attractWeight = 5.0
+                    attractWeight = 8.0
                 }
             // 循径器（虚拟光感法）
             val pathFollower =
@@ -165,8 +165,8 @@ fun main() {
                     controller = Proportion(1.0)
                     minTipAngle = 60.toDegree()
                     minTurnAngle = 15.toDegree()
-                    maxLinearSpeed = .1
-                    maxAngularSpeed = .3.toRad()
+                    maxLinearSpeed = .16
+                    maxAngularSpeed = .4.toRad()
 
                     painter = remote
                 }
