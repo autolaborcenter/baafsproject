@@ -6,54 +6,52 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
-import org.mechdancer.SimpleLogger
 import org.mechdancer.algebra.function.vector.euclid
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
-import org.mechdancer.remote.presets.RemoteHub
 
-class Business(
+/** 业务模块 */
+class Business internal constructor(
     private val scope: CoroutineScope,
     private val robotOnMap: ReceiveChannel<Stamped<Odometry>>,
     private val globalOnRobot: SendChannel<Pair<Sequence<Odometry>, Double>>,
 
     localRadius: Double,
     private val pathInterval: Double,
-    localFirst: (Odometry) -> Boolean,
-
-    pathLogger: SimpleLogger?,
-    pathPainter: RemoteHub?
+    localFirst: (Odometry) -> Boolean
 ) {
+    /** 当前业务功能 */
     var function: Functions? = null
         private set
-
+    /** 全局路径管理 */
     val globals = PathManager(
-        localRadius,
-        pathInterval,
-        localFirst,
-        pathLogger,
-        pathPainter)
+            localRadius,
+            pathInterval,
+            localFirst)
 
+    /** 开始录制 */
     suspend fun startRecording() {
         if (function is Functions.Recording) return
         function?.job?.cancelAndJoin()
         function = Functions.Recording(
-            scope,
-            robotOnMap,
-            globals,
-            pathInterval)
+                scope,
+                robotOnMap,
+                globals,
+                pathInterval)
     }
 
+    /** 开始循径 */
     suspend fun startFollowing(global: GlobalPath) {
         if (function is Functions.Following) return
         function?.job?.cancelAndJoin()
         function = Functions.Following(
-            scope,
-            robotOnMap,
-            globalOnRobot,
-            global)
+                scope,
+                robotOnMap,
+                globalOnRobot,
+                global)
     }
 
+    /** 取消任务 */
     suspend fun cancel() {
         function?.job?.cancelAndJoin()
         function = null

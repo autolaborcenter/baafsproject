@@ -90,13 +90,12 @@ fun main() {
                     && it.p.toAngle().asRadian() in -PI / 3..+PI / 3
                     && it.d.asRadian() in -PI / 3..+PI / 3
                 }
-                painter = remote
             }
         // 局部规划器（势场法）
         val localPlanner =
             potentialFieldLocalPlanner {
                 attractRange = Ellipse(.36, .8)
-                repelRange = Ellipse(.40, .66)
+                repelRange = Ellipse(.50, .75)
                 stepLength = .05
                 attractWeight = 8.0
             }

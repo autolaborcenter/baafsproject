@@ -66,7 +66,7 @@ class GlobalPath(
         val (p, _) = robotOnMap
         return when {
             p0 euclid p < localRadius -> {
-                slice(i until min(i + searchCount, size))
+                slice(i until min(i + 2 * searchCount, size))
                     .asSequence()
                     .takeWhile { (_, d) ->
                         val `dn-1` = dn

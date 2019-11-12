@@ -21,9 +21,6 @@ class BusinessBuilderDsl private constructor() {
         localFirst = block
     }
 
-    var logger: SimpleLogger? = SimpleLogger("PathManager")
-    var painter: RemoteHub? = null
-
     companion object {
         fun CoroutineScope.startBusiness(
             robotOnMap: ReceiveChannel<Stamped<Odometry>>,
@@ -43,10 +40,7 @@ class BusinessBuilderDsl private constructor() {
 
                     localRadius = localRadius,
                     pathInterval = pathInterval,
-                    localFirst = localFirst,
-
-                    pathLogger = logger,
-                    pathPainter = painter)
+                    localFirst = localFirst)
             }
     }
 }
