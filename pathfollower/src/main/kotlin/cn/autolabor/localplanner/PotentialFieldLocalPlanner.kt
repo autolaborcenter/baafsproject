@@ -24,12 +24,22 @@ internal constructor(
      * 修饰函数
      *
      * @param global 机器人坐标系上的全局路径
-     * @param repelPoints 斥力点
+     * @param obstacles 障碍物
      */
     fun modify(
         global: Sequence<Odometry>,
+        obstacles: Collection<Vector2D>
+    ): Sequence<Odometry> =
+        obstacles
+            .filter { it in repelArea }
+            .takeUnless(Collection<*>::isEmpty)
+            ?.let { repelPoints -> modifyInternal(global, repelPoints) }
+        ?: global
+
+    private fun modifyInternal(
+        global: Sequence<Odometry>,
         repelPoints: Collection<Vector2D>
-    ): Sequence<Odometry> = sequence {
+    ) = sequence {
         val globalIter = global.iterator()
         val attractPoints = globalIter.consume()?.let { mutableListOf(it) } ?: return@sequence
         val list: Queue<Vector2D> = LinkedList()
@@ -54,10 +64,7 @@ internal constructor(
             val fr = repelPoints.fold(vector2DOfZero()) { sum, p ->
                 val v = (p0 - p)
                 val l = v.norm()
-                when (p) {
-                    !in repelArea -> sum
-                    else          -> sum + v / (l * l * l)
-                }
+                sum + v / (l * l * l)
             }.let { (x, y) -> vector2DOf(max(x, .0), y) }
             val f =
                 (fa / ((attractPoints.size + 1) * attractPoints.size / 2) * attractWeight + fr / repelPoints.size)

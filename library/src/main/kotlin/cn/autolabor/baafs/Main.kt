@@ -165,7 +165,7 @@ fun main() {
                     minTipAngle = 60.toDegree()
                     minTurnAngle = 15.toDegree()
                     maxLinearSpeed = .16
-                    maxAngularSpeed = .4.toRad()
+                    maxAngularSpeed = .5.toRad()
 
                     painter = remote
                 }
@@ -196,6 +196,8 @@ fun main() {
                     lidarSet = lidarSet,
                     robotOutline = robotOutline
             ) {
+                countToContinue = 4
+                countToStop = 6
                 predictingTime = 1000L
                 painter = remote
             }
