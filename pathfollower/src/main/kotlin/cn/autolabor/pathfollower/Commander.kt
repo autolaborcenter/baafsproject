@@ -36,7 +36,6 @@ class Commander(
                 }
                 is FollowCommand.Turn   -> {
                     val (w, angle) = command
-                    stop()
                     turn(w, angle)
                     goStraight(vMemory, .1)
                     stop()

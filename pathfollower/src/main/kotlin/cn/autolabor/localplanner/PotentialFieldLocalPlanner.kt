@@ -60,15 +60,13 @@ internal constructor(
             // 计算受力
             val fa = attractPoints.foldIndexed(vector2DOfZero()) { i, sum, (p, _) ->
                 sum + (p - p0).to2D() * (attractPoints.size - i)
-            }
+            } / attractPoints.size.let { n -> n * (n + 1) / 2 } * attractWeight
             val fr = repelPoints.fold(vector2DOfZero()) { sum, p ->
                 val v = (p0 - p)
                 val l = v.norm()
                 sum + v / (l * l * l)
-            }.let { (x, y) -> vector2DOf(max(x, .0), y) }
-            val f =
-                (fa / ((attractPoints.size + 1) * attractPoints.size / 2) * attractWeight + fr / repelPoints.size)
-                    .normalize().to2D()
+            }.let { (x, y) -> vector2DOf(max(x, .0), y) / max(10, repelPoints.size) }
+            val f = (fa + fr).normalize().to2D()
             pose =
                 if (doubleEquals(f.norm(), .0))
                     Odometry(p0 + vector2DOf(stepLength, 0), d0)

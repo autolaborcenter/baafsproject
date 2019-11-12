@@ -13,6 +13,7 @@ import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import cn.autolabor.pathfollower.Proportion
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
+import kotlinx.coroutines.*
 import org.mechdancer.YChannel
 import org.mechdancer.algebra.function.vector.euclid
 import org.mechdancer.algebra.function.vector.norm
@@ -61,8 +62,8 @@ try {
         // 连接底盘
         println("trying to connect to pm1 chassis...")
         startChassis(
-                odometry = robotOnOdometry.input,
-                command = commandToRobot
+            odometry = robotOnOdometry.input,
+            command = commandToRobot
         ) {
             port = null
             period = 40L
@@ -72,8 +73,8 @@ try {
         // 连接定位标签
         println("trying to connect to marvelmind mobile beacon...")
         startMobileBeacon(
-                beaconOnMap = beaconOnMap,
-                exceptions = exceptions
+            beaconOnMap = beaconOnMap,
+            exceptions = exceptions
         ) {
             port = "/dev/beacon"
             retryInterval = 100L
@@ -118,9 +119,9 @@ try {
         // 启动定位融合模块（粒子滤波器）
         val particleFilter =
             startLocationFusion(
-                    robotOnOdometry = robotOnOdometry.outputs[0],
-                    beaconOnMap = beaconOnMap,
-                    robotOnMap = robotOnMap
+                robotOnOdometry = robotOnOdometry.outputs[0],
+                beaconOnMap = beaconOnMap,
+                robotOnMap = robotOnMap
             ) {
                 filter {
                     beaconOnRobot = vector2DOf(-.01, -.02)
@@ -133,8 +134,8 @@ try {
         // 启动业务交互后台
         val business =
             startBusiness(
-                    robotOnMap = robotOnMap,
-                    globalOnRobot = globalOnRobot
+                robotOnMap = robotOnMap,
+                globalOnRobot = globalOnRobot
             ) {
                 localRadius = .5
                 pathInterval = .05
@@ -151,7 +152,7 @@ try {
                 attractRange = Ellipse(.36, .8)
                 repelRange = Ellipse(.40, .66)
                 stepLength = .05
-                attractWeight = 8.0
+                attractWeight = 36.0
             }
         // 循径器（虚拟光感法）
         val pathFollower =
@@ -169,9 +170,9 @@ try {
         // 指令器
         val commander =
             commander(
-                    robotOnOdometry = robotOnOdometry.outputs[1],
-                    commandOut = commandToSwitch.input,
-                    exceptions = exceptions
+                robotOnOdometry = robotOnOdometry.outputs[1],
+                commandOut = commandToSwitch.input,
+                exceptions = exceptions
             ) {
                 directionLimit = (-120).toDegree()
                 onFinish {
@@ -188,10 +189,10 @@ try {
         }.invokeOnCompletion { commandToSwitch.input.close(it) }
         // 启动碰撞预警模块
         startCollisionPredictingModule(
-                commandIn = commandToSwitch.outputs[0],
-                exception = exceptions,
-                lidarSet = lidarSet,
-                robotOutline = robotOutline
+            commandIn = commandToSwitch.outputs[0],
+            exception = exceptions,
+            lidarSet = lidarSet,
+            robotOutline = robotOutline
         ) {
             countToContinue = 4
             countToStop = 6

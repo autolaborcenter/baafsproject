@@ -154,7 +154,7 @@ fun main() {
                     attractRange = Ellipse(.36, .8)
                     repelRange = Ellipse(.40, .66)
                     stepLength = .05
-                    attractWeight = 8.0
+                    attractWeight = 36.0
                 }
             // 循径器（虚拟光感法）
             val pathFollower =
