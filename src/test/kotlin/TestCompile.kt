@@ -17,7 +17,7 @@ class TestCompile {
         runBlocking {
             BasicJvmScriptingHost().compiler(file.toScriptSource(), ScriptConfiguration)
         }.onFailure { result ->
-            fail("failed to compile with message: \n${result.reports.filter { it.severity == ERROR }.joinToString("/n")}")
+            fail("failed to compile with message: \n${result.reports.filter { it.severity == ERROR }.joinToString("\n")}")
         }
     }
 }

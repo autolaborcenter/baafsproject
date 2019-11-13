@@ -94,7 +94,7 @@ object PM1 {
                 x.pointer, y.pointer, theta.pointer
             ))
             return Stamped((stamp.value * 1000).toLong(),
-                           Odometry.odometry(x.value, y.value, theta.value))
+                           Odometry.pose(x.value, y.value, theta.value))
         }
 
     /**

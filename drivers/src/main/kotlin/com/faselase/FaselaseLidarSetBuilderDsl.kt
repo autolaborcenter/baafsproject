@@ -2,13 +2,19 @@ package com.faselase
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.SendChannel
+import org.mechdancer.BuilderDslMarker
 import org.mechdancer.algebra.implement.matrix.builder.toDiagonalMatrix
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.toTransformation
+import org.mechdancer.device.LidarSet
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.geometry.transformation.Transformation
 
+/**
+ * 砝石雷达系构建器
+ */
+@BuilderDslMarker
 class FaselaseLidarSetBuilderDsl private constructor() {
     var launchTimeout: Long = 5000L
     var connectionTimeout: Long = 800L
@@ -21,7 +27,7 @@ class FaselaseLidarSetBuilderDsl private constructor() {
 
     data class FaselaseLidarConfig internal constructor(
         var tag: String? = null,
-        var pose: Odometry = Odometry(),
+        var pose: Odometry = Odometry.pose(),
         var inverse: Boolean = false)
 
     fun lidar(block: FaselaseLidarConfig.() -> Unit) {
@@ -57,20 +63,22 @@ class FaselaseLidarSetBuilderDsl private constructor() {
             .run {
                 configs.map { (portName, config) ->
                     FaselaseLidar(
-                        scope = this@faselaseLidarSet,
-                        exceptions = exceptions,
-                        name = portName,
-                        tag = config.tag,
-                        launchTimeout = launchTimeout,
-                        connectionTimeout = connectionTimeout,
-                        dataTimeout = dataTimeout,
-                        retryInterval = retryInterval
+                            scope = this@faselaseLidarSet,
+                            exceptions = exceptions,
+                            portName = portName,
+                            tag = config.tag,
+                            launchTimeout = launchTimeout,
+                            connectionTimeout = connectionTimeout,
+                            dataTimeout = dataTimeout,
+                            retryInterval = retryInterval
                     ) to config.pose.toTransformation().let {
                         if (config.inverse)
                             it * Transformation(listOf(+1, -1, +1).toDiagonalMatrix())
                         else it
                     }
-                }.let { FaselaseLidarSet(it.toMap(), filter) }
+                }.let {
+                    LidarSet(it.associate { (lidar, tf) -> lidar::frame to tf }, filter)
+                }
             }
     }
 }

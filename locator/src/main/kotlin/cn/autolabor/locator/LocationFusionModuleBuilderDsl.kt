@@ -41,16 +41,18 @@ class LocationFusionModuleBuilderDsl private constructor() {
                 val filter = particleFilter { for (f in this@run.filterBlocks) f(this) }
                 painter?.run {
                     var t0: Long? = null
-                    filter.stepFeedback.add { (t, state) ->
-                        val time = (t - (t0 ?: run { t0 = t;t })).toDouble()
-                        val (measureWeight, particleWeight, quality) = state
-                        paint("定位权重", time, measureWeight)
-                        paint("粒子权重", time, particleWeight)
+                    synchronized(filter.stepFeedbacks) {
+                        filter.stepFeedbacks += { (t, state) ->
+                            val time = (t - (t0 ?: run { t0 = t;t })).toDouble()
+                            val (measureWeight, particleWeight, quality) = state
+                            paint("定位权重", time, measureWeight)
+                            paint("粒子权重", time, particleWeight)
 
-                        val (age, p, d) = quality
-                        paint("稳定性质量", time, age)
-                        paint("位置一致性质量", time, p)
-                        paint("方向一致性质量", time, d)
+                            val (age, p, d) = quality
+                            paint("稳定性质量", time, age)
+                            paint("位置一致性质量", time, p)
+                            paint("方向一致性质量", time, d)
+                        }
                     }
                 }
                 // 使用定位数据

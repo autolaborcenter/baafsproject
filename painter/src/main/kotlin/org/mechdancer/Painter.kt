@@ -3,6 +3,7 @@ package org.mechdancer
 import org.mechdancer.FrameType.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.common.Odometry
+import org.mechdancer.common.shape.Polygon
 import org.mechdancer.dependency.must
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.protocol.writeEnd
@@ -10,7 +11,6 @@ import org.mechdancer.remote.resources.Command
 import org.mechdancer.remote.resources.MulticastSockets
 import org.mechdancer.remote.resources.Name
 import org.mechdancer.remote.resources.Networks
-import org.mechdancer.shape.Shape
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 
@@ -192,7 +192,7 @@ fun RemoteHub.paintVectors(
 
 fun RemoteHub.paint(
     topic: String,
-    shape: Shape
+    shape: Polygon
 ) = paint(topic) {
     DataOutputStream(this).apply {
         writeByte(0)

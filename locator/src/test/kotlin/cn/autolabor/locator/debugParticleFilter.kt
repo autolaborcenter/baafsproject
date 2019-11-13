@@ -15,7 +15,7 @@ fun main() = debugParticleFilter {
     // 仿真配置
     speed = 2
     frequency = 50L
-    origin = Odometry.odometry(3, 4, PI)
+    origin = Odometry.pose(3, 4, PI)
     // 里程计配置
     odometryFrequency = 20.0
     leftWheel = vector2DOf(0, +.21)

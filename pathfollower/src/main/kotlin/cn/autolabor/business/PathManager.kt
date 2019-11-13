@@ -1,9 +1,6 @@
 package cn.autolabor.business
 
-import org.mechdancer.SimpleLogger
 import org.mechdancer.common.Odometry
-import org.mechdancer.paintPoses
-import org.mechdancer.remote.presets.RemoteHub
 import java.io.File
 import kotlin.math.roundToInt
 
@@ -13,8 +10,8 @@ import kotlin.math.roundToInt
 class PathManager(
     private val localRadius: Double,
     pathInterval: Double,
-    private val logger: SimpleLogger?,
-    private val painter: RemoteHub?
+
+    private val localFirst: (Odometry) -> Boolean
 ) {
     private val searchCount = (localRadius / pathInterval).roundToInt()
     private val globals = mutableMapOf<String, GlobalPath>()
@@ -26,15 +23,13 @@ class PathManager(
             ?.readLines()
             ?.map {
                 val numbers = it.split(',').map(String::toDouble)
-                Odometry.odometry(numbers[0], numbers[1], numbers[2])
+                Odometry.pose(numbers[0], numbers[1], numbers[2])
             }
             ?.toList()
-            ?.let { GlobalPath(it, localRadius, searchCount) }
+            ?.let { GlobalPath(it, localRadius, searchCount, localFirst) }
             ?.also { global ->
                 global.progress = progress
                 globals[pathName] = global
-                logger?.log("path \"$pathName\" is loaded")
-                painter?.paintPoses("路径", global)
             }
 
     /** 本地或文件中读取路径，并设置进度 */

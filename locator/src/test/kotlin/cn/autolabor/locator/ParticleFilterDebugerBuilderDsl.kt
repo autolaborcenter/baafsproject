@@ -18,6 +18,7 @@ import org.mechdancer.common.Stamped
 import org.mechdancer.common.filters.Differential
 import org.mechdancer.common.toPose
 import org.mechdancer.common.toTransformation
+import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.newRandomDriving
 import org.mechdancer.paintPose
 import org.mechdancer.remote.presets.RemoteHub
@@ -37,7 +38,12 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
     // 仿真器工作频率
     var frequency = 50L
     // 机器人起始位姿
-    var origin = Odometry()
+    var origin = Odometry.pose()
+    // 里程计配置
+    var odometryFrequency = 20.0
+    var leftWheel = vector2DOf(0, +.2)
+    var rightWheel = vector2DOf(0, -.2)
+    var wheelsWidthMeasure = 0.4
     // 定位配置
     // 定位频率
     var beaconFrequency = 7.0
@@ -89,11 +95,6 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
         errors.apply(block)
     }
 
-    // 里程计配置
-    var odometryFrequency = 20.0
-    var leftWheel = vector2DOf(0, +.2)
-    var rightWheel = vector2DOf(0, -.2)
-    var wheelsWidthMeasure = 0.4
     // 滤波器配置
     private var filterConfig: ParticleFilterBuilderDsl.() -> Unit = {}
 
@@ -133,9 +134,9 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                 .run {
                     // 机器人机械结构
                     val robot = StructBuilderDSL.struct(Chassis(Stamped(T0, origin))) {
-                        Encoder(Key.Left) asSub { pose = Odometry(leftWheel) }
-                        Encoder(Key.Right) asSub { pose = Odometry(rightWheel) }
-                        BEACON_TAG asSub { pose = Odometry(beaconOnRobot) }
+                        Encoder(Key.Left) asSub { pose = Odometry(leftWheel, 0.toRad()) }
+                        Encoder(Key.Right) asSub { pose = Odometry(rightWheel, 0.toRad()) }
+                        BEACON_TAG asSub { pose = Odometry(beaconOnRobot, 0.toRad()) }
                     }
                     // 编码器在机器人上的位姿
                     val encodersOnRobot =
@@ -156,7 +157,7 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                     var beaconTimes = 0L
 
                     // 差动里程计
-                    val odometry = DifferentialOdometry(wheelsWidthMeasure, Stamped(T0, Odometry()))
+                    val odometry = DifferentialOdometry(wheelsWidthMeasure, Stamped(T0, Odometry.pose()))
                     // 里程计周期
                     val odometryPeriod = 1000L / odometryFrequency
                     // 里程计采样计数

@@ -15,10 +15,11 @@ import kotlin.script.experimental.jvm.jvm
     fileExtension = "autolabor.kts",
     compilationConfiguration = ScriptConfiguration::class,
     evaluationConfiguration = MainKtsEvaluationConfiguration::class)
-abstract class AutolaborScript(val args: Array<String>) {
+internal abstract class AutolaborScript(val args: Array<String>) {
     internal object ScriptConfiguration : ScriptCompilationConfiguration(
         {
             defaultImports(DependsOn::class, Repository::class, Import::class)
+            defaultImports("kotlinx.coroutines.*")
             jvm {
                 dependenciesFromClassContext(
                     ScriptConfiguration::class,

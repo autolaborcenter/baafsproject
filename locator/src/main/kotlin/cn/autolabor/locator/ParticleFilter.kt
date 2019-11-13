@@ -48,7 +48,7 @@ class ParticleFilter(
 
     // 过程记录器
     @DebugTemporary(DELETE)
-    val stepFeedback = mutableListOf<(Stamped<StepState>) -> Unit>()
+    val stepFeedbacks = mutableListOf<(Stamped<StepState>) -> Unit>()
 
     // 粒子：位姿 - 寿命
     @DebugTemporary(REDUCE)
@@ -90,7 +90,7 @@ class ParticleFilter(
 
     private var stepMemory: Pair<Vector2D, Odometry>? = null
     private lateinit var updatingMemory: Odometry
-    private var visionary = Visionary(Odometry(), Odometry(), .0)
+    private var visionary = Visionary(Odometry.pose(), Odometry.pose(), .0)
 
     @Synchronized
     private fun update() {
@@ -150,16 +150,16 @@ class ParticleFilter(
                 }
                 // 计算粒子总权重，若过低，直接重新初始化
                 val weightsSum = weights.sum()
-                    .takeIf { it > 1 }
-                    ?: run {
-                        // 写入当前寿命
-                        particles = particles.zip(ages) { (p, _), age -> p to max(age, 0) }
-                        // 计算定位质量
-                        quality = Stamped(t, particles.qualityBy(maxAge, maxInconsistency))
-                        // 重新初始化
-                        if (!predicate.update(quality.data)) initialize(t, measure, state)
-                        return@forEach
-                    }
+                                     .takeIf { it > 1 }
+                                 ?: run {
+                                     // 写入当前寿命
+                                     particles = particles.zip(ages) { (p, _), age -> p to max(age, 0) }
+                                     // 计算定位质量
+                                     quality = Stamped(t, particles.qualityBy(maxAge, maxInconsistency))
+                                     // 重新初始化
+                                     if (!predicate.update(quality.data)) initialize(t, measure, state)
+                                     return@forEach
+                                 }
                 // 计算期望
                 var eP = vector2DOfZero()
                 var eD = vector2DOfZero()
@@ -183,18 +183,19 @@ class ParticleFilter(
                 // 猜测真实位姿
                 if (predicate.update(quality.data))
                     visionary = visionary.fusion(
-                        state,
-                        robotPoseBy(eP, eAngle),
-                        2.0,
-                        maxInconsistency)
+                            state,
+                            robotPoseBy(eP, eAngle),
+                            2.0,
+                            maxInconsistency)
                 @DebugTemporary(DELETE)
-                synchronized(stepFeedback) {
+                synchronized(stepFeedbacks) {
                     val msg = Stamped(
-                        t, StepState(
+                            t, StepState(
                             measureWeight = measureWeight,
                             particleWeight = weightsSum,
                             quality = quality.data))
-                    for (callback in stepFeedback) callback(msg)
+                    for (callback in stepFeedbacks)
+                        callback(msg)
                 }
             }
     }
@@ -232,9 +233,9 @@ class ParticleFilter(
             val size = size
             val eP = location / size
             return FusionQuality(
-                age = ageSum.toDouble() / (size * maxAge),
-                location = max(.0, 1 - sumByDouble { (pose, _) -> pose.p euclid eP } / (size * maxInconsistent)),
-                direction = direction.norm() / size
+                    age = ageSum.toDouble() / (size * maxAge),
+                    location = max(.0, 1 - sumByDouble { (pose, _) -> pose.p euclid eP } / (size * maxInconsistent)),
+                    direction = direction.norm() / size
             )
         }
     }
