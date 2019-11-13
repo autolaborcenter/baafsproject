@@ -60,12 +60,12 @@ class GlobalPath(
 
     /** 根据 [robotOnMap] 查询局部路径并更新进度 */
     operator fun get(robotOnMap: Odometry): Sequence<Odometry> {
-        val mapToRobot = robotOnMap.toTransformation().inverse()
+        val onRobot = robotOnMap.toTransformation().inverse()::transform
         return lock.write {
             // 若路径已全部完成
             if (index == lastIndex)
-                return@write mapToRobot
-                                 .transform(last())
+                return@write last()
+                                 .let(onRobot)
                                  .takeIf(localFirst)
                                  ?.let { sequenceOf(last()) }
                              ?: emptySequence()
@@ -74,34 +74,28 @@ class GlobalPath(
             // 当前区间末尾在尖点表里的序号
             val tipIndexIndex = tipsIndex.indices.first { tipsIndex[it] >= last }
             // 确定是否向下一区间转移
-            val pass = last == tipsIndex[tipIndexIndex] && !localFirst(mapToRobot.transform(get(last)))
-            // 区间尖点序号
-            val tipIndex = tipsIndex[if (pass) tipIndexIndex + 1 else tipIndexIndex]
+            val nextArea = if (last == tipsIndex[tipIndexIndex] && !get(last).let(onRobot).let(localFirst)) 1 else 0
             // 搜索范围
             val area =
-                (if (pass) last + 1 else last)..when {
+                (last + nextArea)..when {
                     searchAll -> lastIndex
-                    else      -> min(tipIndex, last + searchCount)
+                    else      -> min(tipsIndex[tipIndexIndex + nextArea], last + searchCount)
                 }
             // 在候选范围查找起始点
             area.asSequence()
-                .map { i -> i to mapToRobot.transform(get(i)) }
+                .map { i -> i to get(i).let(onRobot) }
                 .firstOrNull { (_, pose) -> localFirst(pose) }
                 ?.first
-                ?.let {
+                ?.let { begin ->
                     // 推进进度
-                    index = it
+                    index = begin
                     searchAll = false
-                    subList(it, tipIndex + 1)
-                        .also { list ->
-                            painter?.run {
-                                paintPoses("R 全局路径", list.take(50).map(mapToRobot::transform))
-                            }
-                        }
+                    subList(begin, tipsIndex.first { it >= begin } + 1)
+                        .apply { painter?.paintPoses("R 全局路径", take(50).map(onRobot)) }
                         .asSequence()
                 }
             ?: if (searchAll) emptySequence()
             else subList(area.first, area.last + 1).asSequence()
-        }.map { mapToRobot.transform(it) }
+        }.map(onRobot)
     }
 }
