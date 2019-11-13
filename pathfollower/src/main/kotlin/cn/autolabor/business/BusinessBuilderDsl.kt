@@ -4,7 +4,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.BuilderDslMarker
-import org.mechdancer.SimpleLogger
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
@@ -21,6 +20,8 @@ class BusinessBuilderDsl private constructor() {
         localFirst = block
     }
 
+    var painter: RemoteHub? = null
+
     companion object {
         fun CoroutineScope.startBusiness(
             robotOnMap: ReceiveChannel<Stamped<Odometry>>,
@@ -34,13 +35,13 @@ class BusinessBuilderDsl private constructor() {
             }
             .run {
                 Business(
-                    scope = this@startBusiness,
-                    robotOnMap = robotOnMap,
-                    globalOnRobot = globalOnRobot,
+                        scope = this@startBusiness,
+                        robotOnMap = robotOnMap,
+                        globalOnRobot = globalOnRobot,
 
-                    localRadius = localRadius,
-                    pathInterval = pathInterval,
-                    localFirst = localFirst)
+                        pathInterval = pathInterval,
+                        localFirst = localFirst,
+                        painter = painter)
             }
     }
 }

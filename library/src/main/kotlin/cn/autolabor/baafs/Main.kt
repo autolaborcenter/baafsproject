@@ -146,6 +146,7 @@ fun main() {
                         && it.p.toAngle().asRadian() in -PI / 3..+PI / 3
                         && it.d.asRadian() in -PI / 3..+PI / 3
                     }
+                    painter = remote
                 }
             // 局部规划器（势场法）
             val localPlanner =

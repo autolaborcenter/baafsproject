@@ -48,7 +48,7 @@ private val obstacles =
     }.flatten()
 
 private const val T0 = 0L
-private const val speed = 1
+private const val speed = 2
 private const val frequency = 50L
 
 private val lidarSampler = Sampler(20.0)
@@ -90,6 +90,7 @@ fun main() {
                     && it.p.toAngle().asRadian() in -PI / 3..+PI / 3
                     && it.d.asRadian() in -PI / 3..+PI / 3
                 }
+                painter = remote
             }
         // 局部规划器（势场法）
         val localPlanner =

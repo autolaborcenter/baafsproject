@@ -62,8 +62,8 @@ try {
         // 连接底盘
         println("trying to connect to pm1 chassis...")
         startChassis(
-            odometry = robotOnOdometry.input,
-            command = commandToRobot
+                odometry = robotOnOdometry.input,
+                command = commandToRobot
         ) {
             port = null
             period = 40L
@@ -73,8 +73,8 @@ try {
         // 连接定位标签
         println("trying to connect to marvelmind mobile beacon...")
         startMobileBeacon(
-            beaconOnMap = beaconOnMap,
-            exceptions = exceptions
+                beaconOnMap = beaconOnMap,
+                exceptions = exceptions
         ) {
             port = "/dev/beacon"
             retryInterval = 100L
@@ -119,9 +119,9 @@ try {
         // 启动定位融合模块（粒子滤波器）
         val particleFilter =
             startLocationFusion(
-                robotOnOdometry = robotOnOdometry.outputs[0],
-                beaconOnMap = beaconOnMap,
-                robotOnMap = robotOnMap
+                    robotOnOdometry = robotOnOdometry.outputs[0],
+                    beaconOnMap = beaconOnMap,
+                    robotOnMap = robotOnMap
             ) {
                 filter {
                     beaconOnRobot = vector2DOf(-.01, -.02)
@@ -134,8 +134,8 @@ try {
         // 启动业务交互后台
         val business =
             startBusiness(
-                robotOnMap = robotOnMap,
-                globalOnRobot = globalOnRobot
+                    robotOnMap = robotOnMap,
+                    globalOnRobot = globalOnRobot
             ) {
                 localRadius = .5
                 pathInterval = .05
@@ -144,6 +144,7 @@ try {
                     && it.p.toAngle().asRadian() in -PI / 3..+PI / 3
                     && it.d.asRadian() in -PI / 3..+PI / 3
                 }
+                painter = remote
             }
         // 局部规划器（势场法）
         val localPlanner =
@@ -169,9 +170,9 @@ try {
         // 指令器
         val commander =
             commander(
-                robotOnOdometry = robotOnOdometry.outputs[1],
-                commandOut = commandToSwitch.input,
-                exceptions = exceptions
+                    robotOnOdometry = robotOnOdometry.outputs[1],
+                    commandOut = commandToSwitch.input,
+                    exceptions = exceptions
             ) {
                 directionLimit = (-120).toDegree()
                 onFinish {
@@ -188,10 +189,10 @@ try {
         }.invokeOnCompletion { commandToSwitch.input.close(it) }
         // 启动碰撞预警模块
         startCollisionPredictingModule(
-            commandIn = commandToSwitch.outputs[0],
-            exception = exceptions,
-            lidarSet = lidarSet,
-            robotOutline = robotOutline
+                commandIn = commandToSwitch.outputs[0],
+                exception = exceptions,
+                lidarSet = lidarSet,
+                robotOutline = robotOutline
         ) {
             countToContinue = 4
             countToStop = 6
