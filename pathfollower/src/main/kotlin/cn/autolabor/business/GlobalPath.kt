@@ -49,7 +49,7 @@ class GlobalPath(
 
     /** 查询/修改进度 */
     var progress: Double
-        get() = lock.read { index } + 1.0 / size
+        get() = (lock.read { index } + 1).toDouble() / size
         set(value) {
             require(value in 0.0..1.0) { "progress should be in [0, 1]" }
             lock.write {

@@ -21,7 +21,6 @@ class Commander(
     directionLimit: Angle,
     private val onFinish: suspend () -> Unit
 ) {
-    private var vMemory = .1
     private val turnDirectionRad = directionLimit.asRadian()
     var isEnabled = false
 
@@ -31,13 +30,11 @@ class Commander(
             when (command) {
                 is FollowCommand.Follow -> {
                     val (v, w) = command
-                    vMemory = v
                     drive(v, w)
                 }
                 is FollowCommand.Turn   -> {
                     val (w, angle) = command
                     turn(w, angle)
-                    goStraight(vMemory, .1)
                     stop()
                 }
                 is FollowCommand.Finish -> {
