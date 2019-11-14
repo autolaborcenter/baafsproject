@@ -13,12 +13,22 @@ import org.mechdancer.geometry.angle.toVector
 import java.util.*
 import kotlin.math.max
 
-/** 势场法局部规划器 */
+/**
+ * 势场法局部规划器
+ *
+ * @param repelArea 斥力范围
+ * @param repelWeight 斥力权重
+ * @param stepLength 步长
+ * @param lookAhead 前瞻点数
+ * @param minRepelPointsCount 最小斥力归一化点数
+ */
 class PotentialFieldLocalPlanner
 internal constructor(
     val repelArea: Shape,
+    private val repelWeight: Double,
     private val stepLength: Double,
-    private val attractWeight: Double
+    private val lookAhead: Int,
+    private val minRepelPointsCount: Int
 ) {
     /**
      * 修饰函数
@@ -44,7 +54,7 @@ internal constructor(
             while (true) {
                 val (p0, d0) = pose
                 // 从全局生产
-                while (attractPoints.size < 8)
+                while (attractPoints.size < lookAhead)
                     attractPoints += consume() ?: break
                 // 从缓冲消费
                 var dn = attractPoints.first().p euclid p0
@@ -55,21 +65,31 @@ internal constructor(
                     else break
                 }
                 // 计算受力
-                val fa = attractPoints.foldIndexed(vector2DOfZero()) { i, sum, (p, _) ->
-                    sum + (p - p0).to2D() * (attractPoints.size - i)
-                } / attractPoints.size.let { n -> n * (n + 1) / 2 } * attractWeight
-                val fr = repelPoints.fold(vector2DOfZero()) { sum, p ->
-                    val v = (p0 - p)
-                    val l = v.norm()
-                    sum + v / (l * l * l)
-                }.let { (x, y) -> vector2DOf(max(x, .0), y) / max(10, repelPoints.size) }
+                val fa =
+                    attractPoints
+                        .foldIndexed(vector2DOfZero()) { i, sum, (p, _) ->
+                            sum + (p - p0).to2D() * (attractPoints.size - i)
+                        } / attractPoints.size.let { n -> n * (n + 1) / 2 }
+                val fr =
+                    repelPoints
+                        .fold(vector2DOfZero()) { sum, p ->
+                            val v = (p0 - p)
+                            val l = v.norm()
+                            sum + v / (l * l * l)
+                        }
+                        .let { (x, y) ->
+                            vector2DOf(max(x, .0), y) * repelWeight / max(minRepelPointsCount, repelPoints.size)
+                        }
                 val f = (fa + fr).normalize().to2D()
+                // 步进
                 pose =
                     if (doubleEquals(f.norm(), .0))
                         Odometry(p0 + vector2DOf(stepLength, 0), d0)
                     else
                         Odometry(p0 + f * stepLength,
-                                 attractPoints.fold(vector2DOfZero()) { sum, it -> sum + it.d.toVector() }.toAngle())
+                                 attractPoints.fold(vector2DOfZero()) { sum, it ->
+                                     sum + it.d.toVector()
+                                 }.toAngle())
                 if (list.any { doubleEquals(it euclid pose.p, .0) }) break
                 if (list.size >= 5) list.poll()
                 list.offer(pose.p)

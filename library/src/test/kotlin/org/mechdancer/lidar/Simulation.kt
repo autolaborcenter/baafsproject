@@ -80,8 +80,8 @@ fun main() {
         // 启动业务交互后台
         val business =
             startBusiness(
-                    robotOnMap = robotOnMap.outputs[0],
-                    globalOnRobot = globalOnRobot
+                robotOnMap = robotOnMap.outputs[0],
+                globalOnRobot = globalOnRobot
             ) {
                 localRadius = .5
                 pathInterval = .05
@@ -95,10 +95,12 @@ fun main() {
         // 局部规划器（势场法）
         val localPlanner =
             potentialFieldLocalPlanner {
-                attractRange = Ellipse(.36, .8)
                 repelRange = Ellipse(.50, .75)
+                repelWeight = .025
                 stepLength = .05
-                attractWeight = 8.0
+
+                lookAhead = 8
+                minRepelPointsCount = 12
             }
         // 循径器（虚拟光感法）
         val pathFollower =
@@ -116,9 +118,9 @@ fun main() {
         // 指令器
         val commander =
             commander(
-                    robotOnOdometry = robotOnMap.outputs[1],
-                    commandOut = commandToRobot.input,
-                    exceptions = exceptions
+                robotOnOdometry = robotOnMap.outputs[1],
+                commandOut = commandToRobot.input,
+                exceptions = exceptions
             ) {
                 directionLimit = (-120).toDegree()
                 onFinish {
@@ -135,10 +137,10 @@ fun main() {
         }.invokeOnCompletion { commandToRobot.input.close(it) }
         // 启动碰撞预警模块
         startCollisionPredictingModule(
-                commandIn = commandToRobot.outputs[0],
-                exception = exceptions,
-                lidarSet = lidarSet,
-                robotOutline = robotOutline
+            commandIn = commandToRobot.outputs[0],
+            exception = exceptions,
+            lidarSet = lidarSet,
+            robotOutline = robotOutline
         ) {
             predictingTime = 1000L
             painter = remote
