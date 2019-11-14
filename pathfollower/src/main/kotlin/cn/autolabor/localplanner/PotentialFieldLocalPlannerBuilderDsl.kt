@@ -24,7 +24,6 @@ private constructor() {
                 }
                 .run {
                     PotentialFieldLocalPlanner(
-                            attractArea = attractRange,
                             repelArea = repelRange,
                             stepLength = stepLength,
                             attractWeight = attractWeight)

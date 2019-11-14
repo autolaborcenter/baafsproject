@@ -13,9 +13,9 @@ import org.mechdancer.geometry.angle.toVector
 import java.util.*
 import kotlin.math.max
 
+/** 势场法局部规划器 */
 class PotentialFieldLocalPlanner
 internal constructor(
-    val attractArea: Shape,
     val repelArea: Shape,
     private val stepLength: Double,
     private val attractWeight: Double
@@ -33,55 +33,51 @@ internal constructor(
         obstacles
             .filter { it in repelArea }
             .takeUnless(Collection<*>::isEmpty)
-            ?.let { repelPoints -> modifyInternal(global, repelPoints) }
+            ?.let { repelPoints -> global.iterator().modifyInternal(repelPoints) }
         ?: global
 
-    private fun modifyInternal(
-        global: Sequence<Odometry>,
-        repelPoints: Collection<Vector2D>
-    ) = sequence {
-        val globalIter = global.iterator()
-        val attractPoints = globalIter.consume()?.let { mutableListOf(it) } ?: return@sequence
-        val list: Queue<Vector2D> = LinkedList()
-        var pose = Odometry.pose()
-        while (true) {
-            val (p0, d0) = pose
-            // 从全局生产
-            while (attractPoints.last().p in attractArea)
-                attractPoints += globalIter.consume() ?: break
-            // 从缓冲消费
-            var dn = attractPoints.first().p euclid p0
+    private fun Iterator<Odometry>.modifyInternal(repelPoints: Collection<Vector2D>) =
+        sequence {
+            val attractPoints = consume()?.let { mutableListOf(it) } ?: return@sequence
+            val list: Queue<Vector2D> = LinkedList()
+            var pose = Odometry.pose()
             while (true) {
-                val `dn-1` = dn
-                dn = attractPoints.getOrNull(1)?.p?.euclid(p0) ?: break
-                if (dn < `dn-1`) attractPoints.removeAt(0)
-                else break
+                val (p0, d0) = pose
+                // 从全局生产
+                while (attractPoints.size < 8)
+                    attractPoints += consume() ?: break
+                // 从缓冲消费
+                var dn = attractPoints.first().p euclid p0
+                while (true) {
+                    val `dn-1` = dn
+                    dn = attractPoints.getOrNull(1)?.p?.euclid(p0) ?: break
+                    if (dn < `dn-1`) attractPoints.removeAt(0)
+                    else break
+                }
+                // 计算受力
+                val fa = attractPoints.foldIndexed(vector2DOfZero()) { i, sum, (p, _) ->
+                    sum + (p - p0).to2D() * (attractPoints.size - i)
+                } / attractPoints.size.let { n -> n * (n + 1) / 2 } * attractWeight
+                val fr = repelPoints.fold(vector2DOfZero()) { sum, p ->
+                    val v = (p0 - p)
+                    val l = v.norm()
+                    sum + v / (l * l * l)
+                }.let { (x, y) -> vector2DOf(max(x, .0), y) / max(10, repelPoints.size) }
+                val f = (fa + fr).normalize().to2D()
+                pose =
+                    if (doubleEquals(f.norm(), .0))
+                        Odometry(p0 + vector2DOf(stepLength, 0), d0)
+                    else
+                        Odometry(p0 + f * stepLength,
+                                 attractPoints.fold(vector2DOfZero()) { sum, it -> sum + it.d.toVector() }.toAngle())
+                if (list.any { doubleEquals(it euclid pose.p, .0) }) break
+                if (list.size >= 5) list.poll()
+                list.offer(pose.p)
+                yield(pose)
             }
-            // 计算受力
-            val fa = attractPoints.foldIndexed(vector2DOfZero()) { i, sum, (p, _) ->
-                sum + (p - p0).to2D() * (attractPoints.size - i)
-            } / attractPoints.size.let { n -> n * (n + 1) / 2 } * attractWeight
-            val fr = repelPoints.fold(vector2DOfZero()) { sum, p ->
-                val v = (p0 - p)
-                val l = v.norm()
-                sum + v / (l * l * l)
-            }.let { (x, y) -> vector2DOf(max(x, .0), y) / max(10, repelPoints.size) }
-            val f = (fa + fr).normalize().to2D()
-            pose =
-                if (doubleEquals(f.norm(), .0))
-                    Odometry(p0 + vector2DOf(stepLength, 0), d0)
-                else
-                    Odometry(p0 + f * stepLength,
-                             attractPoints.fold(vector2DOfZero()) { sum, it -> sum + it.d.toVector() }.toAngle())
-            if (list.any { doubleEquals(it euclid pose.p, .0) }) break
-            if (list.size >= 5) list.poll()
-            list.offer(pose.p)
-            yield(pose)
-        }
-    }.take(50)
+        }.take(50)
 
     private companion object {
-        fun <T> Iterator<T>.consume() =
-            takeIf(Iterator<*>::hasNext)?.next()
+        fun <T : Any> Iterator<T>.consume() = takeIf(Iterator<*>::hasNext)?.next()
     }
 }

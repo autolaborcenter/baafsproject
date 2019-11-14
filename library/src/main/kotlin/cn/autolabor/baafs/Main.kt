@@ -24,6 +24,7 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.common.shape.AnalyticalShape
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.common.shape.Ellipse
 import org.mechdancer.console.parser.buildParser
@@ -236,10 +237,9 @@ fun main() {
             // 刷新固定显示
             if (remote != null)
                 launch {
-                    val (a, r) = localPlanner.sampleArea()
+                    val r = (localPlanner.repelArea as AnalyticalShape).sample()
                     while (isActive) {
                         remote.paint("R 机器人轮廓", robotOutline)
-                        remote.paint("R 引力区域", a)
                         remote.paint("R 斥力区域", r)
                         delay(5000L)
                     }

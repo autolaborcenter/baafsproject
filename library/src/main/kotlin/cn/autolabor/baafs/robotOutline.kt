@@ -1,6 +1,5 @@
 package cn.autolabor.baafs
 
-import cn.autolabor.localplanner.PotentialFieldLocalPlanner
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.shape.AnalyticalShape
@@ -40,6 +39,3 @@ private fun Shape.sample() =
         is AnalyticalShape -> this.sample()
         else               -> throw TypeCastException()
     }
-
-fun PotentialFieldLocalPlanner.sampleArea() =
-    attractArea.sample() to repelArea.sample()
