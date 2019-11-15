@@ -7,7 +7,7 @@ import org.mechdancer.common.shape.Shape
 @BuilderDslMarker
 class PotentialFieldLocalPlannerBuilderDsl
 private constructor() {
-    var repelRange: Shape = Ellipse(.4, .5)
+    var repelArea: Shape = Ellipse(.4, .5)
     var repelWeight: Double = .025
     var stepLength: Double = .05
 
@@ -28,11 +28,11 @@ private constructor() {
                 }
                 .run {
                     PotentialFieldLocalPlanner(
-                        repelArea = repelRange,
-                        repelWeight = repelWeight,
-                        stepLength = stepLength,
-                        lookAhead = lookAhead,
-                        minRepelPointsCount = minRepelPointsCount)
+                            repelArea = repelArea,
+                            repelWeight = repelWeight,
+                            stepLength = stepLength,
+                            lookAhead = lookAhead,
+                            minRepelPointsCount = minRepelPointsCount)
                 }
     }
 }

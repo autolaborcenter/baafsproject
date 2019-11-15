@@ -32,11 +32,6 @@ class Commander(
                     val (v, w) = command
                     drive(v, w)
                 }
-                is FollowCommand.Turn   -> {
-                    val (w, angle) = command
-                    turn(w, angle)
-                    stop()
-                }
                 is FollowCommand.Finish -> {
                     stop()
                     onFinish()

@@ -90,7 +90,7 @@ internal constructor(
                                  attractPoints.fold(vector2DOfZero()) { sum, it ->
                                      sum + it.d.toVector()
                                  }.toAngle())
-                if (list.any { doubleEquals(it euclid pose.p, .0) }) break
+                if (list.any { (it euclid pose.p) < .01 }) break
                 if (list.size >= 5) list.poll()
                 list.offer(pose.p)
                 yield(pose)

@@ -26,7 +26,7 @@ import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.shape.AnalyticalShape
 import org.mechdancer.common.shape.Circle
-import org.mechdancer.common.shape.Ellipse
+import org.mechdancer.common.shape.Polygon
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
@@ -65,8 +65,8 @@ fun main() {
             // 连接底盘
             println("trying to connect to pm1 chassis...")
             startChassis(
-                odometry = robotOnOdometry.input,
-                command = commandToRobot
+                    odometry = robotOnOdometry.input,
+                    command = commandToRobot
             ) {
                 port = null
                 period = 40L
@@ -76,8 +76,8 @@ fun main() {
             // 连接定位标签
             println("trying to connect to marvelmind mobile beacon...")
             startMobileBeacon(
-                beaconOnMap = beaconOnMap,
-                exceptions = exceptions
+                    beaconOnMap = beaconOnMap,
+                    exceptions = exceptions
             ) {
                 port = "/dev/beacon"
                 retryInterval = 100L
@@ -122,9 +122,9 @@ fun main() {
             // 启动定位融合模块（粒子滤波器）
             val particleFilter =
                 startLocationFusion(
-                    robotOnOdometry = robotOnOdometry.outputs[0],
-                    beaconOnMap = beaconOnMap,
-                    robotOnMap = robotOnMap
+                        robotOnOdometry = robotOnOdometry.outputs[0],
+                        beaconOnMap = beaconOnMap,
+                        robotOnMap = robotOnMap
                 ) {
                     filter {
                         beaconOnRobot = vector2DOf(-.01, -.02)
@@ -137,8 +137,8 @@ fun main() {
             // 启动业务交互后台
             val business =
                 startBusiness(
-                    robotOnMap = robotOnMap,
-                    globalOnRobot = globalOnRobot
+                        robotOnMap = robotOnMap,
+                        globalOnRobot = globalOnRobot
                 ) {
                     localRadius = .5
                     pathInterval = .05
@@ -152,8 +152,15 @@ fun main() {
             // 局部规划器（势场法）
             val localPlanner =
                 potentialFieldLocalPlanner {
-                    repelRange = Ellipse(.50, .75)
-                    repelWeight = .025
+                    repelArea = Polygon(
+                            listOf(vector2DOf(-0.5, +0.5),
+                                   vector2DOf(-0.3, +0.5),
+                                   vector2DOf(-0.1, +0.2),
+                                   vector2DOf(+0.1, +0.2),
+                                   vector2DOf(+0.3, +0.5),
+                                   vector2DOf(+1.0, +0.5)
+                            ).mirrorY())
+                    repelWeight = .1
                     stepLength = .05
 
                     lookAhead = 8
@@ -175,9 +182,9 @@ fun main() {
             // 指令器
             val commander =
                 commander(
-                    robotOnOdometry = robotOnOdometry.outputs[1],
-                    commandOut = commandToSwitch.input,
-                    exceptions = exceptions
+                        robotOnOdometry = robotOnOdometry.outputs[1],
+                        commandOut = commandToSwitch.input,
+                        exceptions = exceptions
                 ) {
                     directionLimit = (-120).toDegree()
                     onFinish {
@@ -194,10 +201,10 @@ fun main() {
             }.invokeOnCompletion { commandToSwitch.input.close(it) }
             // 启动碰撞预警模块
             startCollisionPredictingModule(
-                commandIn = commandToSwitch.outputs[0],
-                exception = exceptions,
-                lidarSet = lidarSet,
-                robotOutline = robotOutline
+                    commandIn = commandToSwitch.outputs[0],
+                    exception = exceptions,
+                    lidarSet = lidarSet,
+                    robotOutline = robotOutline
             ) {
                 countToContinue = 4
                 countToStop = 6

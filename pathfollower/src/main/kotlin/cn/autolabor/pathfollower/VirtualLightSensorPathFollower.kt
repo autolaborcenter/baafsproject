@@ -36,29 +36,36 @@ class VirtualLightSensorPathFollower(
 
     private val painter: RemoteHub?
 ) {
-    private var pre = .0
+    private var dir = 0
+    private var turning = false
 
     private val cosMinTip = cos(minTipAngle.asRadian())
     private val minTurnRad = minTurnAngle.asRadian()
     private val maxOmegaRad = maxAngularSpeed.asRadian()
+
+    private fun turn(): Follow {
+        turning = true
+        return Follow(.0, dir * maxOmegaRad)
+    }
 
     /** 计算控制量 */
     operator fun invoke(local: Sequence<Odometry>, progress: Double): FollowCommand {
         if (progress == 1.0) return Finish
         // 光感采样
         val bright = sensor.shine(local)
+        if (turning && bright.size < 4) return turn()
         // 处理异常
         var pn =
             bright.firstOrNull()
             ?: return when {
-                abs(pre) > minTurnRad -> Turn(maxOmegaRad, pre)
-                else                  -> Error
+                dir != 0 -> turn()
+                else     -> Error
             }
         // 查找尖点
         val (tip, i) =
             bright
-                .drop(1)
                 .asSequence()
+                .drop(1)
                 .mapIndexed { i, item -> item to i }
                 .firstOrNull { (it, _) ->
                     val `pn-1` = pn
@@ -69,20 +76,25 @@ class VirtualLightSensorPathFollower(
         painter?.paintPoses("R 尖点", listOf(tip))
         // 处理尖点
         when {
-            i in 1..4 -> pre = tip.d.adjust().asRadian()
-            i > 4     -> pre = .0
+            i > 4     -> dir = 0
+            i in 1..4 -> {
+                val target = (tip.p + tip.d.toVector() * 0.2).toAngle().adjust().asRadian()
+                dir = if (abs(target) > minTurnRad) target.sign.toInt() else 0
+            }
             else      -> {
                 val target = (tip.p + tip.d.toVector() * 0.2).toAngle().adjust().asRadian()
-                if (abs(target) > minTurnRad) return Turn(maxOmegaRad, target)
+                if (abs(target) > minTurnRad) {
+                    dir = target.sign.toInt()
+                    return turn()
+                } else
+                    dir = 0
             }
         }
+        turning = false
+        val light = sensor(bright.take(i + 1))
+        sensor.area?.let { painter?.paint("R 传感器区域", it) }
         // 计算控制量
-        return Follow(v = maxLinearSpeed,
-                      w = controller
-                          .update(new = sensor(bright.take(i + 1)))
-                          .run {
-                              sensor.area?.let { painter?.paint("R 传感器区域", it) }
-                              sign * min(maxOmegaRad, absoluteValue)
-                          })
+        return Follow(v = maxLinearSpeed * min(1.0, 2 * (1 - abs(light))),
+                      w = controller.update(new = light).run { sign * min(maxOmegaRad, absoluteValue) })
     }
 }

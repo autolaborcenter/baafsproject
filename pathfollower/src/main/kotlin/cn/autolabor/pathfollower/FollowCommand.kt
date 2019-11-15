@@ -7,9 +7,6 @@ sealed class FollowCommand {
     /** 跟随 */
     data class Follow(val v: Double, val w: Double) : FollowCommand()
 
-    /** 原地转 */
-    data class Turn(val w: Double, val angle: Double) : FollowCommand()
-
     /** 循径失败 */
     object Error : FollowCommand()
 

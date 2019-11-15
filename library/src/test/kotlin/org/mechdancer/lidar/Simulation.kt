@@ -1,6 +1,7 @@
 package org.mechdancer.lidar
 
 import cn.autolabor.baafs.CollisionPredictingModuleBuilderDsl.Companion.startCollisionPredictingModule
+import cn.autolabor.baafs.mirrorY
 import cn.autolabor.baafs.outlineFilter
 import cn.autolabor.baafs.robotOutline
 import cn.autolabor.business.Business.Functions.Following
@@ -15,13 +16,13 @@ import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.implement.vector.to2D
+import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
-import org.mechdancer.common.shape.AnalyticalShape
 import org.mechdancer.common.shape.Circle
-import org.mechdancer.common.shape.Ellipse
+import org.mechdancer.common.shape.Polygon
 import org.mechdancer.common.toTransformation
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.device.LidarSet
@@ -80,8 +81,8 @@ fun main() {
         // 启动业务交互后台
         val business =
             startBusiness(
-                robotOnMap = robotOnMap.outputs[0],
-                globalOnRobot = globalOnRobot
+                    robotOnMap = robotOnMap.outputs[0],
+                    globalOnRobot = globalOnRobot
             ) {
                 localRadius = .5
                 pathInterval = .05
@@ -95,8 +96,15 @@ fun main() {
         // 局部规划器（势场法）
         val localPlanner =
             potentialFieldLocalPlanner {
-                repelRange = Ellipse(.50, .75)
-                repelWeight = .025
+                repelArea = Polygon(
+                        listOf(vector2DOf(-0.5, +0.5),
+                               vector2DOf(-0.3, +0.5),
+                               vector2DOf(-0.1, +0.2),
+                               vector2DOf(+0.1, +0.2),
+                               vector2DOf(+0.3, +0.5),
+                               vector2DOf(+1.0, +0.5)
+                        ).mirrorY())
+                repelWeight = .1
                 stepLength = .05
 
                 lookAhead = 8
@@ -106,8 +114,8 @@ fun main() {
         val pathFollower =
             pathFollower {
                 sensorPose = Odometry.pose(x = .2)
-                lightRange = Circle(.24, 16)
-                controller = Proportion(1.0)
+                lightRange = Circle(.24, 64)
+                controller = Proportion(.9)
                 minTipAngle = 60.toDegree()
                 minTurnAngle = 15.toDegree()
                 maxLinearSpeed = .16
@@ -118,9 +126,9 @@ fun main() {
         // 指令器
         val commander =
             commander(
-                robotOnOdometry = robotOnMap.outputs[1],
-                commandOut = commandToRobot.input,
-                exceptions = exceptions
+                    robotOnOdometry = robotOnMap.outputs[1],
+                    commandOut = commandToRobot.input,
+                    exceptions = exceptions
             ) {
                 directionLimit = (-120).toDegree()
                 onFinish {
@@ -137,10 +145,10 @@ fun main() {
         }.invokeOnCompletion { commandToRobot.input.close(it) }
         // 启动碰撞预警模块
         startCollisionPredictingModule(
-            commandIn = commandToRobot.outputs[0],
-            exception = exceptions,
-            lidarSet = lidarSet,
-            robotOutline = robotOutline
+                commandIn = commandToRobot.outputs[0],
+                exception = exceptions,
+                lidarSet = lidarSet,
+                robotOutline = robotOutline
         ) {
             predictingTime = 1000L
             painter = remote
@@ -174,7 +182,7 @@ fun main() {
         launch { while (isActive) parser.parseFromConsole() }
         // 刷新固定显示
         launch {
-            val r = (localPlanner.repelArea as AnalyticalShape).sample()
+            val r = localPlanner.repelArea as Polygon
             val o = obstacles.flatMap { it.vertex }
             while (isActive) {
                 remote.paint("R 机器人轮廓", robotOutline)
