@@ -99,8 +99,8 @@ fun main() {
                 repelArea = Polygon(
                         listOf(vector2DOf(-0.5, +0.5),
                                vector2DOf(-0.3, +0.5),
-                               vector2DOf(-0.1, +0.2),
-                               vector2DOf(+0.1, +0.2),
+                               vector2DOf(-0.1, +0.3),
+                               vector2DOf(+0.1, +0.3),
                                vector2DOf(+0.3, +0.5),
                                vector2DOf(+1.0, +0.5)
                         ).mirrorY())

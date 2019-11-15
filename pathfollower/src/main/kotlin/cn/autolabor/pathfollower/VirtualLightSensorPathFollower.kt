@@ -63,12 +63,14 @@ class VirtualLightSensorPathFollower(
         return Follow(.0, dir * maxOmegaRad)
     }
 
+    private val turnCount = 4
+
     /** 计算控制量 */
     operator fun invoke(local: Sequence<Odometry>, progress: Double): FollowCommand {
         if (progress == 1.0) return Finish
         // 光感采样
         val bright = sensor.shine(local)
-        if (turning && bright.size < 4) return turn()
+        if (turning && bright.size < turnCount) return turn()
         // 处理异常
         var pn =
             bright.firstOrNull()
@@ -91,9 +93,9 @@ class VirtualLightSensorPathFollower(
         painter?.paintPoses("R 尖点", listOf(tip))
         // 处理尖点
         when {
-            i > 4     -> dir = 0
-            i in 1..4 -> calculateDir(tip)
-            else      -> if (calculateDir(tip)) return turn()
+            i > turnCount     -> dir = 0
+            i in 1..turnCount -> calculateDir(tip)
+            else              -> if (calculateDir(tip)) return turn()
         }
         turning = false
         val light = sensor(bright.take(i + 1))
