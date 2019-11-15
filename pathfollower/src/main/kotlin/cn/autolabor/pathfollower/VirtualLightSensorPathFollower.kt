@@ -23,6 +23,7 @@ import kotlin.math.*
  *   * 主控制器 [controller]
  *   * 两点方向差大于 [minTipAngle] 判定为尖点
  *   * 在尖点处目标转角大于 [minTurnAngle] 触发转动
+ *   * 转向分界线 [turnThreshold]
  *   * 最大线速度 [maxLinearSpeed]
  *   * 最大角速度 [maxAngularSpeed]
  */
@@ -31,6 +32,7 @@ class VirtualLightSensorPathFollower(
     private val controller: Filter<Double, Double>,
     minTipAngle: Angle,
     minTurnAngle: Angle,
+    turnThreshold: Angle,
     private val maxLinearSpeed: Double,
     maxAngularSpeed: Angle,
 
@@ -42,6 +44,19 @@ class VirtualLightSensorPathFollower(
     private val cosMinTip = cos(minTipAngle.asRadian())
     private val minTurnRad = minTurnAngle.asRadian()
     private val maxOmegaRad = maxAngularSpeed.asRadian()
+    private val turnThresholdRad = turnThreshold.asRadian()
+
+    private fun calculateDir(tip: Odometry): Boolean {
+        val target = (tip.p + tip.d.toVector() * 0.2).toAngle().adjust().asRadian()
+        val turn = abs(target) > minTurnRad
+        dir = if (turn)
+            when (turnThresholdRad) {
+                in target..0.0 -> target + 2 * PI
+                in 0.0..target -> target - 2 * PI
+                else           -> target
+            }.sign.toInt() else 0
+        return turn
+    }
 
     private fun turn(): Follow {
         turning = true
@@ -77,18 +92,8 @@ class VirtualLightSensorPathFollower(
         // 处理尖点
         when {
             i > 4     -> dir = 0
-            i in 1..4 -> {
-                val target = (tip.p + tip.d.toVector() * 0.2).toAngle().adjust().asRadian()
-                dir = if (abs(target) > minTurnRad) target.sign.toInt() else 0
-            }
-            else      -> {
-                val target = (tip.p + tip.d.toVector() * 0.2).toAngle().adjust().asRadian()
-                if (abs(target) > minTurnRad) {
-                    dir = target.sign.toInt()
-                    return turn()
-                } else
-                    dir = 0
-            }
+            i in 1..4 -> calculateDir(tip)
+            else      -> if (calculateDir(tip)) return turn()
         }
         turning = false
         val light = sensor(bright.take(i + 1))
