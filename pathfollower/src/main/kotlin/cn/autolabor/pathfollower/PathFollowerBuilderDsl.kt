@@ -18,6 +18,7 @@ class PathFollowerBuilderDsl private constructor() {
     var controller: Filter<Double, Double> = UnitController
     var minTipAngle: Angle = 60.toDegree()
     var minTurnAngle: Angle = 15.toDegree()
+    var turnThreshold: Angle = 180.toDegree()
     var maxLinearSpeed: Double = 0.1
     var maxAngularSpeed: Angle = 0.5.toRad()
 
@@ -35,15 +36,16 @@ class PathFollowerBuilderDsl private constructor() {
                 }
                 .run {
                     VirtualLightSensorPathFollower(
-                        sensor = VirtualLightSensor(
-                            onRobot = sensorPose,
-                            lightRange = lightRange),
-                        controller = controller,
-                        minTipAngle = minTipAngle,
-                        minTurnAngle = minTurnAngle,
-                        maxLinearSpeed = maxLinearSpeed,
-                        maxAngularSpeed = maxAngularSpeed,
-                        painter = painter)
+                            sensor = VirtualLightSensor(
+                                    onRobot = sensorPose,
+                                    lightRange = lightRange),
+                            controller = controller,
+                            minTipAngle = minTipAngle,
+                            minTurnAngle = minTurnAngle,
+                            turnThreshold = turnThreshold,
+                            maxLinearSpeed = maxLinearSpeed,
+                            maxAngularSpeed = maxAngularSpeed,
+                            painter = painter)
                 }
     }
 }

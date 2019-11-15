@@ -8,12 +8,11 @@ import cn.autolabor.business.parseFromConsole
 import cn.autolabor.business.registerBusinessParser
 import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
-import cn.autolabor.pathfollower.CommanderBuilderDsl.Companion.commander
+import cn.autolabor.pathfollower.Commander
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import cn.autolabor.pathfollower.Proportion
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
-import kotlinx.coroutines.*
 import org.mechdancer.YChannel
 import org.mechdancer.algebra.function.vector.euclid
 import org.mechdancer.algebra.function.vector.norm
@@ -24,7 +23,6 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
-import org.mechdancer.common.shape.AnalyticalShape
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.common.shape.Polygon
 import org.mechdancer.console.parser.buildParser
@@ -63,8 +61,8 @@ try {
         // 连接底盘
         println("trying to connect to pm1 chassis...")
         startChassis(
-            odometry = robotOnOdometry.input,
-            command = commandToRobot
+                odometry = robotOnOdometry.input,
+                command = commandToRobot
         ) {
             port = null
             period = 40L
@@ -74,8 +72,8 @@ try {
         // 连接定位标签
         println("trying to connect to marvelmind mobile beacon...")
         startMobileBeacon(
-            beaconOnMap = beaconOnMap,
-            exceptions = exceptions
+                beaconOnMap = beaconOnMap,
+                exceptions = exceptions
         ) {
             port = "/dev/beacon"
             retryInterval = 100L
@@ -120,9 +118,9 @@ try {
         // 启动定位融合模块（粒子滤波器）
         val particleFilter =
             startLocationFusion(
-                robotOnOdometry = robotOnOdometry.outputs[0],
-                beaconOnMap = beaconOnMap,
-                robotOnMap = robotOnMap
+                    robotOnOdometry = robotOnOdometry.outputs[0],
+                    beaconOnMap = beaconOnMap,
+                    robotOnMap = robotOnMap
             ) {
                 filter {
                     beaconOnRobot = vector2DOf(-.01, -.02)
@@ -135,8 +133,8 @@ try {
         // 启动业务交互后台
         val business =
             startBusiness(
-                robotOnMap = robotOnMap,
-                globalOnRobot = globalOnRobot
+                    robotOnMap = robotOnMap,
+                    globalOnRobot = globalOnRobot
             ) {
                 localRadius = .5
                 pathInterval = .05
@@ -151,13 +149,13 @@ try {
         val localPlanner =
             potentialFieldLocalPlanner {
                 repelArea = Polygon(
-                    listOf(vector2DOf(-0.5, +0.5),
-                           vector2DOf(-0.3, +0.5),
-                           vector2DOf(-0.1, +0.3),
-                           vector2DOf(+0.1, +0.3),
-                           vector2DOf(+0.3, +0.5),
-                           vector2DOf(+1.0, +0.5)
-                    ).mirrorY())
+                        listOf(vector2DOf(-0.5, +0.5),
+                               vector2DOf(-0.3, +0.5),
+                               vector2DOf(-0.1, +0.3),
+                               vector2DOf(+0.1, +0.3),
+                               vector2DOf(+0.3, +0.5),
+                               vector2DOf(+1.0, +0.5)
+                        ).mirrorY())
                 repelWeight = .1
                 stepLength = .05
 
@@ -172,6 +170,7 @@ try {
                 controller = Proportion(.9)
                 minTipAngle = 60.toDegree()
                 minTurnAngle = 15.toDegree()
+                turnThreshold = (-120).toDegree()
                 maxLinearSpeed = .16
                 maxAngularSpeed = .5.toRad()
 
@@ -179,17 +178,11 @@ try {
             }
         // 指令器
         val commander =
-            commander(
-                robotOnOdometry = robotOnOdometry.outputs[1],
-                commandOut = commandToSwitch.input,
-                exceptions = exceptions
-            ) {
-                directionLimit = (-120).toDegree()
-                onFinish {
-                    (business.function as? Following)?.run {
-                        if (loop) global.progress = .0
-                        else business.cancel()
-                    }
+            Commander(commandOut = commandToSwitch.input,
+                      exceptions = exceptions) {
+                (business.function as? Following)?.run {
+                    if (loop) global.progress = .0
+                    else business.cancel()
                 }
             }
         // 启动循径模块
@@ -199,10 +192,10 @@ try {
         }.invokeOnCompletion { commandToSwitch.input.close(it) }
         // 启动碰撞预警模块
         startCollisionPredictingModule(
-            commandIn = commandToSwitch.outputs[0],
-            exception = exceptions,
-            lidarSet = lidarSet,
-            robotOutline = robotOutline
+                commandIn = commandToSwitch.outputs[0],
+                exception = exceptions,
+                lidarSet = lidarSet,
+                robotOutline = robotOutline
         ) {
             countToContinue = 4
             countToStop = 6
@@ -244,7 +237,7 @@ try {
         // 刷新固定显示
         if (remote != null)
             launch {
-                val r = localPlanner.repelArea as Polygon
+                val r = localPlanner.repelArea.toPolygon()
                 while (isActive) {
                     remote.paint("R 机器人轮廓", robotOutline)
                     remote.paint("R 斥力区域", r)

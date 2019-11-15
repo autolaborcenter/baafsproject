@@ -9,7 +9,7 @@ import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.business.parseFromConsole
 import cn.autolabor.business.registerBusinessParser
 import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
-import cn.autolabor.pathfollower.CommanderBuilderDsl.Companion.commander
+import cn.autolabor.pathfollower.Commander
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import cn.autolabor.pathfollower.Proportion
 import kotlinx.coroutines.*
@@ -114,7 +114,7 @@ fun main() {
         val pathFollower =
             pathFollower {
                 sensorPose = Odometry.pose(x = .2)
-                lightRange = Circle(.24, 64)
+                lightRange = Circle(.24, 32)
                 controller = Proportion(.9)
                 minTipAngle = 60.toDegree()
                 minTurnAngle = 15.toDegree()
@@ -125,17 +125,11 @@ fun main() {
             }
         // 指令器
         val commander =
-            commander(
-                    robotOnOdometry = robotOnMap.outputs[1],
-                    commandOut = commandToRobot.input,
-                    exceptions = exceptions
-            ) {
-                directionLimit = (-120).toDegree()
-                onFinish {
-                    (business.function as? Following)?.run {
-                        if (loop) global.progress = .0
-                        else business.cancel()
-                    }
+            Commander(commandOut = commandToRobot.input,
+                      exceptions = exceptions) {
+                (business.function as? Following)?.run {
+                    if (loop) global.progress = .0
+                    else business.cancel()
                 }
             }
         // 启动循径模块

@@ -33,7 +33,7 @@ val outlineFilter = Polygon(
                vector2DOf(-.47, +.12)
         ).mirrorY())
 
-private fun Shape.sample() =
+fun Shape.toPolygon() =
     when (this) {
         is Polygon         -> this
         is AnalyticalShape -> this.sample()
