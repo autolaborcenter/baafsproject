@@ -1,5 +1,6 @@
 package cn.autolabor.localplanner
 
+import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
@@ -59,23 +60,34 @@ internal constructor(
                     if (dn < `dn-1`) attractPoints.removeAt(0)
                     else break
                 }
-                // 计算受力
+                // 计算引力
                 val fa =
                     attractPoints
-                        .sumByVector2D { (p, _) ->
-                            (p - p0).normalize().to2D()
-                        } / attractPoints.size
-                var count = 0
+                        .asSequence()
+                        .map(Odometry::p)
+                        .map(Vector::normalize)
+                        .map(Vector::to2D)
+                        .toList()
+                        .sumByVector2D() / attractPoints.size
+                // 计算斥力
+                val weight: Double
                 val fr =
                     obstacles
-                        .sumByVector2D { repelField(robotToPose(it).to2D()).apply { if (length > 0) ++count } }
-                        .let { (x, y) -> poseToRobot(vector2DOf(max(x, .0), y)) }
-                        .to2D() * repelWeight / max(minRepelPointsCount, count)
-                val f = (fa + fr).normalize().to2D()
-                val tp = p0 + (f.takeIf { it.norm() > 1E-6 } ?: vector2DOf(1, 0)) * stepLength
-                val td = attractPoints.sumByVector2D { it.d.toVector() }.toAngle()
+                        .asSequence()
+                        .map(robotToPose::invoke)
+                        .map(Vector::to2D)
+                        .map(repelField)
+                        .toList()
+                        .also { weight = repelWeight / max(minRepelPointsCount, it.size) }
+                        .sumByVector2D()
+                        .let { (x, y) -> vector2DOf(max(x, .0), y) }
+                        .let(poseToRobot::invoke)
+                        .to2D() * weight
+                // 计算合力（方向），落入局部势垒则直接前进
+                val f = (fa + fr).takeIf { it.length > 1E-6 }?.normalize()?.to2D() ?: vector2DOf(1, 0)
                 // 步进
-                pose = Odometry(tp, td)
+                pose = Odometry(p = p0 + f * stepLength,
+                                d = attractPoints.sumByVector2D { it.d.toVector() }.toAngle())
                 if (list.any { (it euclid pose.p) < .01 }) break
                 if (list.size >= lookAhead) list.poll()
                 list.offer(pose.p)
@@ -85,6 +97,9 @@ internal constructor(
 
     private companion object {
         fun <T : Any> Iterator<T>.consume() = takeIf(Iterator<*>::hasNext)?.next()
+
+        fun Iterable<Vector2D>.sumByVector2D() =
+            fold(vector2DOfZero()) { sum, it -> sum + it }
 
         inline fun <T> Iterable<T>.sumByVector2D(block: (T) -> Vector2D) =
             fold(vector2DOfZero()) { sum, it -> sum + block(it) }
