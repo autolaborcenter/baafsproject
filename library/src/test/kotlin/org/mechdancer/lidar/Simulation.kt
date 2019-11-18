@@ -1,7 +1,6 @@
 package org.mechdancer.lidar
 
 import cn.autolabor.baafs.CollisionPredictingModuleBuilderDsl.Companion.startCollisionPredictingModule
-import cn.autolabor.baafs.mirrorY
 import cn.autolabor.baafs.outlineFilter
 import cn.autolabor.baafs.robotOutline
 import cn.autolabor.business.Business.Functions.Following
@@ -15,14 +14,16 @@ import cn.autolabor.pathfollower.Proportion
 import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.algebra.function.vector.norm
+import org.mechdancer.algebra.function.vector.normalize
+import org.mechdancer.algebra.function.vector.times
+import org.mechdancer.algebra.function.vector.unaryMinus
 import org.mechdancer.algebra.implement.vector.to2D
-import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.shape.Circle
-import org.mechdancer.common.shape.Polygon
 import org.mechdancer.common.toTransformation
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.device.LidarSet
@@ -38,6 +39,7 @@ import org.mechdancer.simulation.Chassis
 import org.mechdancer.simulation.speedSimulation
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.PI
+import kotlin.math.pow
 
 private val pot = Circle(.14, 32).sample()
 
@@ -96,19 +98,18 @@ fun main() {
         // 局部规划器（势场法）
         val localPlanner =
             potentialFieldLocalPlanner {
-                repelArea = Polygon(
-                        listOf(vector2DOf(-0.5, +0.5),
-                               vector2DOf(-0.3, +0.5),
-                               vector2DOf(-0.1, +0.3),
-                               vector2DOf(+0.1, +0.3),
-                               vector2DOf(+0.3, +0.5),
-                               vector2DOf(+1.0, +0.5)
-                        ).mirrorY())
                 repelWeight = .1
                 stepLength = .05
 
                 lookAhead = 8
                 minRepelPointsCount = 12
+
+                val radius = .5
+                val r0 = 1 / (radius * radius)
+                repel {
+                    if (it.length > radius) vector2DOfZero()
+                    else -it.normalize().to2D() * (it.length.pow(-2) - r0)
+                }
             }
         // 循径器（虚拟光感法）
         val pathFollower =
@@ -176,11 +177,9 @@ fun main() {
         launch { while (isActive) parser.parseFromConsole() }
         // 刷新固定显示
         launch {
-            val r = localPlanner.repelArea as Polygon
             val o = obstacles.flatMap { it.vertex }
             while (isActive) {
                 remote.paint("R 机器人轮廓", robotOutline)
-                remote.paint("R 斥力区域", r)
                 remote.paintVectors("障碍物", o)
                 delay(5000L)
             }

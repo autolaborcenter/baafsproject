@@ -13,18 +13,19 @@ import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import cn.autolabor.pathfollower.Proportion
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
+import kotlinx.coroutines.*
 import org.mechdancer.YChannel
-import org.mechdancer.algebra.function.vector.euclid
-import org.mechdancer.algebra.function.vector.norm
+import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
+import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.shape.Circle
-import org.mechdancer.common.shape.Polygon
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
@@ -37,6 +38,7 @@ import org.mechdancer.paint
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.presets.remoteHub
 import kotlin.math.PI
+import kotlin.math.pow
 import kotlin.system.exitProcess
 
 // 画图
@@ -148,19 +150,18 @@ try {
         // 局部规划器（势场法）
         val localPlanner =
             potentialFieldLocalPlanner {
-                repelArea = Polygon(
-                        listOf(vector2DOf(-0.5, +0.5),
-                               vector2DOf(-0.3, +0.5),
-                               vector2DOf(-0.1, +0.3),
-                               vector2DOf(+0.1, +0.3),
-                               vector2DOf(+0.3, +0.5),
-                               vector2DOf(+1.0, +0.5)
-                        ).mirrorY())
                 repelWeight = .1
                 stepLength = .05
 
                 lookAhead = 8
                 minRepelPointsCount = 12
+
+                val radius = .5
+                val r0 = 1 / (radius * radius)
+                repel {
+                    if (it.length > radius) vector2DOfZero()
+                    else -it.normalize().to2D() * (it.length.pow(-2) - r0)
+                }
             }
         // 循径器（虚拟光感法）
         val pathFollower =
@@ -237,10 +238,8 @@ try {
         // 刷新固定显示
         if (remote != null)
             launch {
-                val r = localPlanner.repelArea.toPolygon()
                 while (isActive) {
                     remote.paint("R 机器人轮廓", robotOutline)
-                    remote.paint("R 斥力区域", r)
                     delay(5000L)
                 }
             }

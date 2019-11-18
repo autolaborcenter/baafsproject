@@ -7,7 +7,7 @@ import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.common.Odometry
-import org.mechdancer.common.shape.Shape
+import org.mechdancer.common.toTransformation
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toVector
 import java.util.*
@@ -16,7 +16,7 @@ import kotlin.math.max
 /**
  * 势场法局部规划器
  *
- * @param repelArea 斥力范围
+ * @param repelField 斥力范围
  * @param repelWeight 斥力权重
  * @param stepLength 步长
  * @param lookAhead 前瞻点数
@@ -24,7 +24,7 @@ import kotlin.math.max
  */
 class PotentialFieldLocalPlanner
 internal constructor(
-    val repelArea: Shape,
+    private val repelField: (Vector2D) -> Vector2D,
     private val repelWeight: Double,
     private val stepLength: Double,
     private val lookAhead: Int,
@@ -40,22 +40,17 @@ internal constructor(
         global: Sequence<Odometry>,
         obstacles: Collection<Vector2D>
     ): Sequence<Odometry> =
-        obstacles
-            .filter { it in repelArea }
-            .takeUnless(Collection<*>::isEmpty)
-            ?.let { repelPoints -> global.iterator().modifyInternal(repelPoints) }
-        ?: global
-
-    private fun Iterator<Odometry>.modifyInternal(repelPoints: Collection<Vector2D>) =
         sequence {
-            val attractPoints = consume()?.let { mutableListOf(it) } ?: return@sequence
+            val iter = global.iterator()
+            val attractPoints = iter.consume()?.let { mutableListOf(it) } ?: return@sequence
             val list: Queue<Vector2D> = LinkedList()
             var pose = Odometry.pose()
             while (true) {
+                val robotToPose = pose.toTransformation().inverse()
                 val (p0, d0) = pose
                 // 从全局生产
                 while (attractPoints.size < lookAhead)
-                    attractPoints += consume() ?: break
+                    attractPoints += iter.consume() ?: break
                 // 从缓冲消费
                 var dn = attractPoints.first().p euclid p0
                 while (true) {
@@ -65,20 +60,25 @@ internal constructor(
                     else break
                 }
                 // 计算受力
+                var count = 0
                 val fa =
                     attractPoints
                         .foldIndexed(vector2DOfZero()) { i, sum, (p, _) ->
-                            sum + (p - p0).to2D() * (attractPoints.size - i)
-                        } / attractPoints.size.let { n -> n * (n + 1) / 2 }
+                            val w = attractPoints.size - i
+                            count += w
+                            sum + (p - p0).to2D() * w
+                        } / count
+                count = 0
                 val fr =
-                    repelPoints
+                    obstacles
                         .fold(vector2DOfZero()) { sum, p ->
-                            val v = (p0 - p)
-                            val l = v.norm()
-                            sum + v / (l * l * l)
+                            val v = robotToPose(p).to2D()
+                            val f = repelField(v)
+                            if (f.length > 0) ++count
+                            sum + f
                         }
                         .let { (x, y) ->
-                            vector2DOf(max(x, .0), y) * repelWeight / max(minRepelPointsCount, repelPoints.size)
+                            vector2DOf(max(x, .0), y) * repelWeight / max(minRepelPointsCount, count)
                         }
                 val f = (fa + fr).normalize().to2D()
                 // 步进

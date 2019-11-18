@@ -104,7 +104,7 @@ class ParticleFilter(
                     .takeIf { it in 1..maxInterval }
                     ?.let { interval ->
                         val k = (t - before.time).toDouble() / interval
-                        Stamped(t, m to average(before.data to k, after.data to (1 - k)))
+                        Stamped(t, m to average(before.data to (1 - k), after.data to k))
                     }
             }
             // 计算定位权重
