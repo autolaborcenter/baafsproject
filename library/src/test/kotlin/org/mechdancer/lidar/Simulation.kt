@@ -98,7 +98,7 @@ fun main() {
         // 局部规划器（势场法）
         val localPlanner =
             potentialFieldLocalPlanner {
-                repelWeight = .1
+                repelWeight = .5
                 stepLength = .05
 
                 lookAhead = 8

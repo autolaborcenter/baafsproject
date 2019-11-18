@@ -1,6 +1,5 @@
 package cn.autolabor.localplanner
 
-import org.mechdancer.algebra.doubleEquals
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
@@ -16,7 +15,7 @@ import kotlin.math.max
 /**
  * 势场法局部规划器
  *
- * @param repelField 斥力范围
+ * @param repelField 斥力场函数
  * @param repelWeight 斥力权重
  * @param stepLength 步长
  * @param lookAhead 前瞻点数
@@ -46,8 +45,9 @@ internal constructor(
             val list: Queue<Vector2D> = LinkedList()
             var pose = Odometry.pose()
             while (true) {
-                val robotToPose = pose.toTransformation().inverse()
-                val (p0, d0) = pose
+                val poseToRobot = pose.toTransformation()
+                val robotToPose = poseToRobot.inverse()
+                val (p0, _) = pose
                 // 从全局生产
                 while (attractPoints.size < lookAhead)
                     attractPoints += iter.consume() ?: break
@@ -60,38 +60,24 @@ internal constructor(
                     else break
                 }
                 // 计算受力
-                var count = 0
                 val fa =
                     attractPoints
-                        .foldIndexed(vector2DOfZero()) { i, sum, (p, _) ->
-                            val w = attractPoints.size - i
-                            count += w
-                            sum + (p - p0).to2D() * w
-                        } / count
-                count = 0
+                        .sumByVector2D { (p, _) ->
+                            (p - p0).normalize().to2D()
+                        } / attractPoints.size
+                var count = 0
                 val fr =
                     obstacles
-                        .fold(vector2DOfZero()) { sum, p ->
-                            val v = robotToPose(p).to2D()
-                            val f = repelField(v)
-                            if (f.length > 0) ++count
-                            sum + f
-                        }
-                        .let { (x, y) ->
-                            vector2DOf(max(x, .0), y) * repelWeight / max(minRepelPointsCount, count)
-                        }
+                        .sumByVector2D { repelField(robotToPose(it).to2D()).apply { if (length > 0) ++count } }
+                        .let { (x, y) -> poseToRobot(vector2DOf(max(x, .0), y)) }
+                        .to2D() * repelWeight / max(minRepelPointsCount, count)
                 val f = (fa + fr).normalize().to2D()
+                val tp = p0 + (f.takeIf { it.norm() > 1E-6 } ?: vector2DOf(1, 0)) * stepLength
+                val td = attractPoints.sumByVector2D { it.d.toVector() }.toAngle()
                 // 步进
-                pose =
-                    if (doubleEquals(f.norm(), .0))
-                        Odometry(p0 + vector2DOf(stepLength, 0), d0)
-                    else
-                        Odometry(p0 + f * stepLength,
-                                 attractPoints.fold(vector2DOfZero()) { sum, it ->
-                                     sum + it.d.toVector()
-                                 }.toAngle())
+                pose = Odometry(tp, td)
                 if (list.any { (it euclid pose.p) < .01 }) break
-                if (list.size >= 5) list.poll()
+                if (list.size >= lookAhead) list.poll()
                 list.offer(pose.p)
                 yield(pose)
             }
@@ -99,5 +85,8 @@ internal constructor(
 
     private companion object {
         fun <T : Any> Iterator<T>.consume() = takeIf(Iterator<*>::hasNext)?.next()
+
+        inline fun <T> Iterable<T>.sumByVector2D(block: (T) -> Vector2D) =
+            fold(vector2DOfZero()) { sum, it -> sum + block(it) }
     }
 }
