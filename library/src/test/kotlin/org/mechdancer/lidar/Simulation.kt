@@ -9,8 +9,9 @@ import cn.autolabor.business.parseFromConsole
 import cn.autolabor.business.registerBusinessParser
 import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
 import cn.autolabor.pathfollower.Commander
+import cn.autolabor.pathfollower.FollowCommand
+import cn.autolabor.pathfollower.PIController
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
-import cn.autolabor.pathfollower.Proportion
 import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.algebra.function.vector.norm
@@ -116,7 +117,7 @@ fun main() {
             pathFollower {
                 sensorPose = Odometry.pose(x = .2)
                 lightRange = Circle(.24, 32)
-                controller = Proportion(.9)
+                controller = PIController(.9, 2.0, .7)
                 minTipAngle = 60.toDegree()
                 minTurnAngle = 15.toDegree()
                 maxLinearSpeed = .16
@@ -136,7 +137,10 @@ fun main() {
         // 启动循径模块
         launch {
             for ((global, progress) in globalOnRobot)
-                commander(pathFollower(localPlanner.modify(global, lidarSet.frame), progress))
+                commander(when (progress) {
+                              1.0  -> FollowCommand.Finish
+                              else -> pathFollower(Stamped.stamp(localPlanner.modify(global, lidarSet.frame)))
+                          })
         }.invokeOnCompletion { commandToRobot.input.close(it) }
         // 启动碰撞预警模块
         startCollisionPredictingModule(

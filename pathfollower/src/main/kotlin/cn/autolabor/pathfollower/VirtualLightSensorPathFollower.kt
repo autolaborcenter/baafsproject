@@ -1,10 +1,12 @@
 package cn.autolabor.pathfollower
 
-import cn.autolabor.pathfollower.FollowCommand.*
+import cn.autolabor.pathfollower.FollowCommand.Error
+import cn.autolabor.pathfollower.FollowCommand.Follow
 import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.plus
 import org.mechdancer.algebra.function.vector.times
 import org.mechdancer.common.Odometry
+import org.mechdancer.common.Stamped
 import org.mechdancer.common.filters.Filter
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.adjust
@@ -66,10 +68,9 @@ class VirtualLightSensorPathFollower(
     private val turnCount = 4
 
     /** 计算控制量 */
-    operator fun invoke(local: Sequence<Odometry>, progress: Double): FollowCommand {
-        if (progress == 1.0) return Finish
+    operator fun invoke(local: Stamped<Sequence<Odometry>>): FollowCommand {
         // 光感采样
-        val bright = sensor.shine(local)
+        val bright = sensor.shine(local.data)
         if (turning && bright.size < turnCount) return turn()
         // 处理异常
         var pn =
@@ -102,6 +103,8 @@ class VirtualLightSensorPathFollower(
         sensor.area?.let { painter?.paint("R 传感器区域", it) }
         // 计算控制量
         return Follow(v = maxLinearSpeed * min(1.0, 2 * (1 - abs(light))),
-                      w = controller.update(new = light).run { sign * min(maxOmegaRad, absoluteValue) })
+                      w = controller
+                          .update(new = light, time = local.time)
+                          .run { sign * min(maxOmegaRad, absoluteValue) })
     }
 }

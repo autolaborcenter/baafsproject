@@ -9,6 +9,8 @@ import cn.autolabor.business.registerBusinessParser
 import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.pathfollower.Commander
+import cn.autolabor.pathfollower.FollowCommand
+import cn.autolabor.pathfollower.PIController
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import cn.autolabor.pathfollower.Proportion
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
@@ -38,7 +40,6 @@ import org.mechdancer.paint
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.presets.remoteHub
 import kotlin.math.PI
-import kotlin.math.pow
 import kotlin.system.exitProcess
 
 // 画图
@@ -168,7 +169,7 @@ try {
             pathFollower {
                 sensorPose = Odometry.pose(x = .2)
                 lightRange = Circle(.24, 32)
-                controller = Proportion(.9)
+                controller = PIController(.9, 2.0, .7)
                 minTipAngle = 60.toDegree()
                 minTurnAngle = 15.toDegree()
                 turnThreshold = (-120).toDegree()
@@ -189,7 +190,10 @@ try {
         // 启动循径模块
         launch {
             for ((global, progress) in globalOnRobot)
-                commander(pathFollower(localPlanner.modify(global, lidarSet.frame), progress))
+                commander(when (progress) {
+                              1.0  -> FollowCommand.Finish
+                              else -> pathFollower(Stamped.stamp(localPlanner.modify(global, lidarSet.frame)))
+                          })
         }.invokeOnCompletion { commandToSwitch.input.close(it) }
         // 启动碰撞预警模块
         startCollisionPredictingModule(
