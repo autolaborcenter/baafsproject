@@ -21,6 +21,7 @@ class PathFollowerBuilderDsl private constructor() {
     var turnThreshold: Angle = 180.toDegree()
     var maxLinearSpeed: Double = 0.1
     var maxAngularSpeed: Angle = 0.5.toRad()
+    var kLinearSpeed: Double = 2.0
 
     var painter: RemoteHub? = null
 
@@ -36,16 +37,17 @@ class PathFollowerBuilderDsl private constructor() {
                 }
                 .run {
                     VirtualLightSensorPathFollower(
-                            sensor = VirtualLightSensor(
-                                    onRobot = sensorPose,
-                                    lightRange = lightRange),
-                            controller = controller,
-                            minTipAngle = minTipAngle,
-                            minTurnAngle = minTurnAngle,
-                            turnThreshold = turnThreshold,
-                            maxLinearSpeed = maxLinearSpeed,
-                            maxAngularSpeed = maxAngularSpeed,
-                            painter = painter)
+                        sensor = VirtualLightSensor(
+                            onRobot = sensorPose,
+                            lightRange = lightRange),
+                        controller = controller,
+                        minTipAngle = minTipAngle,
+                        minTurnAngle = minTurnAngle,
+                        turnThreshold = turnThreshold,
+                        maxLinearSpeed = maxLinearSpeed,
+                        maxAngularSpeed = maxAngularSpeed,
+                        kLinearSpeed = kLinearSpeed,
+                        painter = painter)
                 }
     }
 }

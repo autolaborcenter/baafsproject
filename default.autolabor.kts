@@ -40,6 +40,7 @@ import org.mechdancer.paint
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.presets.remoteHub
 import kotlin.math.PI
+import kotlin.math.pow
 import kotlin.system.exitProcess
 
 // 画图

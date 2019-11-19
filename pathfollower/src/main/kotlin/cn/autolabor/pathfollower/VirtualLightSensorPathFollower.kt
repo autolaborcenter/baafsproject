@@ -37,6 +37,7 @@ class VirtualLightSensorPathFollower(
     turnThreshold: Angle,
     private val maxLinearSpeed: Double,
     maxAngularSpeed: Angle,
+    private val kLinearSpeed: Double,
 
     private val painter: RemoteHub?
 ) {
@@ -47,6 +48,8 @@ class VirtualLightSensorPathFollower(
     private val minTurnRad = minTurnAngle.asRadian()
     private val maxOmegaRad = maxAngularSpeed.asRadian()
     private val turnThresholdRad = turnThreshold.asRadian()
+
+    private var t0 = 0L
 
     private fun calculateDir(tip: Odometry): Boolean {
         val target = (tip.p + tip.d.toVector() * 0.2).toAngle().adjust().asRadian()
@@ -69,6 +72,7 @@ class VirtualLightSensorPathFollower(
 
     /** 计算控制量 */
     operator fun invoke(local: Stamped<Sequence<Odometry>>): FollowCommand {
+        if (t0 == 0L) t0 = local.time
         // 光感采样
         val bright = sensor.shine(local.data)
         if (turning && bright.size < turnCount) return turn()
@@ -91,7 +95,6 @@ class VirtualLightSensorPathFollower(
                     pn.d.toVector() dot `pn-1`.d.toVector() < cosMinTip
                 }
             ?: (bright.last() to bright.lastIndex)
-        painter?.paintPoses("R 尖点", listOf(tip))
         // 处理尖点
         when {
             i > turnCount     -> dir = 0
@@ -100,9 +103,13 @@ class VirtualLightSensorPathFollower(
         }
         turning = false
         val light = sensor(bright.take(i + 1))
-        sensor.area?.let { painter?.paint("R 传感器区域", it) }
+        sensor.area?.let {
+            painter?.paint("R 传感器区域", it)
+            painter?.paintPoses("R 尖点", listOf(tip))
+        }
+        painter?.paint("控制器输入", (local.time - t0).toDouble(), light)
         // 计算控制量
-        return Follow(v = maxLinearSpeed * min(1.0, 2 * (1 - abs(light))),
+        return Follow(v = maxLinearSpeed * min(1.0, kLinearSpeed * (1 - abs(light))),
                       w = controller
                           .update(new = light, time = local.time)
                           .run { sign * min(maxOmegaRad, absoluteValue) })
