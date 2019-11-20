@@ -11,7 +11,10 @@ internal class Serial4BytesParser(bits: ByteArray) {
 
     private val buffer =
         ByteArrayOutputStream(Int.SIZE_BYTES)
-            .apply { writeBytes(bits) }
+            .apply {
+                writeBytes(bits)
+                for (i in 1..Int.SIZE_BYTES - bits.size) write(0)
+            }
             .toByteArray()
             .let(::ByteArrayInputStream)
             .let(::DataInputStream)

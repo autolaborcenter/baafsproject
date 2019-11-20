@@ -9,5 +9,9 @@ private fun ByteArray.toHexString() =
     }
 
 fun main() {
-    CanNode.ECU().targetSpeed.pack().toHexString().let(::println)
+    val engine = engine()
+    val pack = CanNode.ECU().targetSpeed.pack()
+    engine(pack.toList()) {
+        println(it)
+    }
 }

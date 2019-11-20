@@ -99,7 +99,7 @@ internal sealed class CanNode(val type: Byte, val index: Byte) {
     protected fun dialogRx(msgType: Int) = message(msgType)
 
     protected fun signal(msgType: Int) =
-        AutoCANPackageHead.PackWithoutData(
+        AutoCANPackageHead.WithoutData(
                 network = 0,
                 priority = 0,
                 nodeType = type,
@@ -107,7 +107,7 @@ internal sealed class CanNode(val type: Byte, val index: Byte) {
                 messageType = msgType.toByte())
 
     protected fun message(msgType: Int) =
-        AutoCANPackageHead.PackWithData(
+        AutoCANPackageHead.WithData(
                 network = 0,
                 priority = 0,
                 nodeType = type,
