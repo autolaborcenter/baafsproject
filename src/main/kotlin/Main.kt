@@ -26,8 +26,8 @@ fun main(args: Array<String>) {
         }
         with(BasicJvmScriptingHost()) {
             compiler(
-                file.toScriptSource(),
-                ScriptConfiguration
+                    file.toScriptSource(),
+                    ScriptConfiguration
             ).onSuccess {
                 job.cancelAndJoin()
                 println("done")

@@ -15,7 +15,6 @@ import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import cn.autolabor.pathfollower.Proportion
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
-import kotlinx.coroutines.*
 import org.mechdancer.YChannel
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -39,8 +38,6 @@ import org.mechdancer.networksInfo
 import org.mechdancer.paint
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.presets.remoteHub
-import kotlin.math.PI
-import kotlin.math.pow
 import kotlin.system.exitProcess
 
 // 画图
