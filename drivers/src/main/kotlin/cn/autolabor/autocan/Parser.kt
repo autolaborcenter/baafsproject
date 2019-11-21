@@ -1,9 +1,10 @@
 package cn.autolabor.autocan
 
-import cn.autolabor.serial4Bytes.Serial4BytesInputStream
 import cn.autolabor.serialport.parser.ParseEngine
 import cn.autolabor.serialport.parser.ParseEngine.ParseInfo
+import cn.autolabor.serialport.parser.serial4Bytes.Serial4BytesInputStream
 
+/** PM1 接收包 */
 internal sealed class PM1Pack {
     object Nothing : PM1Pack()
 
@@ -17,6 +18,7 @@ internal sealed class PM1Pack {
                       val reserve: Byte) : PM1Pack()
 }
 
+/** 构造解析引擎 */
 internal fun engine() =
     ParseEngine<Byte, PM1Pack> { buffer: List<Byte> ->
         val size = buffer.size

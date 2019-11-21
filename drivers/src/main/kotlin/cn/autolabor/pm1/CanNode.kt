@@ -1,5 +1,8 @@
-package cn.autolabor.autocan
+package cn.autolabor.pm1
 
+import cn.autolabor.autocan.AutoCANPackageHead
+
+/** PM1 串口协议 */
 internal sealed class CanNode(val type: Byte, val index: Byte) {
     // 状态
     val stateTx = dialogTx(0x80)

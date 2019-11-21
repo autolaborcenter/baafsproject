@@ -1,6 +1,6 @@
 package cn.autolabor.autocan
 
-import cn.autolabor.serial4Bytes.buildSerial4Bytes
+import cn.autolabor.serialport.parser.serial4Bytes.buildSerial4Bytes
 import java.io.ByteArrayOutputStream
 
 /** Auto CAN 包头结构 */
@@ -42,7 +42,12 @@ internal sealed class AutoCANPackageHead {
         override val messageType: Byte
     ) : AutoCANPackageHead() {
         private val stub = buildStub(false)
-        fun pack(reserve: Byte = 0): ByteArray =
+        private val zeroStub by lazy { build(0) }
+
+        fun pack() = zeroStub
+        fun pack(reserve: Byte) = if (reserve == 0.toByte()) zeroStub else build(reserve)
+
+        private fun build(reserve: Byte): ByteArray =
             ByteArrayOutputStream(6)
                 .apply {
                     writeBytes(stub)

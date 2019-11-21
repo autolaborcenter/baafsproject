@@ -1,4 +1,4 @@
-package cn.autolabor.serial4Bytes
+package cn.autolabor.serialport.parser.serial4Bytes
 
 internal class Serial4BytesInputStream(bits: ByteArray) {
     private val parser = Serial4BytesParser(bits)

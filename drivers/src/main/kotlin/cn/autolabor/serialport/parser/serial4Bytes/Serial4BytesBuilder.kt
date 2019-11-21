@@ -1,4 +1,4 @@
-package cn.autolabor.serial4Bytes
+package cn.autolabor.serialport.parser.serial4Bytes
 
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
