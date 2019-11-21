@@ -11,7 +11,6 @@ import org.mechdancer.SimpleLogger
 import org.mechdancer.WatchDog
 import org.mechdancer.common.Polar
 import org.mechdancer.common.Stamped
-import org.mechdancer.device.PolarFrameCollectorQueue
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered

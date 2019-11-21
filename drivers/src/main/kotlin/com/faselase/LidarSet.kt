@@ -1,4 +1,4 @@
-package org.mechdancer.device
+package com.faselase
 
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D

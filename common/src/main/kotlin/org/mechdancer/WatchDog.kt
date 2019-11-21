@@ -7,6 +7,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
+/** 协程看门狗 */
 class WatchDog(
     scope: CoroutineScope,
     private val timeout: Long,
