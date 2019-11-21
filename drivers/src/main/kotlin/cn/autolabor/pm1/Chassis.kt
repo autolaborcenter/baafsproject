@@ -3,14 +3,20 @@ package cn.autolabor.pm1
 import cn.autolabor.autocan.PM1Pack
 import cn.autolabor.autocan.engine
 import org.mechdancer.ClampMatcher
+import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
+import org.mechdancer.geometry.angle.Angle
+import org.mechdancer.geometry.angle.rotate
+import org.mechdancer.geometry.angle.times
+import org.mechdancer.geometry.angle.unaryMinus
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 
 class Chassis(
     private val maxEncoderInterval: Long,
     private val wheelsEncoder: IncrementalEncoder,
-    private val rudderEncoder: IncrementalEncoder
+    private val rudderEncoder: IncrementalEncoder,
+    private val structure: ChassisStructure
 ) {
     private val engine = engine()
     private val wheelsEncoderMatcher = ClampMatcher<Stamped<Int>, Stamped<Int>>(false)
@@ -20,17 +26,18 @@ class Chassis(
     private val tcu = CanNode.TCU(0)
     private val vcu = CanNode.VCU(0)
 
+    private var odometry = Stamped(0L, Odometry.pose())
+
     // 定时发送
     // 接收左右轮时更新里程计
     // 接收后轮时发送控制指令
 
-    private fun updateEncoders(t: Long, l: Double, r: Double) {
+    private fun updateEncoders(t: Long, l: Angle, r: Angle) {
         val `ln-1` = ecuL.position.data
         val `rn-1` = ecuR.position.data
         ecuL.position = Stamped(t, l)
-        ecuR.position = Stamped(t, l)
-        val dl = ecuL.position.data - `ln-1`
-        val dr = ecuR.position.data - `rn-1`
+        ecuR.position = Stamped(t, r)
+        odometry = Stamped(t, odometry.data plusDelta structure.transform(l rotate -`ln-1`, r rotate -`rn-1`))
     }
 
     private fun checkInterval(matcher: Triple<Stamped<Int>, Stamped<Int>, Stamped<Int>>): Boolean {
@@ -69,7 +76,7 @@ class Chassis(
                                 ?: return@engine
                             val k = (after.time - new.time).toDouble() / (after.time - before.time)
                             updateEncoders(t = new.time,
-                                           l = wheelsEncoder[before.data] * k + wheelsEncoder[after.data] * (1 - k),
+                                           l = wheelsEncoder[before.data] * k rotate wheelsEncoder[after.data] * (1 - k),
                                            r = wheelsEncoder[new.data])
                         }
                         // 右轮编码器
@@ -83,7 +90,7 @@ class Chassis(
                             val k = (after.time - new.time).toDouble() / (after.time - before.time)
                             updateEncoders(t = new.time,
                                            l = wheelsEncoder[new.data],
-                                           r = wheelsEncoder[before.data] * k + wheelsEncoder[after.data] * (1 - k))
+                                           r = wheelsEncoder[before.data] * k rotate wheelsEncoder[after.data] * (1 - k))
                         }
                         // 舵轮编码器
                         tcu.currentPositionRx  -> {

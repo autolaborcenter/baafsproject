@@ -2,6 +2,7 @@ package cn.autolabor.pm1
 
 import cn.autolabor.autocan.AutoCANPackageHead
 import org.mechdancer.common.Stamped
+import org.mechdancer.geometry.angle.toRad
 
 /** PM1 串口协议 */
 internal sealed class CanNode(val type: Byte, val index: Byte) {
@@ -66,7 +67,7 @@ internal sealed class CanNode(val type: Byte, val index: Byte) {
 
     /** 动力控制器 */
     class ECU(index: Byte = EveryNode.index) : CanNode(0x11, index) {
-        var position = Stamped(0L, .0)
+        var position = Stamped(0L, .0.toRad())
         // 设置目标速度
         val targetSpeed = message(1)
         // 当前速度
@@ -83,7 +84,7 @@ internal sealed class CanNode(val type: Byte, val index: Byte) {
 
     /** 转向控制器 */
     class TCU(index: Byte = EveryNode.index) : CanNode(0x12, index) {
-        var position = Stamped(0L, .0)
+        var position = Stamped(0L, .0.toRad())
         // 设置目标角度
         val targetPosition = message(1)
         // 设置目标角度增量
