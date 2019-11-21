@@ -7,16 +7,20 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.rotate
-import org.mechdancer.geometry.angle.times
 import org.mechdancer.geometry.angle.unaryMinus
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 
+/**
+ * 机器人底盘（外设无关）
+ */
 class Chassis(
-    private val maxEncoderInterval: Long,
     private val wheelsEncoder: IncrementalEncoder,
     private val rudderEncoder: IncrementalEncoder,
-    private val structure: ChassisStructure
+    private val structure: ChassisStructure,
+
+    private val maxEncoderInterval: Long,
+    private val optimizeWidth: Angle
 ) {
     private val engine = engine()
     private val wheelsEncoderMatcher = ClampMatcher<Stamped<Int>, Stamped<Int>>(false)
@@ -27,23 +31,6 @@ class Chassis(
     private val vcu = CanNode.VCU(0)
 
     private var odometry = Stamped(0L, Odometry.pose())
-
-    // 定时发送
-    // 接收左右轮时更新里程计
-    // 接收后轮时发送控制指令
-
-    private fun updateEncoders(t: Long, l: Angle, r: Angle) {
-        val `ln-1` = ecuL.position.data
-        val `rn-1` = ecuR.position.data
-        ecuL.position = Stamped(t, l)
-        ecuR.position = Stamped(t, r)
-        odometry = Stamped(t, odometry.data plusDelta structure.transform(l rotate -`ln-1`, r rotate -`rn-1`))
-    }
-
-    private fun checkInterval(matcher: Triple<Stamped<Int>, Stamped<Int>, Stamped<Int>>): Boolean {
-        val (_, before, after) = matcher
-        return after.time in before.time..before.time + maxEncoderInterval
-    }
 
     fun parse(bytes: List<Byte>) {
         engine(bytes) { pack ->
@@ -69,28 +56,26 @@ class Chassis(
                         // 左轮编码器
                         ecuL.currentPositionRx -> {
                             wheelsEncoderMatcher.add1(Stamped(now, pack.getInt()))
-                            val (new, before, after) =
+                            val (t, data) =
                                 wheelsEncoderMatcher.match2()
                                     ?.takeIf(::checkInterval)
-                                    ?.takeIf { (new) -> new > ecuR.position }
+                                    ?.takeIf { (new, _, _) -> new > ecuR.position }
+                                    ?.let(::interpolateMatcher)
                                 ?: return@engine
-                            val k = (after.time - new.time).toDouble() / (after.time - before.time)
-                            updateEncoders(t = new.time,
-                                           l = wheelsEncoder[before.data] * k rotate wheelsEncoder[after.data] * (1 - k),
-                                           r = wheelsEncoder[new.data])
+                            val (r, l) = data
+                            updateOdometry(t, wheelsEncoder[l], wheelsEncoder[r])
                         }
                         // 右轮编码器
                         ecuR.currentPositionRx -> {
                             wheelsEncoderMatcher.add2(Stamped(now, pack.getInt()))
-                            val (new, before, after) =
+                            val (t, data) =
                                 wheelsEncoderMatcher.match1()
                                     ?.takeIf(::checkInterval)
-                                    ?.takeIf { (new) -> new > ecuL.position }
+                                    ?.takeIf { (new, _, _) -> new > ecuL.position }
+                                    ?.let(::interpolateMatcher)
                                 ?: return@engine
-                            val k = (after.time - new.time).toDouble() / (after.time - before.time)
-                            updateEncoders(t = new.time,
-                                           l = wheelsEncoder[new.data],
-                                           r = wheelsEncoder[before.data] * k rotate wheelsEncoder[after.data] * (1 - k))
+                            val (l, r) = data
+                            updateOdometry(t, wheelsEncoder[l], wheelsEncoder[r])
                         }
                         // 舵轮编码器
                         tcu.currentPositionRx  -> {
@@ -99,6 +84,34 @@ class Chassis(
                     }
             }
         }
+    }
+
+    // 检查两轮数据时间差
+    private fun checkInterval(
+        matcher: Triple<Stamped<Int>, Stamped<Int>, Stamped<Int>>
+    ): Boolean {
+        val (_, before, after) = matcher
+        return after.time in before.time..before.time + maxEncoderInterval
+    }
+
+    // 对编码器做插值匹配
+    private fun interpolateMatcher(
+        matcher: Triple<Stamped<Int>, Stamped<Int>, Stamped<Int>>
+    ): Stamped<Pair<Number, Number>> {
+        val (new, before, after) = matcher
+        val k = (after.time - new.time).toDouble() / (after.time - before.time)
+        val interpolation = before.data * k + after.data * (1 - k)
+        return Stamped(new.time, new.data to interpolation)
+    }
+
+    // 更新里程计
+    private fun updateOdometry(t: Long, l: Angle, r: Angle) {
+        val `ln-1` = ecuL.position.data
+        val `rn-1` = ecuR.position.data
+        ecuL.position = Stamped(t, l)
+        ecuR.position = Stamped(t, r)
+        val delta = structure.toDeltaOdometry(l rotate -`ln-1`, r rotate -`rn-1`)
+        odometry = Stamped(t, odometry.data plusDelta delta)
     }
 
     private companion object {
@@ -111,14 +124,12 @@ class Chassis(
 
         fun PM1Pack.WithData.getInt() =
             data.copyOfRange(0, Int.SIZE_BYTES)
-                .reversedArray()
                 .let(::ByteArrayInputStream)
                 .let(::DataInputStream)
                 .readInt()
 
         fun PM1Pack.WithData.getShort() =
             data.copyOfRange(0, Short.SIZE_BYTES)
-                .reversedArray()
                 .let(::ByteArrayInputStream)
                 .let(::DataInputStream)
                 .readShort()
