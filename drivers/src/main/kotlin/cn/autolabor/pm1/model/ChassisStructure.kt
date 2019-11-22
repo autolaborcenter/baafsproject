@@ -1,7 +1,7 @@
-package cn.autolabor.pm1
+package cn.autolabor.pm1.model
 
-import cn.autolabor.pm1.ControlVariable.Physical
-import cn.autolabor.pm1.ControlVariable.Wheels
+import cn.autolabor.pm1.model.ControlVariable.Physical
+import cn.autolabor.pm1.model.ControlVariable.Wheels
 import org.mechdancer.algebra.function.vector.times
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Odometry
@@ -27,6 +27,9 @@ data class ChassisStructure(
                              theta.toRad())
         }
     }
+
+    fun toAngular(wheels: Wheels) =
+        (wheels.l / leftRadius).toRad() to (wheels.r / rightRadius).toRad()
 
     fun toWheels(physical: Physical) =
         when {

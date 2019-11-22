@@ -37,50 +37,56 @@ internal class FaselaseLidar(
 ) : CoroutineScope by scope {
     // 解析
     private val engine = engine()
-    private val port =
-        try {
-            val candidates =
-                portName?.let { listOf(SerialPort.getCommPort(it)) }
-                ?: SerialPort.getCommPorts()
-                    ?.takeIf(Array<*>::isNotEmpty)
-                    ?.toList()
-                ?: throw RuntimeException("no available port")
-            SerialPortFinder
-                .findSerialPort(
-                        candidates = candidates,
-                        engine = engine
-                ) {
-                    baudRate = 460800
-                    timeoutMs = launchTimeout
-                    bufferSize = BUFFER_SIZE
-                    //  启动时发送开始旋转指令
-                    activate = "#SF 10\r\n".toByteArray(Charsets.US_ASCII)
-                    condition { pack -> pack is LidarPack.Data }
-                }
-        } catch (e: RuntimeException) {
-            throw DeviceNotExistException(tag ?: "faselase lidar", e.message)
-        }
-
     // 缓存
     private val queue = PolarFrameCollectorQueue()
     // 访问
-    val tag = tag ?: port.descriptivePortName
+    val tag: String
     val frame get() = queue.get()
 
-    private val offlineException = DeviceOfflineException(this.tag)
-    private val connectionWatchDog =
-        WatchDog(this, connectionTimeout) { exceptions.send(Occurred(offlineException)) }
+    private val offlineException: DeviceOfflineException
+    private val connectionWatchDog: WatchDog
 
-    private val dataTimeoutException = DataTimeoutException(this.tag, dataTimeout)
-    private val dataWatchDog =
-        WatchDog(this, dataTimeout) { exceptions.send(Occurred(dataTimeoutException)) }
+    private val dataTimeoutException: DataTimeoutException
+    private val dataWatchDog: WatchDog
 
-    private val logger = SimpleLogger(this.tag).apply { period = 65536 }
+    private val logger: SimpleLogger
 
     init {
+        val port =
+            try {
+                val candidates =
+                    portName?.let { listOf(SerialPort.getCommPort(it)) }
+                    ?: SerialPort.getCommPorts()
+                        ?.takeIf(Array<*>::isNotEmpty)
+                        ?.toList()
+                    ?: throw RuntimeException("no available port")
+                SerialPortFinder
+                    .findSerialPort(
+                            candidates = candidates,
+                            engine = engine
+                    ) {
+                        baudRate = 460800
+                        timeoutMs = launchTimeout
+                        bufferSize = BUFFER_SIZE
+                        //  启动时发送开始旋转指令
+                        activate = "#SF 10\r\n".toByteArray(Charsets.US_ASCII)
+                        condition { pack -> pack is LidarPack.Data }
+                    }
+            } catch (e: RuntimeException) {
+                throw DeviceNotExistException(tag ?: "faselase lidar", e.message)
+            }
+
+        this.tag = tag ?: port.descriptivePortName
+        logger = SimpleLogger(this.tag).apply { period = 65536 }
+
+        offlineException = DeviceOfflineException(this.tag)
+        dataTimeoutException = DataTimeoutException(this.tag, dataTimeout)
+        connectionWatchDog = WatchDog(this, connectionTimeout) { exceptions.send(Occurred(offlineException)) }
+        dataWatchDog = WatchDog(this, dataTimeout) { exceptions.send(Occurred(dataTimeoutException)) }
+
         launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
             val buffer = ByteArray(BUFFER_SIZE)
-            while (port.isOpen)
+            while (true)
                 port.readOrReboot(buffer, retryInterval) {
                     exceptions.send(Occurred(DeviceOfflineException(this@FaselaseLidar.tag)))
                 }.takeIf(Collection<*>::isNotEmpty)?.let(::write)

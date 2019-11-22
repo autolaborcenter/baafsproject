@@ -1,27 +1,56 @@
 package cn.autolabor.pm1
 
+import cn.autolabor.autocan.AutoCANPackageHead
 import cn.autolabor.autocan.PM1Pack
 import cn.autolabor.autocan.engine
+import cn.autolabor.pm1.model.ChassisStructure
+import cn.autolabor.pm1.model.ControlVariable
+import cn.autolabor.pm1.model.ControlVariable.*
+import cn.autolabor.pm1.model.IncrementalEncoder
+import cn.autolabor.serialport.parser.SerialPortFinder.Companion.findSerialPort
+import cn.autolabor.serialport.parser.readOrReboot
+import com.fazecast.jSerialComm.SerialPort
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.mechdancer.ClampMatcher
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.rotate
+import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.geometry.angle.unaryMinus
 import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
+import java.io.DataOutputStream
+import java.util.concurrent.Executors
+import kotlin.math.abs
+import kotlin.math.max
 
 /**
  * 机器人底盘（外设无关）
  */
 class Chassis(
+    scope: CoroutineScope,
+
     private val wheelsEncoder: IncrementalEncoder,
     private val rudderEncoder: IncrementalEncoder,
     private val structure: ChassisStructure,
 
     private val maxEncoderInterval: Long,
-    private val optimizeWidth: Angle
-) {
+    maxWheelSpeed: Angle,
+    maxVelocity: Velocity,
+    optimizeWidth: Angle,
+
+    private val retryInterval: Long
+) : CoroutineScope by scope {
+    private val maxWheelSpeedRad = maxWheelSpeed.asRadian()
+    private val maxV = maxVelocity.v
+    private val maxW = maxVelocity.w.asRadian()
+    private val optimizeWidthRad = optimizeWidth.asRadian()
+
     private val engine = engine()
     private val wheelsEncoderMatcher = ClampMatcher<Stamped<Int>, Stamped<Int>>(false)
 
@@ -30,9 +59,84 @@ class Chassis(
     private val tcu = CanNode.TCU(0)
     private val vcu = CanNode.VCU(0)
 
-    private var odometry = Stamped(0L, Odometry.pose())
+    var odometry = Stamped(0L, Odometry.pose())
+        private set
 
-    fun parse(bytes: List<Byte>) {
+    var target: ControlVariable = Physical(.0, Double.NaN.toRad())
+
+    private val port =
+        findSerialPort(
+                candidates =
+                SerialPort
+                    .getCommPorts()
+                    .filter {
+                        val name = it.systemPortName.toLowerCase()
+                        "usb" in name || "acm" in name
+                    },
+                engine = engine
+        ) {
+            this.bufferSize = BUFFER_SIZE
+            this.baudRate = 115200
+            this.timeoutMs = 500L
+            this.activate =
+                sequenceOf(CanNode.ECU().currentPositionTx,
+                           tcu.currentPositionTx
+                )
+                    .map(AutoCANPackageHead.WithoutData::pack)
+                    .map(ByteArray::asList)
+                    .flatten()
+                    .toList()
+                    .toByteArray()
+            var lDone = false
+            var rDone = false
+            var rudderDone = false
+            condition { pack ->
+                if (pack !is PM1Pack.WithData) return@condition false
+                val now = System.currentTimeMillis()
+                when (pack.head) {
+                    ecuL.currentPositionRx -> {
+                        val pulse = pack.getInt()
+                        ecuL.position = Stamped(now, pulse.let(wheelsEncoder::toAngular))
+                        wheelsEncoderMatcher.add1(Stamped(now, pulse))
+                        lDone = true
+                    }
+                    ecuR.currentPositionRx -> {
+                        val pulse = pack.getInt()
+                        ecuR.position = Stamped(now, pulse.let(wheelsEncoder::toAngular))
+                        wheelsEncoderMatcher.add2(Stamped(now, pulse))
+                        rDone = true
+                    }
+                    tcu.currentPositionRx  -> {
+                        val pulse = pack.getInt()
+                        tcu.position = Stamped(now, pulse.let(wheelsEncoder::toAngular))
+                        rudderDone = true
+                    }
+                }
+                lDone && rDone && rudderDone
+            }
+        }
+
+    init {
+        launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
+            launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
+                launchAsk(1000L, CanNode.EveryNode.stateTx)
+                launchAsk(50L, CanNode.ECU().currentPositionTx)
+                launchAsk(20L, tcu.currentPositionTx)
+            }
+
+            val buffer = ByteArray(BUFFER_SIZE)
+            while (true)
+                port.readOrReboot(buffer, retryInterval) { System.err.println("retry") }
+                    .takeIf(Collection<*>::isNotEmpty)
+                    ?.let(::invoke)
+                    ?.let { port.writeBytes(it, it.size.toLong()) }
+        }.invokeOnCompletion {
+            port.closePort()
+        }
+    }
+
+    private operator fun invoke(bytes: Iterable<Byte>): ByteArray? {
+        val serial = mutableListOf<Byte>()
         engine(bytes) { pack ->
             val now = System.currentTimeMillis()
             when (pack) {
@@ -63,7 +167,9 @@ class Chassis(
                                     ?.let(::interpolateMatcher)
                                 ?: return@engine
                             val (r, l) = data
-                            updateOdometry(t, wheelsEncoder[l], wheelsEncoder[r])
+                            updateOdometry(t = t,
+                                           l = l.let(wheelsEncoder::toAngular),
+                                           r = r.let(wheelsEncoder::toAngular))
                         }
                         // 右轮编码器
                         ecuR.currentPositionRx -> {
@@ -75,13 +181,39 @@ class Chassis(
                                     ?.let(::interpolateMatcher)
                                 ?: return@engine
                             val (l, r) = data
-                            updateOdometry(t, wheelsEncoder[l], wheelsEncoder[r])
+                            updateOdometry(t = t,
+                                           l = l.let(wheelsEncoder::toAngular),
+                                           r = r.let(wheelsEncoder::toAngular))
                         }
                         // 舵轮编码器
                         tcu.currentPositionRx  -> {
-                            tcu.position = Stamped(now, rudderEncoder[pack.getShort().toInt()])
+                            val current = pack.getShort().let(rudderEncoder::toAngular)
+                            tcu.position = Stamped(now, current)
+                            // 优化控制量
+                            val (l, r, t) = optimize(current)
+                            // 生成脉冲数
+                            val pl = l.let(wheelsEncoder::toPulses)
+                            val pr = r.let(wheelsEncoder::toPulses)
+                            val pt = t.let(rudderEncoder::toPulses).toShort()
+                            serial.addAll(ecuL.targetSpeed.pack(pl).asList())
+                            serial.addAll(ecuR.targetSpeed.pack(pr).asList())
+                            serial.addAll(tcu.targetPosition.pack(pt).asList())
                         }
                     }
+            }
+        }
+        return serial.toByteArray()
+    }
+
+    private fun launchAsk(period: Long, head: AutoCANPackageHead.WithoutData) {
+        launch {
+            val msg = head.pack()
+            var last = System.currentTimeMillis()
+            while (true) {
+                port.writeBytes(msg, msg.size.toLong())
+                val now = System.currentTimeMillis()
+                delay(max(1L, last + period - now))
+                last = now
             }
         }
     }
@@ -114,7 +246,68 @@ class Chassis(
         odometry = Stamped(t, odometry.data plusDelta delta)
     }
 
+    // 生成目标控制量 -> 等轨迹限速 -> 变轨迹限速 -> 生成轮速域控制量
+    private fun optimize(currentRudder: Angle): Triple<Angle, Angle, Angle> {
+        // 处理奇点
+        val any = target
+        if (any is Physical && any.rudder.value.isInfinite())
+            return Triple(0.toRad(), 0.toRad(), Double.NaN.toRad())
+        // 计算限速系数
+        val kl: Double
+        val kr: Double
+        val kv: Double
+        val kw: Double
+        when (any) {
+            is Physical -> any.let(structure::toWheels)
+            is Wheels   -> any
+            is Velocity -> any.let(structure::toWheels)
+        }
+            .let(structure::toAngular)
+            .let { (l, r) ->
+                kl = l.wheelSpeedLimit()
+                kr = r.wheelSpeedLimit()
+            }
+        when (any) {
+            is Physical -> any.let(structure::toVelocity)
+            is Wheels   -> any.let(structure::toVelocity)
+            is Velocity -> any
+        }
+            .limit()
+            .let { (_v, _w) ->
+                kv = _v
+                kw = _w
+            }
+        val physical = when (any) {
+            is Physical -> any
+            is Wheels   -> any.let(structure::toPhysical)
+            is Velocity -> any.let(structure::toPhysical)
+        }
+        // 优化实际轨迹
+        return physical
+            .run {
+                // 不改变目标轨迹的限速
+                val k0 = sequenceOf(1.0, kl, kr, kv, kw).map(::abs).min()!!
+                // 因为目标轨迹无法实现产生的限速
+                val k1 = 1 - abs(rudder.asRadian() - currentRudder.asRadian()) / optimizeWidthRad
+                // 实际可行的控制量
+                Physical(speed * k0 * max(.0, k1), currentRudder)
+            }
+            .let(structure::toWheels)
+            .let(structure::toAngular)
+            .let { (l, r) -> Triple(l, r, physical.rudder) }
+    }
+
+    // 计算轮速域限速系数
+    private fun Angle.wheelSpeedLimit() =
+        maxWheelSpeedRad / this.asRadian()
+
+    // 计算速度域限速系数
+    private fun Velocity.limit() =
+        maxV / this.v to maxW / this.w.asRadian()
+
     private companion object {
+        const val BUFFER_SIZE = 28
+
         fun PM1Pack.WithData.getState() =
             when (data[0]) {
                 0x01.toByte() -> CanNode.State.Normal
@@ -133,5 +326,17 @@ class Chassis(
                 .let(::ByteArrayInputStream)
                 .let(::DataInputStream)
                 .readShort()
+
+        fun AutoCANPackageHead.WithData.pack(short: Short) =
+            ByteArrayOutputStream(Short.SIZE_BYTES)
+                .also { DataOutputStream(it).writeShort(short.toInt()) }
+                .toByteArray()
+                .let { this.pack(data = it) }
+
+        fun AutoCANPackageHead.WithData.pack(int: Int) =
+            ByteArrayOutputStream(Int.SIZE_BYTES)
+                .also { DataOutputStream(it).writeShort(int.toInt()) }
+                .toByteArray()
+                .let { this.pack(data = it) }
     }
 }

@@ -1,4 +1,4 @@
-package cn.autolabor.pm1
+package cn.autolabor.pm1.model
 
 import org.mechdancer.geometry.angle.Angle
 
