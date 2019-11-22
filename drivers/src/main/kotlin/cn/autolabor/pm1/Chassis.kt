@@ -80,14 +80,14 @@ class Chassis(
                     .getCommPorts()
                     .filter {
                         val name = it.systemPortName.toLowerCase()
-                        "usb" in name || "acm" in name
+                        "com" in name || "usb" in name || "acm" in name
                     },
                 engine = engine
         ) {
-            this.bufferSize = BUFFER_SIZE
-            this.baudRate = 115200
-            this.timeoutMs = 500L
-            this.activate =
+            bufferSize = BUFFER_SIZE
+            baudRate = 115200
+            timeoutMs = 500L
+            activate =
                 sequenceOf(CanNode.ECU().currentPositionTx,
                            tcu.currentPositionTx)
                     .map(AutoCANPackageHead.WithoutData::pack)
@@ -115,8 +115,8 @@ class Chassis(
                         rDone = true
                     }
                     tcu.currentPositionRx  -> {
-                        val pulse = pack.getInt()
-                        tcu.position = Stamped(now, pulse.let(wheelsEncoder::toAngular))
+                        val pulse = pack.getShort()
+                        tcu.position = Stamped(now, pulse.let(rudderEncoder::toAngular))
                         rudderDone = true
                     }
                 }
@@ -134,7 +134,7 @@ class Chassis(
 
             val buffer = ByteArray(BUFFER_SIZE)
             while (true)
-                port.readOrReboot(buffer, retryInterval) { System.err.println("retry") }
+                port.readOrReboot(buffer, retryInterval) { }
                     .takeIf(Collection<*>::isNotEmpty)
                     ?.let(::invoke)
                     ?.let { port.writeBytes(it, it.size.toLong()) }
@@ -219,12 +219,9 @@ class Chassis(
     private fun launchAsk(period: Long, head: AutoCANPackageHead.WithoutData) {
         launch {
             val msg = head.pack()
-            var last = System.currentTimeMillis()
             while (true) {
                 port.writeBytes(msg, msg.size.toLong())
-                val now = System.currentTimeMillis()
-                delay(max(1L, last + period - now))
-                last = now
+                delay(period)
             }
         }
     }
@@ -240,8 +237,9 @@ class Chassis(
     // 对编码器做插值匹配
     private fun interpolateMatcher(
         matcher: Triple<Stamped<Int>, Stamped<Int>, Stamped<Int>>
-    ): Stamped<Pair<Number, Number>> {
+    ): Stamped<Pair<Number, Number>>? {
         val (new, before, after) = matcher
+        if (after.time - before.time < 3) return null // TODO 为什么？？？
         val k = (after.time - new.time).toDouble() / (after.time - before.time)
         val interpolation = before.data * k + after.data * (1 - k)
         return Stamped(new.time, new.data to interpolation)

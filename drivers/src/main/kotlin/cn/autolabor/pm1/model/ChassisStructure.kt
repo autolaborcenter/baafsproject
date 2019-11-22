@@ -18,13 +18,13 @@ data class ChassisStructure(
     val length: Double
 ) {
     fun toDeltaOdometry(dl: Angle, dr: Angle): Odometry {
-        val l = dl.asRadian()
-        val r = dr.asRadian()
+        val l = dl.asRadian() * leftRadius
+        val r = dr.asRadian() * rightRadius
         val length = (r + l) / 2
         return when (val theta = (r - l) / width) {
             .0   -> Odometry.pose(length, 0)
-            else -> Odometry(vector2DOf(sin(theta), (1 - cos(theta))) * (length / theta),
-                             theta.toRad())
+            else -> Odometry(p = vector2DOf(sin(theta), (1 - cos(theta))) * (length / theta),
+                             d = theta.toRad())
         }
     }
 
