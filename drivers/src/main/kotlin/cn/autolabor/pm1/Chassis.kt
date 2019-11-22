@@ -15,6 +15,7 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.mechdancer.ClampMatcher
+import org.mechdancer.WatchDog
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.geometry.angle.Angle
@@ -30,7 +31,7 @@ import kotlin.math.abs
 import kotlin.math.max
 
 /**
- * 机器人底盘（外设无关）
+ * 机器人底盘
  */
 class Chassis(
     scope: CoroutineScope,
@@ -62,7 +63,15 @@ class Chassis(
     var odometry = Stamped(0L, Odometry.pose())
         private set
 
+    var enabled = false
+
+    private val controlWatchDog = WatchDog(this, 500L) { enabled = false }
     var target: ControlVariable = Physical(.0, Double.NaN.toRad())
+        set(value) {
+            enabled = true
+            controlWatchDog.feed()
+            field = value
+        }
 
     private val port =
         findSerialPort(
@@ -80,8 +89,7 @@ class Chassis(
             this.timeoutMs = 500L
             this.activate =
                 sequenceOf(CanNode.ECU().currentPositionTx,
-                           tcu.currentPositionTx
-                )
+                           tcu.currentPositionTx)
                     .map(AutoCANPackageHead.WithoutData::pack)
                     .map(ByteArray::asList)
                     .flatten()
@@ -189,15 +197,18 @@ class Chassis(
                         tcu.currentPositionRx  -> {
                             val current = pack.getShort().let(rudderEncoder::toAngular)
                             tcu.position = Stamped(now, current)
-                            // 优化控制量
-                            val (l, r, t) = optimize(current)
-                            // 生成脉冲数
-                            val pl = l.let(wheelsEncoder::toPulses)
-                            val pr = r.let(wheelsEncoder::toPulses)
-                            val pt = t.let(rudderEncoder::toPulses).toShort()
-                            serial.addAll(ecuL.targetSpeed.pack(pl).asList())
-                            serial.addAll(ecuR.targetSpeed.pack(pr).asList())
-                            serial.addAll(tcu.targetPosition.pack(pt).asList())
+                            if (enabled) {
+                                // 优化控制量
+                                val (l, r, t) = optimize(current)
+                                // 生成脉冲数
+                                val pl = l.let(wheelsEncoder::toPulses)
+                                val pr = r.let(wheelsEncoder::toPulses)
+                                val pt = t.let(rudderEncoder::toPulses).toShort()
+                                // 准备发送
+                                serial.addAll(ecuL.targetSpeed.pack(pl).asList())
+                                serial.addAll(ecuR.targetSpeed.pack(pr).asList())
+                                serial.addAll(tcu.targetPosition.pack(pt).asList())
+                            }
                         }
                     }
             }
