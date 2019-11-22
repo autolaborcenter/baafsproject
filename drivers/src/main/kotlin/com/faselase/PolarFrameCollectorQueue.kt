@@ -9,7 +9,7 @@ import kotlin.concurrent.write
 import kotlin.math.PI
 
 /** 极坐标分帧队列（线程安全） */
-internal class PolarFrameCollectorQueue {
+class PolarFrameCollectorQueue {
     private val queue: Queue<Stamped<Polar>> = LinkedList<Stamped<Polar>>()
     private val lock = ReentrantReadWriteLock()
 
