@@ -38,7 +38,7 @@ class Chassis(
     private val rudderEncoder: IncrementalEncoder,
     private val structure: ChassisStructure,
 
-    private val maxEncoderInterval: Long,
+    private val odometryInterval: Long,
     maxWheelSpeed: Angle,
     maxVelocity: Velocity,
     optimizeWidth: Angle,
@@ -51,7 +51,8 @@ class Chassis(
     private val optimizeWidthRad = optimizeWidth.asRadian()
 
     private val engine = engine()
-    private val wheelsEncoderMatcher = ClampMatcher<Stamped<Int>, Stamped<Int>>(false)
+    private val wheelsEncoderMatcher =
+        ClampMatcher<Stamped<Int>, Stamped<Int>>(false)
 
     private val ecuL = CanNode.ECU(0)
     private val ecuR = CanNode.ECU(1)
@@ -63,8 +64,11 @@ class Chassis(
 
     var enabled = false
 
-    private val controlWatchDog = WatchDog(this, 500L) { enabled = false }
-    var target: ControlVariable = Physical(.0, Double.NaN.toRad())
+    private val controlWatchDog =
+        WatchDog(this, 10 * odometryInterval)
+        { enabled = false }
+    var target: ControlVariable =
+        Physical(.0, Double.NaN.toRad())
         set(value) {
             enabled = true
             controlWatchDog.feed()
@@ -126,8 +130,8 @@ class Chassis(
         launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
             launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
                 launchAsk(1000L, CanNode.EveryNode.stateTx)
-                launchAsk(50L, CanNode.ECU().currentPositionTx)
-                launchAsk(20L, tcu.currentPositionTx)
+                launchAsk(odometryInterval, CanNode.ECU().currentPositionTx)
+                launchAsk(odometryInterval / 2, tcu.currentPositionTx)
             }
 
             val buffer = ByteArray(BUFFER_SIZE)
@@ -229,7 +233,7 @@ class Chassis(
         matcher: Triple<Stamped<Int>, Stamped<Int>, Stamped<Int>>
     ): Boolean {
         val (_, before, after) = matcher
-        return after.time in before.time..before.time + maxEncoderInterval
+        return after.time in before.time..before.time + 2 * odometryInterval
     }
 
     // 对编码器做插值匹配
