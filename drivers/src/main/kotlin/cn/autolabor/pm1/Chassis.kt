@@ -12,6 +12,7 @@ import cn.autolabor.serialport.parser.readOrReboot
 import com.fazecast.jSerialComm.SerialPort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.mechdancer.ClampMatcher
@@ -33,21 +34,30 @@ import kotlin.math.max
  */
 class Chassis(
     scope: CoroutineScope,
+    private val robotOnOdometry: SendChannel<Stamped<Odometry>>,
 
-    private val wheelsEncoder: IncrementalEncoder,
-    private val rudderEncoder: IncrementalEncoder,
-    private val structure: ChassisStructure,
+    wheelEncodersPulsesPerRound: Int,
+    rudderEncoderPulsesPerRound: Int,
+
+    width: Double,
+    leftRadius: Double,
+    rightRadius: Double,
+    length: Double,
 
     private val odometryInterval: Long,
     maxWheelSpeed: Angle,
-    maxVelocity: Velocity,
+    private val maxV: Double,
+    maxW: Angle,
     optimizeWidth: Angle,
 
     private val retryInterval: Long
 ) : CoroutineScope by scope {
+    private val wheelsEncoder = IncrementalEncoder(wheelEncodersPulsesPerRound)
+    private val rudderEncoder = IncrementalEncoder(rudderEncoderPulsesPerRound)
+    private val structure = ChassisStructure(width, leftRadius, rightRadius, length)
+
     private val maxWheelSpeedRad = maxWheelSpeed.asRadian()
-    private val maxV = maxVelocity.v
-    private val maxW = maxVelocity.w.asRadian()
+    private val maxWRad = maxW.asRadian()
     private val optimizeWidthRad = optimizeWidth.asRadian()
 
     private val engine = engine()
@@ -75,31 +85,26 @@ class Chassis(
             field = value
         }
 
-    private val port =
-        findSerialPort(
-                candidates =
-                SerialPort
-                    .getCommPorts()
-                    .filter {
-                        val name = it.systemPortName.toLowerCase()
-                        "com" in name || "usb" in name || "acm" in name
-                    },
+    init {
+        val candidates = SerialPort
+            .getCommPorts()
+            .filter {
+                val name = it.systemPortName.toLowerCase()
+                "com" in name || "usb" in name || "acm" in name
+            }
+        val port = findSerialPort(
+                candidates = candidates,
                 engine = engine
         ) {
             bufferSize = BUFFER_SIZE
             baudRate = 115200
             timeoutMs = 500L
-            activate =
-                sequenceOf(CanNode.ECU().currentPositionTx,
-                           tcu.currentPositionTx)
-                    .map(AutoCANPackageHead.WithoutData::pack)
-                    .map(ByteArray::asList)
-                    .flatten()
-                    .toList()
-                    .toByteArray()
-            var lDone = false
-            var rDone = false
-            var rudderDone = false
+            activate = activateBytes
+
+            var left = false
+            var right = false
+            var rudder = false
+            var battery = false
             condition { pack ->
                 if (pack !is PM1Pack.WithData) return@condition false
                 val now = System.currentTimeMillis()
@@ -108,30 +113,33 @@ class Chassis(
                         val pulse = pack.getInt()
                         ecuL.position = Stamped(now, pulse.let(wheelsEncoder::toAngular))
                         wheelsEncoderMatcher.add1(Stamped(now, pulse))
-                        lDone = true
+                        left = true
                     }
                     ecuR.currentPositionRx -> {
                         val pulse = pack.getInt()
                         ecuR.position = Stamped(now, pulse.let(wheelsEncoder::toAngular))
                         wheelsEncoderMatcher.add2(Stamped(now, pulse))
-                        rDone = true
+                        right = true
                     }
                     tcu.currentPositionRx  -> {
                         val pulse = pack.getShort()
                         tcu.position = Stamped(now, pulse.let(rudderEncoder::toAngular))
-                        rudderDone = true
+                        rudder = true
+                    }
+                    vcu.batteryPercentRx   -> {
+                        vcu.batteryPercent = pack.data[0]
+                        battery = true
                     }
                 }
-                lDone && rDone && rudderDone
+                left && right && rudder && battery
             }
         }
 
-    init {
         launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
             launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
-                launchAsk(1000L, CanNode.EveryNode.stateTx)
-                launchAsk(odometryInterval, CanNode.ECU().currentPositionTx)
-                launchAsk(odometryInterval / 2, tcu.currentPositionTx)
+                launchSendingOn(port, 1000L, CanNode.EveryNode.stateTx)
+                launchSendingOn(port, odometryInterval, CanNode.ECU().currentPositionTx)
+                launchSendingOn(port, odometryInterval / 2, tcu.currentPositionTx)
             }
 
             val buffer = ByteArray(BUFFER_SIZE)
@@ -219,14 +227,23 @@ class Chassis(
         return serial.toByteArray()
     }
 
-    private fun launchAsk(period: Long, head: AutoCANPackageHead.WithoutData) {
-        launch {
-            val msg = head.pack()
-            while (true) {
-                port.writeBytes(msg, msg.size.toLong())
-                delay(period)
+    private fun launchSendingOn(
+        port: SerialPort,
+        period: Long,
+        vararg heads: AutoCANPackageHead.WithoutData
+    ) {
+        if (heads.isNotEmpty())
+            launch {
+                val msg = sequence {
+                    for (head in heads)
+                        for (byte in head.pack())
+                            yield(byte)
+                }.toList().toByteArray()
+                while (true) {
+                    port.writeBytes(msg, msg.size.toLong())
+                    delay(period)
+                }
             }
-        }
     }
 
     // 检查两轮数据时间差
@@ -258,6 +275,7 @@ class Chassis(
                 (l.value - `ln-1`).toRad(),
                 (r.value - `rn-1`).toRad())
         odometry = Stamped(t, odometry.data plusDelta delta)
+        launch { robotOnOdometry.send(odometry) }
     }
 
     // 生成目标控制量 -> 等轨迹限速 -> 变轨迹限速 -> 生成轮速域控制量
@@ -318,10 +336,20 @@ class Chassis(
 
     // 计算速度域限速系数
     private fun Velocity.limit() =
-        maxV / this.v to maxW / this.w.asRadian()
+        maxV / this.v to maxWRad / this.w.asRadian()
 
     private companion object {
         const val BUFFER_SIZE = 28
+
+        val activateBytes =
+            sequenceOf(CanNode.ECU().currentPositionTx,
+                       CanNode.TCU(0).currentPositionTx,
+                       CanNode.VCU(0).batteryPercentTx)
+                .map(AutoCANPackageHead.WithoutData::pack)
+                .map(ByteArray::asList)
+                .flatten()
+                .toList()
+                .toByteArray()
 
         fun PM1Pack.WithData.getState() =
             when (data[0]) {

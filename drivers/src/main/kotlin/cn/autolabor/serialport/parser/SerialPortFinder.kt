@@ -40,44 +40,47 @@ class SerialPortFinder<T> private constructor() {
             engine: ParseEngine<Byte, T>,
             block: SerialPortFinder<T>.() -> Unit
         ) =
-            SerialPortFinder<T>()
-                .apply(block)
-                .run {
-                    val exceptionMessages = mutableListOf<String>()
-                    candidates
-                        .find { port ->
-                            // 设置串口
-                            port.baudRate = baudRate
-                            port.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 100, 100)
-                            if (!port.openPort()) {
-                                exceptionMessages += "${port.systemPortName}: cannot open"
-                                return@find false
+            if (candidates.isEmpty())
+                throw RuntimeException("no available port")
+            else
+                SerialPortFinder<T>()
+                    .apply(block)
+                    .run {
+                        val exceptionMessages = mutableListOf<String>()
+                        candidates
+                            .find { port ->
+                                // 设置串口
+                                port.baudRate = baudRate
+                                port.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 100, 100)
+                                if (!port.openPort()) {
+                                    exceptionMessages += "${port.systemPortName}: cannot open"
+                                    return@find false
+                                }
+                                // 发送激活码
+                                if (activate.isNotEmpty()
+                                    && activate.size != port.writeBytes(activate, activate.size.toLong())
+                                ) {
+                                    exceptionMessages += "${port.systemPortName}: failed to send activation"
+                                    return@find false
+                                }
+                                // 初始化接收
+                                val time = System.currentTimeMillis()
+                                val array = ByteArray(bufferSize)
+                                var result = false
+                                // 接收并解析
+                                while (!result && System.currentTimeMillis() - time < timeoutMs)
+                                    port.readBytes(array, array.size.toLong())
+                                        .takeIf { it > 0 }
+                                        ?.let(array::take)
+                                        ?.let { list -> engine(list) { result = result || predicate(it) } }
+                                // 返回
+                                if (!result) {
+                                    exceptionMessages += "${port.systemPortName}: never receive any valid data until timeout"
+                                    port.closePort()
+                                }
+                                result
                             }
-                            // 发送激活码
-                            if (activate.isNotEmpty()
-                                && activate.size != port.writeBytes(activate, activate.size.toLong())
-                            ) {
-                                exceptionMessages += "${port.systemPortName}: failed to send activation"
-                                return@find false
-                            }
-                            // 初始化接收
-                            val time = System.currentTimeMillis()
-                            val array = ByteArray(bufferSize)
-                            var result = false
-                            // 接收并解析
-                            while (!result && System.currentTimeMillis() - time < timeoutMs)
-                                port.readBytes(array, array.size.toLong())
-                                    .takeIf { it > 0 }
-                                    ?.let(array::take)
-                                    ?.let { list -> engine(list) { result = result || predicate(it) } }
-                            // 返回
-                            if (!result) {
-                                exceptionMessages += "${port.systemPortName}: never receive any valid data until timeout"
-                                port.closePort()
-                            }
-                            result
-                        }
                         ?: throw RuntimeException(exceptionMessages.joinToString("\n"))
-                }
+                    }
     }
 }

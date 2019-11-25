@@ -46,6 +46,7 @@ internal sealed class CanNode(val type: Byte, val index: Byte) {
 
     /** 整车控制器 */
     class VCU(index: Byte = EveryNode.index) : CanNode(0x10, index) {
+        var batteryPercent = 0.toByte()
         // 电池
         val batteryPercentTx = dialogTx(1)
         val batteryPercentRx = dialogRx(1)
