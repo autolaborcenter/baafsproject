@@ -205,11 +205,12 @@ class Chassis(
                                 // 生成脉冲数
                                 val pl = l.let(wheelsEncoder::toPulses)
                                 val pr = r.let(wheelsEncoder::toPulses)
-                                val pt = t.let(rudderEncoder::toPulses).toShort()
+                                val pt = t?.let(rudderEncoder::toPulses)?.toShort()
                                 // 准备发送
                                 serial.addAll(ecuL.targetSpeed.pack(pl).asList())
                                 serial.addAll(ecuR.targetSpeed.pack(pr).asList())
-                                serial.addAll(tcu.targetPosition.pack(pt).asList())
+                                if (pt != null)
+                                    serial.addAll(tcu.targetPosition.pack(pt).asList())
                             }
                         }
                     }
@@ -260,11 +261,16 @@ class Chassis(
     }
 
     // 生成目标控制量 -> 等轨迹限速 -> 变轨迹限速 -> 生成轮速域控制量
-    private fun optimize(currentRudder: Angle): Triple<Angle, Angle, Angle> {
+    private fun optimize(currentRudder: Angle): Triple<Angle, Angle, Angle?> {
         // 处理奇点
         val any = target
-        if (any is Physical && any.rudder.value.isInfinite())
-            return Triple(0.toRad(), 0.toRad(), Double.NaN.toRad())
+        val physical = when (any) {
+            is Physical -> any
+            is Wheels   -> any.let(structure::toPhysical)
+            is Velocity -> any.let(structure::toPhysical)
+        }
+        if (!physical.rudder.value.isFinite())
+            return Triple(0.toRad(), 0.toRad(), null)
         // 计算限速系数
         val kl: Double
         val kr: Double
@@ -290,11 +296,7 @@ class Chassis(
                 kv = _v
                 kw = _w
             }
-        val physical = when (any) {
-            is Physical -> any
-            is Wheels   -> any.let(structure::toPhysical)
-            is Velocity -> any.let(structure::toPhysical)
-        }
+
         // 优化实际轨迹
         return physical
             .run {
@@ -348,7 +350,7 @@ class Chassis(
 
         fun AutoCANPackageHead.WithData.pack(int: Int) =
             ByteArrayOutputStream(Int.SIZE_BYTES)
-                .also { DataOutputStream(it).writeShort(int) }
+                .also { DataOutputStream(it).writeInt(int) }
                 .toByteArray()
                 .let { this.pack(data = it) }
     }
