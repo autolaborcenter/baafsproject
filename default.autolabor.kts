@@ -1,6 +1,5 @@
 package cn.autolabor.baafs
 
-import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
 import cn.autolabor.baafs.CollisionPredictingModuleBuilderDsl.Companion.startCollisionPredictingModule
 import cn.autolabor.business.Business.Functions.Following
 import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
@@ -12,9 +11,11 @@ import cn.autolabor.pathfollower.Commander
 import cn.autolabor.pathfollower.FollowCommand
 import cn.autolabor.pathfollower.PIController
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
-import cn.autolabor.pathfollower.Proportion
+import cn.autolabor.pm1.ChassisBuilderDsl.Companion.startPM1Chassis
+import cn.autolabor.pm1.model.ControlVariable
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
+import kotlinx.coroutines.*
 import org.mechdancer.YChannel
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -24,7 +25,6 @@ import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
-import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.console.parser.buildParser
@@ -38,6 +38,7 @@ import org.mechdancer.networksInfo
 import org.mechdancer.paint
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.presets.remoteHub
+import kotlin.math.PI
 import kotlin.system.exitProcess
 
 // 画图
@@ -54,20 +55,14 @@ val robotOnMap = channel<Stamped<Odometry>>()
 val beaconOnMap = channel<Stamped<Vector2D>>()
 val globalOnRobot = channel<Pair<Sequence<Odometry>, Double>>()
 val commandToSwitch = YChannel<NonOmnidirectional>()
-val commandToRobot = channel<NonOmnidirectional>()
 // 任务
 try {
     runBlocking(Dispatchers.Default) {
         // 连接外设
         // 连接底盘
         println("trying to connect to pm1 chassis...")
-        startChassis(
-                odometry = robotOnOdometry.input,
-                command = commandToRobot
-        ) {
-            port = null
-            period = 40L
-            controlTimeout = 400L
+        val chassis = startPM1Chassis(robotOnOdometry.input) {
+            odometryInterval = 40L
         }
         println("done")
         // 连接定位标签
@@ -114,7 +109,7 @@ try {
         // 启动异常服务器
         val exceptionServer =
             startExceptionServer(exceptions) {
-                exceptionOccur { launch { commandToRobot.send(velocity(.0, .0)) } }
+                exceptionOccur { chassis.target = ControlVariable.Velocity(.0, 0.toRad()) }
             }
         // 启动定位融合模块（粒子滤波器）
         val particleFilter =
@@ -207,10 +202,10 @@ try {
         }
         // 启动指令转发
         launch {
-            for (command in commandToSwitch.outputs[1])
+            for ((v, w) in commandToSwitch.outputs[1])
                 if (exceptionServer.isEmpty())
-                    commandToRobot.send(command)
-        }.invokeOnCompletion { commandToRobot.close(it) }
+                    chassis.target = ControlVariable.Velocity(v, w.toRad())
+        }
         println("done")
         // 指令解析器
         val parser = buildParser {
