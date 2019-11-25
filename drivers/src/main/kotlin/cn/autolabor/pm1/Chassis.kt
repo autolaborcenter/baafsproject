@@ -19,9 +19,7 @@ import org.mechdancer.WatchDog
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.geometry.angle.Angle
-import org.mechdancer.geometry.angle.rotate
 import org.mechdancer.geometry.angle.toRad
-import org.mechdancer.geometry.angle.unaryMinus
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
@@ -247,11 +245,13 @@ class Chassis(
 
     // 更新里程计
     private fun updateOdometry(t: Long, l: Angle, r: Angle) {
-        val `ln-1` = ecuL.position.data
-        val `rn-1` = ecuR.position.data
+        val `ln-1` = ecuL.position.data.value
+        val `rn-1` = ecuR.position.data.value
         ecuL.position = Stamped(t, l)
         ecuR.position = Stamped(t, r)
-        val delta = structure.toDeltaOdometry(l rotate -`ln-1`, r rotate -`rn-1`)
+        val delta = structure.toDeltaOdometry(
+                (l.value - `ln-1`).toRad(),
+                (r.value - `rn-1`).toRad())
         odometry = Stamped(t, odometry.data plusDelta delta)
     }
 
@@ -344,7 +344,7 @@ class Chassis(
 
         fun AutoCANPackageHead.WithData.pack(int: Int) =
             ByteArrayOutputStream(Int.SIZE_BYTES)
-                .also { DataOutputStream(it).writeShort(int.toInt()) }
+                .also { DataOutputStream(it).writeShort(int) }
                 .toByteArray()
                 .let { this.pack(data = it) }
     }

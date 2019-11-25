@@ -112,7 +112,7 @@ internal sealed class CanNode(val type: Byte, val index: Byte) {
     protected fun signal(msgType: Int) =
         AutoCANPackageHead.WithoutData(
                 network = 0,
-                priority = 0,
+                priority = 3,
                 nodeType = type,
                 nodeIndex = index,
                 messageType = msgType.toByte())
@@ -120,7 +120,7 @@ internal sealed class CanNode(val type: Byte, val index: Byte) {
     protected fun message(msgType: Int) =
         AutoCANPackageHead.WithData(
                 network = 0,
-                priority = 0,
+                priority = 3,
                 nodeType = type,
                 nodeIndex = index,
                 messageType = msgType.toByte())

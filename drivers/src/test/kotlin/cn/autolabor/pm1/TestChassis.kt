@@ -17,7 +17,7 @@ fun main() = runBlocking(Dispatchers.Default) {
             rudderEncoder = IncrementalEncoder(16384),
             structure = ChassisStructure(.465, .105, .105, .355),
 
-            maxEncoderInterval = 10L,
+            maxEncoderInterval = 80L,
             maxWheelSpeed = 10.toRad(),
             maxVelocity = ControlVariable.Velocity(1.1, 90.toDegree()),
             optimizeWidth = 45.toDegree(),
