@@ -1,16 +1,27 @@
 package cn.autolabor.localplanner
 
 import org.mechdancer.BuilderDslMarker
-import org.mechdancer.common.shape.Ellipse
-import org.mechdancer.common.shape.Shape
+import org.mechdancer.algebra.function.vector.div
+import org.mechdancer.algebra.function.vector.unaryMinus
+import org.mechdancer.algebra.implement.vector.Vector2D
+import kotlin.math.pow
 
 @BuilderDslMarker
 class PotentialFieldLocalPlannerBuilderDsl
 private constructor() {
-    var attractRange: Shape = Ellipse(.3, .8)
-    var repelRange: Shape = Ellipse(.4, .5)
+    var repelWeight: Double = .025
     var stepLength: Double = .05
-    var attractWeight: Double = 5.0
+
+    var lookAhead: Int = 8
+    var minRepelPointsCount: Int = 16
+
+    private var repelField: (Vector2D) -> Vector2D = {
+        -it / it.length.pow(3)
+    }
+
+    fun repel(block: (Vector2D) -> Vector2D) {
+        repelField = block
+    }
 
     companion object {
         fun potentialFieldLocalPlanner(
@@ -19,15 +30,18 @@ private constructor() {
             PotentialFieldLocalPlannerBuilderDsl()
                 .apply(block)
                 .apply {
+                    require((repelWeight > 0))
                     require(stepLength > 0)
-                    require((attractWeight > 0))
+                    require(lookAhead > 0)
+                    require(minRepelPointsCount > 0)
                 }
                 .run {
                     PotentialFieldLocalPlanner(
-                            attractArea = attractRange,
-                            repelArea = repelRange,
+                            repelField = repelField,
+                            repelWeight = repelWeight,
                             stepLength = stepLength,
-                            attractWeight = attractWeight)
+                            lookAhead = lookAhead,
+                            minRepelPointsCount = minRepelPointsCount)
                 }
     }
 }

@@ -8,24 +8,25 @@ import cn.autolabor.business.parseFromConsole
 import cn.autolabor.business.registerBusinessParser
 import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
-import cn.autolabor.pathfollower.CommanderBuilderDsl.Companion.commander
+import cn.autolabor.pathfollower.Commander
+import cn.autolabor.pathfollower.FollowCommand
+import cn.autolabor.pathfollower.PIController
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
-import cn.autolabor.pathfollower.Proportion
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
 import kotlinx.coroutines.*
 import org.mechdancer.YChannel
-import org.mechdancer.algebra.function.vector.euclid
-import org.mechdancer.algebra.function.vector.norm
+import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
+import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.Companion.velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.shape.Circle
-import org.mechdancer.common.shape.Ellipse
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
@@ -38,6 +39,7 @@ import org.mechdancer.paint
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.presets.remoteHub
 import kotlin.math.PI
+import kotlin.math.pow
 import kotlin.system.exitProcess
 
 @ExperimentalCoroutinesApi
@@ -146,23 +148,33 @@ fun main() {
                         && it.p.toAngle().asRadian() in -PI / 3..+PI / 3
                         && it.d.asRadian() in -PI / 3..+PI / 3
                     }
+                    painter = remote
                 }
             // 局部规划器（势场法）
             val localPlanner =
                 potentialFieldLocalPlanner {
-                    attractRange = Ellipse(.36, .8)
-                    repelRange = Ellipse(.50, .75)
+                    repelWeight = .5
                     stepLength = .05
-                    attractWeight = 36.0
+
+                    lookAhead = 8
+                    minRepelPointsCount = 12
+
+                    val radius = .5
+                    val r0 = 1 / (radius * radius)
+                    repel {
+                        if (it.length > radius) vector2DOfZero()
+                        else -it.normalize().to2D() * (it.length.pow(-2) - r0)
+                    }
                 }
             // 循径器（虚拟光感法）
             val pathFollower =
                 pathFollower {
                     sensorPose = Odometry.pose(x = .2)
-                    lightRange = Circle(.24, 16)
-                    controller = Proportion(1.0)
+                    lightRange = Circle(.24, 32)
+                    controller = PIController(.9, 2.0, .7)
                     minTipAngle = 60.toDegree()
                     minTurnAngle = 15.toDegree()
+                    turnThreshold = (-120).toDegree()
                     maxLinearSpeed = .16
                     maxAngularSpeed = .5.toRad()
 
@@ -170,23 +182,20 @@ fun main() {
                 }
             // 指令器
             val commander =
-                commander(
-                        robotOnOdometry = robotOnOdometry.outputs[1],
-                        commandOut = commandToSwitch.input,
-                        exceptions = exceptions
-                ) {
-                    directionLimit = (-120).toDegree()
-                    onFinish {
-                        (business.function as? Following)?.run {
-                            if (loop) global.progress = .0
-                            else business.cancel()
-                        }
+                Commander(commandOut = commandToSwitch.input,
+                          exceptions = exceptions) {
+                    (business.function as? Following)?.run {
+                        if (loop) global.progress = .0
+                        else business.cancel()
                     }
                 }
             // 启动循径模块
             launch {
                 for ((global, progress) in globalOnRobot)
-                    commander(pathFollower(localPlanner.modify(global, lidarSet.frame), progress))
+                    commander(when (progress) {
+                                  1.0  -> FollowCommand.Finish
+                                  else -> pathFollower(Stamped.stamp(localPlanner.modify(global, lidarSet.frame)))
+                              })
             }.invokeOnCompletion { commandToSwitch.input.close(it) }
             // 启动碰撞预警模块
             startCollisionPredictingModule(
@@ -235,11 +244,8 @@ fun main() {
             // 刷新固定显示
             if (remote != null)
                 launch {
-                    val (a, r) = localPlanner.sampleArea()
                     while (isActive) {
                         remote.paint("R 机器人轮廓", robotOutline)
-                        remote.paint("R 引力区域", a)
-                        remote.paint("R 斥力区域", r)
                         delay(5000L)
                     }
                 }

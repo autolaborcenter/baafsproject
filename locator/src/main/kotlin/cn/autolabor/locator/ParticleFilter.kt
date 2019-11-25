@@ -1,6 +1,6 @@
 package cn.autolabor.locator
 
-import cn.autolabor.utilities.ClampMatcher
+import org.mechdancer.ClampMatcher
 import org.mechdancer.DebugTemporary
 import org.mechdancer.DebugTemporary.Operation.DELETE
 import org.mechdancer.DebugTemporary.Operation.REDUCE
@@ -44,7 +44,7 @@ class ParticleFilter(
     private val sigma: Double,
     private val predicate: Schmitt<FusionQuality>
 ) : Mixer<Stamped<Odometry>, Stamped<Vector2D>, Stamped<Odometry>> {
-    private val matcher = ClampMatcher<Stamped<Odometry>, Stamped<Vector2D>>()
+    private val matcher = ClampMatcher<Stamped<Odometry>, Stamped<Vector2D>>(true)
 
     // 过程记录器
     @DebugTemporary(DELETE)
@@ -104,7 +104,7 @@ class ParticleFilter(
                     .takeIf { it in 1..maxInterval }
                     ?.let { interval ->
                         val k = (t - before.time).toDouble() / interval
-                        Stamped(t, m to average(before.data to k, after.data to (1 - k)))
+                        Stamped(t, m to average(before.data to (1 - k), after.data to k))
                     }
             }
             // 计算定位权重

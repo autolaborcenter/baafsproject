@@ -18,8 +18,10 @@ class PathFollowerBuilderDsl private constructor() {
     var controller: Filter<Double, Double> = UnitController
     var minTipAngle: Angle = 60.toDegree()
     var minTurnAngle: Angle = 15.toDegree()
+    var turnThreshold: Angle = 180.toDegree()
     var maxLinearSpeed: Double = 0.1
     var maxAngularSpeed: Angle = 0.5.toRad()
+    var kLinearSpeed: Double = 2.0
 
     var painter: RemoteHub? = null
 
@@ -41,8 +43,10 @@ class PathFollowerBuilderDsl private constructor() {
                         controller = controller,
                         minTipAngle = minTipAngle,
                         minTurnAngle = minTurnAngle,
+                        turnThreshold = turnThreshold,
                         maxLinearSpeed = maxLinearSpeed,
                         maxAngularSpeed = maxAngularSpeed,
+                        kLinearSpeed = kLinearSpeed,
                         painter = painter)
                 }
     }

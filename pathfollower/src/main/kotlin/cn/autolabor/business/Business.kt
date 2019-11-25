@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 import org.mechdancer.algebra.function.vector.euclid
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
+import org.mechdancer.remote.presets.RemoteHub
 
 /** 业务模块 */
 class Business internal constructor(
@@ -16,18 +17,16 @@ class Business internal constructor(
     private val robotOnMap: ReceiveChannel<Stamped<Odometry>>,
     private val globalOnRobot: SendChannel<Pair<Sequence<Odometry>, Double>>,
 
-    localRadius: Double,
     private val pathInterval: Double,
-    localFirst: (Odometry) -> Boolean
+    localFirst: (Odometry) -> Boolean,
+
+    painter: RemoteHub?
 ) {
     /** 当前业务功能 */
     var function: Functions? = null
         private set
     /** 全局路径管理 */
-    val globals = PathManager(
-            localRadius,
-            pathInterval,
-            localFirst)
+    val globals = PathManager(localFirst, painter)
 
     /** 开始录制 */
     suspend fun startRecording() {

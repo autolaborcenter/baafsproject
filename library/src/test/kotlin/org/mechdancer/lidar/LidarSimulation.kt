@@ -1,6 +1,7 @@
 package org.mechdancer.lidar
 
 import cn.autolabor.baafs.outlineFilter
+import com.faselase.LidarSet
 import kotlinx.coroutines.*
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.common.Odometry
@@ -9,7 +10,6 @@ import org.mechdancer.common.Velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.common.toTransformation
-import org.mechdancer.device.LidarSet
 import org.mechdancer.lidar.Default.commands
 import org.mechdancer.lidar.Default.remote
 import org.mechdancer.lidar.Default.simulationLidar

@@ -1,4 +1,4 @@
-package cn.autolabor.utilities
+package org.mechdancer
 
 import org.mechdancer.common.Stamped
 import kotlin.concurrent.thread
@@ -15,7 +15,7 @@ class TestClampMatcher {
 
     @Test
     fun test() {
-        val matcher = ClampMatcher<Stamped<Int>, Stamped<Int>>()
+        val matcher = ClampMatcher<Stamped<Int>, Stamped<Int>>(true)
 
         val addTask = { intervalMs: Long, block: Matcher<Stamped<Int>, Stamped<Int>>.() -> Unit ->
             while (true) {

@@ -1,6 +1,5 @@
 package cn.autolabor.baafs
 
-import cn.autolabor.localplanner.PotentialFieldLocalPlanner
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.shape.AnalyticalShape
@@ -8,8 +7,8 @@ import org.mechdancer.common.shape.Polygon
 import org.mechdancer.common.shape.Shape
 
 // 镜像点列表
-private fun List<Vector2D>.mirror() =
-    this + this.map { (x, y) -> vector2DOf(x, -y) }.reversed()
+fun List<Vector2D>.mirrorY() =
+    this + this.map { (x, y) -> vector2DOf(+x, -y) }.reversed()
 
 // 机器人外轮廓
 val robotOutline = Polygon(
@@ -21,7 +20,7 @@ val robotOutline = Polygon(
                vector2DOf(-.10, +.18),
                vector2DOf(-.25, +.18),
                vector2DOf(-.47, +.12)
-        ).mirror())
+        ).mirrorY())
 
 // 用于过滤的外轮廓
 val outlineFilter = Polygon(
@@ -32,14 +31,11 @@ val outlineFilter = Polygon(
                vector2DOf(-.13, +.18),
                vector2DOf(-.25, +.18),
                vector2DOf(-.47, +.12)
-        ).mirror())
+        ).mirrorY())
 
-private fun Shape.sample() =
+fun Shape.toPolygon() =
     when (this) {
         is Polygon         -> this
         is AnalyticalShape -> this.sample()
         else               -> throw TypeCastException()
     }
-
-fun PotentialFieldLocalPlanner.sampleArea() =
-    attractArea.sample() to repelArea.sample()

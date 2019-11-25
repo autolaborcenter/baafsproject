@@ -1,11 +1,11 @@
 package org.mechdancer.lidar
 
+import com.faselase.PolarFrameCollectorQueue
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Polar
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.shape.Polygon
 import org.mechdancer.common.toTransformation
-import org.mechdancer.device.PolarFrameCollectorQueue
 import org.mechdancer.simulation.Lidar
 import org.mechdancer.simulation.random.Normal
 
