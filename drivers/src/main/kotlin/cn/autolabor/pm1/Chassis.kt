@@ -13,9 +13,9 @@ import com.fazecast.jSerialComm.SerialPort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.channels.SendChannel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.mechdancer.ClampMatcher
+import org.mechdancer.SimpleLogger
 import org.mechdancer.WatchDog
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
@@ -26,6 +26,7 @@ import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.util.concurrent.Executors
+import kotlin.concurrent.thread
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -85,6 +86,8 @@ class Chassis(
             field = value
         }
 
+    private val logger = SimpleLogger("Chassis")
+
     init {
         val candidates = SerialPort
             .getCommPorts()
@@ -135,13 +138,30 @@ class Chassis(
             }
         }
 
-        launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
-            launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
-                launchSendingOn(port, 1000L, CanNode.EveryNode.stateTx)
-                launchSendingOn(port, odometryInterval, CanNode.ECU().currentPositionTx)
-                launchSendingOn(port, odometryInterval / 2, tcu.currentPositionTx)
+        thread(isDaemon = true) {
+            val msg =
+                listOf(CanNode.EveryNode.stateTx to 1000L,
+                       CanNode.ECU().currentPositionTx to odometryInterval,
+                       tcu.currentPositionTx to odometryInterval / 2
+                ).map { (head, t) -> head.pack() to t }
+            val t0 = System.currentTimeMillis()
+            val flags = LongArray(msg.size) { i -> t0 + msg[i].second }
+            while (true) {
+                val now = System.currentTimeMillis()
+                msg.indices
+                    .asSequence()
+                    .filter { i -> flags[i] < now }
+                    .onEach { i -> flags[i] += msg[i].second }
+                    .flatMap { i -> msg[i].first.asSequence() }
+                    .toList()
+                    .toByteArray()
+                    .let { port.writeBytes(it, it.size.toLong()) }
+                logger.log("sending")
+                Thread.sleep(max(1, flags.min()!! - now - 1))
             }
+        }
 
+        launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
             val buffer = ByteArray(BUFFER_SIZE)
             while (true)
                 port.readOrReboot(buffer, retryInterval) { }
@@ -164,17 +184,25 @@ class Chassis(
                 is PM1Pack.WithData    ->
                     when (pack.head) {
                         // 左轮状态
-                        ecuL.stateRx           ->
+                        ecuL.stateRx           -> {
                             ecuL.state = Stamped(now, pack.getState())
+                            logger.log("left ecu state received")
+                        }
                         // 右轮状态
-                        ecuR.stateRx           ->
+                        ecuR.stateRx           -> {
                             ecuR.state = Stamped(now, pack.getState())
+                            logger.log("right ecu state received")
+                        }
                         // 舵轮状态
-                        tcu.stateRx            ->
+                        tcu.stateRx            -> {
                             tcu.state = Stamped(now, pack.getState())
+                            logger.log("tcu state received")
+                        }
                         // 整车控制器状态
-                        vcu.stateRx            ->
+                        vcu.stateRx            -> {
                             vcu.state = Stamped(now, pack.getState())
+                            logger.log("vcu state received")
+                        }
                         // 左轮编码器
                         ecuL.currentPositionRx -> {
                             wheelsEncoderMatcher.add1(Stamped(now, pack.getInt()))
@@ -188,6 +216,7 @@ class Chassis(
                             updateOdometry(t = t,
                                            l = l.let(wheelsEncoder::toAngular),
                                            r = r.let(wheelsEncoder::toAngular))
+                            logger.log("left encoder received")
                         }
                         // 右轮编码器
                         ecuR.currentPositionRx -> {
@@ -202,11 +231,13 @@ class Chassis(
                             updateOdometry(t = t,
                                            l = l.let(wheelsEncoder::toAngular),
                                            r = r.let(wheelsEncoder::toAngular))
+                            logger.log("right encoder received")
                         }
                         // 舵轮编码器
                         tcu.currentPositionRx  -> {
                             val current = pack.getShort().let(rudderEncoder::toAngular)
                             tcu.position = Stamped(now, current)
+                            logger.log("rudder encoder received")
                             if (enabled) {
                                 // 优化控制量
                                 val (l, r, t) = optimize(current)
@@ -227,24 +258,6 @@ class Chassis(
         return serial.toByteArray()
     }
 
-    private fun launchSendingOn(
-        port: SerialPort,
-        period: Long,
-        vararg heads: AutoCANPackageHead.WithoutData
-    ) {
-        if (heads.isNotEmpty())
-            launch {
-                val msg = sequence {
-                    for (head in heads)
-                        for (byte in head.pack())
-                            yield(byte)
-                }.toList().toByteArray()
-                while (true) {
-                    port.writeBytes(msg, msg.size.toLong())
-                    delay(period)
-                }
-            }
-    }
 
     // 检查两轮数据时间差
     private fun checkInterval(
@@ -338,6 +351,17 @@ class Chassis(
     private fun Velocity.limit() =
         maxV / this.v to maxWRad / this.w.asRadian()
 
+    private class Sender {
+        private val list = mutableListOf<Byte>()
+
+        fun append(iterable: Iterable<Byte>) {
+            list.addAll(iterable)
+        }
+
+        fun build() = list.toByteArray()
+    }
+
+
     private companion object {
         const val BUFFER_SIZE = 28
 
@@ -350,6 +374,10 @@ class Chassis(
                 .flatten()
                 .toList()
                 .toByteArray()
+
+        fun SerialPort.send(block: Sender.() -> Unit) {
+            Sender().apply(block).build().let { writeBytes(it, it.size.toLong()) }
+        }
 
         fun PM1Pack.WithData.getState() =
             when (data[0]) {
