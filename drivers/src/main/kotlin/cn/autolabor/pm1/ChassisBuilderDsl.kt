@@ -24,6 +24,7 @@ class ChassisBuilderDsl private constructor() {
     var maxV: Double = 1.1
     var maxW: Angle = 90.toDegree()
     var optimizeWidth: Angle = 45.toDegree()
+    var maxAccelerate: Double = .5
 
     var retryInterval: Long = 500L
 
@@ -48,6 +49,7 @@ class ChassisBuilderDsl private constructor() {
                     require(maxV > 0)
                     require(maxW.value > 0)
                     require(optimizeWidth.asDegree() in 0.0..90.0)
+                    require(maxAccelerate > 0)
 
                     require(retryInterval > 0)
                 }
@@ -69,6 +71,7 @@ class ChassisBuilderDsl private constructor() {
                             maxV = maxV,
                             maxW = maxW,
                             optimizeWidth = optimizeWidth,
+                            maxAccelerate = maxAccelerate,
 
                             retryInterval = retryInterval)
                 }

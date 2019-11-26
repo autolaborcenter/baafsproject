@@ -5,8 +5,9 @@ import cn.autolabor.autocan.PM1Pack
 import cn.autolabor.autocan.engine
 import cn.autolabor.pm1.model.ChassisStructure
 import cn.autolabor.pm1.model.ControlVariable
-import cn.autolabor.pm1.model.ControlVariable.*
+import cn.autolabor.pm1.model.ControlVariable.Physical
 import cn.autolabor.pm1.model.IncrementalEncoder
+import cn.autolabor.pm1.model.Optimizer
 import cn.autolabor.serialport.parser.SerialPortFinder.Companion.findSerialPort
 import cn.autolabor.serialport.parser.readOrReboot
 import com.fazecast.jSerialComm.SerialPort
@@ -27,7 +28,6 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.util.concurrent.Executors
 import kotlin.concurrent.thread
-import kotlin.math.abs
 import kotlin.math.max
 
 /**
@@ -47,24 +47,23 @@ class Chassis(
 
     private val odometryInterval: Long,
     maxWheelSpeed: Angle,
-    private val maxV: Double,
+    maxV: Double,
     maxW: Angle,
     optimizeWidth: Angle,
+    maxAccelerate: Double,
 
     private val retryInterval: Long
 ) : CoroutineScope by scope {
+    // 无状态计算
     private val wheelsEncoder = IncrementalEncoder(wheelEncodersPulsesPerRound)
     private val rudderEncoder = IncrementalEncoder(rudderEncoderPulsesPerRound)
     private val structure = ChassisStructure(width, leftRadius, rightRadius, length)
-
-    private val maxWheelSpeedRad = maxWheelSpeed.asRadian()
-    private val maxWRad = maxW.asRadian()
-    private val optimizeWidthRad = optimizeWidth.asRadian()
-
+    private val optimizer = Optimizer(maxWheelSpeed, maxV, maxW, optimizeWidth, maxAccelerate, odometryInterval / 2)
+    // 解析引擎
     private val engine = engine()
     private val wheelsEncoderMatcher =
         ClampMatcher<Stamped<Int>, Stamped<Int>>(false)
-
+    // 节点状态
     private val ecuL = CanNode.ECU(0)
     private val ecuR = CanNode.ECU(1)
     private val tcu = CanNode.TCU(0)
@@ -74,10 +73,15 @@ class Chassis(
         private set
 
     var enabled = false
+        set(value) {
+            if (!value) lastSpeed = .0
+            field = value
+        }
 
     private val controlWatchDog =
         WatchDog(this, 10 * odometryInterval)
         { enabled = false }
+    private var lastSpeed = .0
     var target: ControlVariable =
         Physical(.0, Double.NaN.toRad())
         set(value) {
@@ -89,6 +93,7 @@ class Chassis(
     private val logger = SimpleLogger("Chassis")
 
     init {
+        // 开串口
         val candidates = SerialPort
             .getCommPorts()
             .filter {
@@ -137,7 +142,7 @@ class Chassis(
                 left && right && rudder && battery
             }
         }
-
+        // 启动轮转发送线程
         thread(isDaemon = true) {
             val msg =
                 listOf(CanNode.EveryNode.stateTx to 1000L,
@@ -160,15 +165,16 @@ class Chassis(
                 Thread.sleep(max(1, flags.min()!! - now - 1))
             }
         }
-
+        // 启动接收协程
         launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
             val buffer = ByteArray(BUFFER_SIZE)
             while (true)
-                port.readOrReboot(buffer, retryInterval) { }
+                port.readOrReboot(buffer, retryInterval)
                     .takeIf(Collection<*>::isNotEmpty)
                     ?.let(::invoke)
                     ?.let { port.writeBytes(it, it.size.toLong()) }
         }.invokeOnCompletion {
+            robotOnOdometry.close(it)
             port.closePort()
         }
     }
@@ -240,7 +246,8 @@ class Chassis(
                             logger.log("rudder encoder received")
                             if (enabled) {
                                 // 优化控制量
-                                val (l, r, t) = optimize(current)
+                                val (speed, l, r, t) = optimizer(target, Physical(lastSpeed, current), structure)
+                                lastSpeed = speed
                                 // 生成脉冲数
                                 val pl = l.let(wheelsEncoder::toPulses)
                                 val pr = r.let(wheelsEncoder::toPulses)
@@ -257,7 +264,6 @@ class Chassis(
         }
         return serial.toByteArray()
     }
-
 
     // 检查两轮数据时间差
     private fun checkInterval(
@@ -291,79 +297,8 @@ class Chassis(
         launch { robotOnOdometry.send(odometry) }
     }
 
-    // 生成目标控制量 -> 等轨迹限速 -> 变轨迹限速 -> 生成轮速域控制量
-    private fun optimize(currentRudder: Angle): Triple<Angle, Angle, Angle?> {
-        // 处理奇点
-        val any = target
-        val physical = when (any) {
-            is Physical -> any
-            is Wheels   -> any.let(structure::toPhysical)
-            is Velocity -> any.let(structure::toPhysical)
-        }
-        if (!physical.rudder.value.isFinite())
-            return Triple(0.toRad(), 0.toRad(), null)
-        // 计算限速系数
-        val kl: Double
-        val kr: Double
-        val kv: Double
-        val kw: Double
-        when (any) {
-            is Physical -> any.let(structure::toWheels)
-            is Wheels   -> any
-            is Velocity -> any.let(structure::toWheels)
-        }
-            .let(structure::toAngular)
-            .let { (l, r) ->
-                kl = l.wheelSpeedLimit()
-                kr = r.wheelSpeedLimit()
-            }
-        when (any) {
-            is Physical -> any.let(structure::toVelocity)
-            is Wheels   -> any.let(structure::toVelocity)
-            is Velocity -> any
-        }
-            .limit()
-            .let { (_v, _w) ->
-                kv = _v
-                kw = _w
-            }
-
-        // 优化实际轨迹
-        return physical
-            .run {
-                // 不改变目标轨迹的限速
-                val k0 = sequenceOf(1.0, kl, kr, kv, kw).map(::abs).min()!!
-                // 因为目标轨迹无法实现产生的限速
-                val k1 = 1 - abs(rudder.asRadian() - currentRudder.asRadian()) / optimizeWidthRad
-                // 实际可行的控制量
-                Physical(speed * k0 * max(.0, k1), currentRudder)
-            }
-            .let(structure::toWheels)
-            .let(structure::toAngular)
-            .let { (l, r) -> Triple(l, r, physical.rudder) }
-    }
-
-    // 计算轮速域限速系数
-    private fun Angle.wheelSpeedLimit() =
-        maxWheelSpeedRad / this.asRadian()
-
-    // 计算速度域限速系数
-    private fun Velocity.limit() =
-        maxV / this.v to maxWRad / this.w.asRadian()
-
-    private class Sender {
-        private val list = mutableListOf<Byte>()
-
-        fun append(iterable: Iterable<Byte>) {
-            list.addAll(iterable)
-        }
-
-        fun build() = list.toByteArray()
-    }
-
-
     private companion object {
-        const val BUFFER_SIZE = 28
+        const val BUFFER_SIZE = 64
 
         val activateBytes =
             sequenceOf(CanNode.ECU().currentPositionTx,
@@ -374,10 +309,6 @@ class Chassis(
                 .flatten()
                 .toList()
                 .toByteArray()
-
-        fun SerialPort.send(block: Sender.() -> Unit) {
-            Sender().apply(block).build().let { writeBytes(it, it.size.toLong()) }
-        }
 
         fun PM1Pack.WithData.getState() =
             when (data[0]) {

@@ -12,7 +12,7 @@ import kotlinx.coroutines.delay
 internal suspend fun SerialPort.readOrReboot(
     buffer: ByteArray,
     retryInterval: Long,
-    block: suspend () -> Unit
+    block: suspend () -> Unit = {}
 ): List<Byte> {
     val size = buffer.size.toLong()
     // 反复尝试读取
