@@ -11,10 +11,12 @@ import cn.autolabor.pathfollower.Commander
 import cn.autolabor.pathfollower.FollowCommand
 import cn.autolabor.pathfollower.PIController
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
+import cn.autolabor.pathfollower.Proportion
 import cn.autolabor.pm1.ChassisBuilderDsl.Companion.startPM1Chassis
 import cn.autolabor.pm1.model.ControlVariable
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
+import kotlinx.coroutines.*
 import org.mechdancer.YChannel
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -38,6 +40,7 @@ import org.mechdancer.paint
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.presets.remoteHub
 import kotlin.math.PI
+import kotlin.math.pow
 import kotlin.system.exitProcess
 
 // 画图
@@ -69,8 +72,9 @@ try {
         println("trying to connect to marvelmind mobile beacon...")
         startMobileBeacon(
             beaconOnMap = beaconOnMap,
-            exceptions = exceptions) {
-            // port = "/dev/beacon"
+            exceptions = exceptions
+        ) {
+            port = "/dev/beacon"
             retryInterval = 100L
             connectionTimeout = 3000L
             parseTimeout = 2500L
@@ -162,7 +166,7 @@ try {
             pathFollower {
                 sensorPose = Odometry.pose(x = .2)
                 lightRange = Circle(.24, 32)
-                controller = PIController(.9, 2.0, .7)
+                controller = Proportion(.9)
                 minTipAngle = 60.toDegree()
                 minTurnAngle = 15.toDegree()
                 turnThreshold = (-120).toDegree()

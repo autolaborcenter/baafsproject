@@ -14,6 +14,7 @@ import com.fazecast.jSerialComm.SerialPort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.mechdancer.ClampMatcher
 import org.mechdancer.SimpleLogger
@@ -150,7 +151,7 @@ class Chassis(
         }
 
         // 启动轮转发送线程
-        thread(isDaemon = true) {
+        launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
             val msg =
                 listOf(CanNode.EveryNode.stateTx to 1000L,
                        CanNode.ECU().currentPositionTx to odometryInterval,
@@ -169,7 +170,7 @@ class Chassis(
                     .toByteArray()
                     .let { port.writeBytes(it, it.size.toLong()) }
                 logger.log("sending")
-                Thread.sleep(max(1, flags.min()!! - now - 1))
+                delay(max(1, flags.min()!! - now + 1))
             }
         }
         // 启动接收协程
