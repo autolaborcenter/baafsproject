@@ -29,7 +29,6 @@ import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.util.concurrent.Executors
-import kotlin.concurrent.thread
 import kotlin.math.max
 
 /**
@@ -56,7 +55,7 @@ class Chassis(
 
     private val retryInterval: Long
 ) : CoroutineScope by scope {
-    // 无状态计算
+    // 无状态计算模型
     private val wheelsEncoder = IncrementalEncoder(wheelEncodersPulsesPerRound)
     private val rudderEncoder = IncrementalEncoder(rudderEncoderPulsesPerRound)
     private val structure = ChassisStructure(width, leftRadius, rightRadius, length)
@@ -105,8 +104,8 @@ class Chassis(
             }
         val port = try {
             findSerialPort(
-                candidates = candidates,
-                engine = engine
+                    candidates = candidates,
+                    engine = engine
             ) {
                 bufferSize = BUFFER_SIZE
                 baudRate = 115200
@@ -156,20 +155,25 @@ class Chassis(
                 listOf(CanNode.EveryNode.stateTx to 1000L,
                        CanNode.ECU().currentPositionTx to odometryInterval,
                        tcu.currentPositionTx to odometryInterval / 2
-                ).map { (head, t) -> head.pack() to t }
-            val t0 = System.currentTimeMillis()
-            val flags = LongArray(msg.size) { i -> t0 + msg[i].second }
+                ).map { (head, t) -> head.pack().asList() to t }
+            val flags =
+                System.currentTimeMillis().let {
+                    LongArray(msg.size) { i -> it + msg[i].second }
+                }
             while (true) {
                 val now = System.currentTimeMillis()
                 msg.indices
-                    .asSequence()
-                    .filter { i -> flags[i] < now }
-                    .onEach { i -> flags[i] += msg[i].second }
-                    .flatMap { i -> msg[i].first.asSequence() }
-                    .toList()
+                    .flatMap { i ->
+                        if (flags[i] < now) {
+                            flags[i] += msg[i].second
+                            msg[i].first
+                        } else emptyList()
+                    }
                     .toByteArray()
-                    .let { port.writeBytes(it, it.size.toLong()) }
-                logger.log("sending")
+                    .also {
+                        port.writeBytes(it, it.size.toLong())
+                        logger.log("${it.size} bytes sent")
+                    }
                 delay(max(1, flags.min()!! - now + 1))
             }
         }
@@ -300,8 +304,8 @@ class Chassis(
         ecuL.position = Stamped(t, l)
         ecuR.position = Stamped(t, r)
         val delta = structure.toDeltaOdometry(
-            (l.value - `ln-1`).toRad(),
-            (r.value - `rn-1`).toRad())
+                (l.value - `ln-1`).toRad(),
+                (r.value - `rn-1`).toRad())
         odometry = Stamped(t, odometry.data plusDelta delta)
         launch { robotOnOdometry.send(odometry) }
     }

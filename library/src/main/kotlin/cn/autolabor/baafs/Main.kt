@@ -9,7 +9,6 @@ import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.pathfollower.Commander
 import cn.autolabor.pathfollower.FollowCommand
-import cn.autolabor.pathfollower.PIController
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import cn.autolabor.pathfollower.Proportion
 import cn.autolabor.pm1.ChassisBuilderDsl.Companion.startPM1Chassis
@@ -73,8 +72,8 @@ fun main() {
             // 连接定位标签
             println("trying to connect to marvelmind mobile beacon...")
             startMobileBeacon(
-                beaconOnMap = beaconOnMap,
-                exceptions = exceptions
+                    beaconOnMap = beaconOnMap,
+                    exceptions = exceptions
             ) {
                 port = "/dev/beacon"
                 retryInterval = 100L
@@ -120,9 +119,9 @@ fun main() {
             // 启动定位融合模块（粒子滤波器）
             val particleFilter =
                 startLocationFusion(
-                    robotOnOdometry = robotOnOdometry.outputs[0],
-                    beaconOnMap = beaconOnMap,
-                    robotOnMap = robotOnMap
+                        robotOnOdometry = robotOnOdometry.outputs[0],
+                        beaconOnMap = beaconOnMap,
+                        robotOnMap = robotOnMap
                 ) {
                     filter {
                         beaconOnRobot = vector2DOf(-.01, -.02)
@@ -135,8 +134,8 @@ fun main() {
             // 启动业务交互后台
             val business =
                 startBusiness(
-                    robotOnMap = robotOnMap,
-                    globalOnRobot = globalOnRobot
+                        robotOnMap = robotOnMap,
+                        globalOnRobot = globalOnRobot
                 ) {
                     localRadius = .5
                     pathInterval = .05
@@ -196,10 +195,10 @@ fun main() {
             }.invokeOnCompletion { commandToSwitch.input.close(it) }
             // 启动碰撞预警模块
             startCollisionPredictingModule(
-                commandIn = commandToSwitch.outputs[0],
-                exception = exceptions,
-                lidarSet = lidarSet,
-                robotOutline = robotOutline
+                    commandIn = commandToSwitch.outputs[0],
+                    exception = exceptions,
+                    lidarSet = lidarSet,
+                    robotOutline = robotOutline
             ) {
                 countToContinue = 4
                 countToStop = 6
