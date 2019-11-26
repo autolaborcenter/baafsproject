@@ -24,7 +24,7 @@ class ChassisBuilderDsl private constructor() {
     var maxV: Double = 1.1
     var maxW: Angle = 90.toDegree()
     var optimizeWidth: Angle = 45.toDegree()
-    var maxAccelerate: Double = .5
+    var maxAccelerate: Double = 1.1
 
     var retryInterval: Long = 500L
 

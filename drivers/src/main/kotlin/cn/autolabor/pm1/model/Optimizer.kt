@@ -77,7 +77,7 @@ internal class Optimizer(
         return optimized
             .let(structure::toWheels)
             .let(structure::toAngular)
-            .let { (l, r) -> Optimized(optimized.speed, l, r, current.rudder) }
+            .let { (l, r) -> Optimized(optimized.speed, l, r, physical.rudder) }
     }
 
     // 计算轮速域限速系数

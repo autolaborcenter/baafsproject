@@ -15,7 +15,6 @@ import cn.autolabor.pm1.ChassisBuilderDsl.Companion.startPM1Chassis
 import cn.autolabor.pm1.model.ControlVariable
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
-import kotlinx.coroutines.*
 import org.mechdancer.YChannel
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -61,9 +60,10 @@ try {
         // 连接外设
         // 连接底盘
         println("trying to connect to pm1 chassis...")
-        val chassis = startPM1Chassis(robotOnOdometry.input) {
-            odometryInterval = 40L
-        }
+        val chassis =
+            startPM1Chassis(robotOnOdometry.input) {
+                odometryInterval = 40L
+            }
         println("done")
         // 连接定位标签
         println("trying to connect to marvelmind mobile beacon...")
@@ -83,26 +83,27 @@ try {
         println("done")
         // 连接激光雷达
         println("trying to connect to faselase lidars...")
-        val lidarSet = faselaseLidarSet(exceptions = channel()) {
-            launchTimeout = 5000L
-            connectionTimeout = 800L
-            dataTimeout = 400L
-            retryInterval = 100L
-            lidar(port = "/dev/pos3") {
-                tag = "FrontLidar"
-                pose = Odometry.pose(.113, 0, PI / 2)
-                inverse = false
+        val lidarSet =
+            faselaseLidarSet(exceptions = channel()) {
+                launchTimeout = 5000L
+                connectionTimeout = 800L
+                dataTimeout = 400L
+                retryInterval = 100L
+                lidar(port = "/dev/pos3") {
+                    tag = "FrontLidar"
+                    pose = Odometry.pose(.113, 0, PI / 2)
+                    inverse = false
+                }
+                lidar(port = "/dev/pos4") {
+                    tag = "BackLidar"
+                    pose = Odometry.pose(-.138, 0, PI / 2)
+                    inverse = false
+                }
+                val wonder = vector2DOf(+.12, -.14)
+                filter { p ->
+                    p euclid wonder > .05 && p !in outlineFilter
+                }
             }
-            lidar(port = "/dev/pos4") {
-                tag = "BackLidar"
-                pose = Odometry.pose(-.138, 0, PI / 2)
-                inverse = false
-            }
-            val wonder = vector2DOf(+.12, -.14)
-            filter { p ->
-                p euclid wonder > .05 && p !in outlineFilter
-            }
-        }
         println("done")
         // 启动服务
         println("staring data process modules...")

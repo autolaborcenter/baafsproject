@@ -2,9 +2,7 @@ package cn.autolabor.baafs
 
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
-import org.mechdancer.common.shape.AnalyticalShape
 import org.mechdancer.common.shape.Polygon
-import org.mechdancer.common.shape.Shape
 
 // 镜像点列表
 fun List<Vector2D>.mirrorY() =
@@ -32,10 +30,3 @@ val outlineFilter = Polygon(
                vector2DOf(-.25, +.18),
                vector2DOf(-.47, +.12)
         ).mirrorY())
-
-fun Shape.toPolygon() =
-    when (this) {
-        is Polygon         -> this
-        is AnalyticalShape -> this.sample()
-        else               -> throw TypeCastException()
-    }

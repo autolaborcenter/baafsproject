@@ -49,6 +49,7 @@ class SerialPortFinder<T> private constructor() {
                         val exceptionMessages = mutableListOf<String>()
                         candidates
                             .find { port ->
+                                println("try ${port.systemPortName} -> ${port.descriptivePortName}")
                                 // 设置串口
                                 port.baudRate = baudRate
                                 port.setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 100, 100)
