@@ -20,6 +20,7 @@ import org.mechdancer.SimpleLogger
 import org.mechdancer.WatchDog
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
+import org.mechdancer.exceptions.device.DeviceNotExistException
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toRad
 import java.io.ByteArrayInputStream
@@ -91,6 +92,7 @@ class Chassis(
         }
 
     private val logger = SimpleLogger("Chassis")
+    private val commandsLogger = SimpleLogger("ChassisCommands")
 
     init {
         // 开串口
@@ -100,48 +102,53 @@ class Chassis(
                 val name = it.systemPortName.toLowerCase()
                 "com" in name || "usb" in name || "acm" in name
             }
-        val port = findSerialPort(
+        val port = try {
+            findSerialPort(
                 candidates = candidates,
                 engine = engine
-        ) {
-            bufferSize = BUFFER_SIZE
-            baudRate = 115200
-            timeoutMs = 500L
-            activate = activateBytes
+            ) {
+                bufferSize = BUFFER_SIZE
+                baudRate = 115200
+                timeoutMs = 500L
+                activate = activateBytes
 
-            var left = false
-            var right = false
-            var rudder = false
-            var battery = false
-            condition { pack ->
-                if (pack !is PM1Pack.WithData) return@condition false
-                val now = System.currentTimeMillis()
-                when (pack.head) {
-                    ecuL.currentPositionRx -> {
-                        val pulse = pack.getInt()
-                        ecuL.position = Stamped(now, pulse.let(wheelsEncoder::toAngular))
-                        wheelsEncoderMatcher.add1(Stamped(now, pulse))
-                        left = true
+                var left = false
+                var right = false
+                var rudder = false
+                var battery = false
+                condition { pack ->
+                    if (pack !is PM1Pack.WithData) return@condition false
+                    val now = System.currentTimeMillis()
+                    when (pack.head) {
+                        ecuL.currentPositionRx -> {
+                            val pulse = pack.getInt()
+                            ecuL.position = Stamped(now, pulse.let(wheelsEncoder::toAngular))
+                            wheelsEncoderMatcher.add1(Stamped(now, pulse))
+                            left = true
+                        }
+                        ecuR.currentPositionRx -> {
+                            val pulse = pack.getInt()
+                            ecuR.position = Stamped(now, pulse.let(wheelsEncoder::toAngular))
+                            wheelsEncoderMatcher.add2(Stamped(now, pulse))
+                            right = true
+                        }
+                        tcu.currentPositionRx  -> {
+                            val pulse = pack.getShort()
+                            tcu.position = Stamped(now, pulse.let(rudderEncoder::toAngular))
+                            rudder = true
+                        }
+                        vcu.batteryPercentRx   -> {
+                            vcu.batteryPercent = pack.data[0]
+                            battery = true
+                        }
                     }
-                    ecuR.currentPositionRx -> {
-                        val pulse = pack.getInt()
-                        ecuR.position = Stamped(now, pulse.let(wheelsEncoder::toAngular))
-                        wheelsEncoderMatcher.add2(Stamped(now, pulse))
-                        right = true
-                    }
-                    tcu.currentPositionRx  -> {
-                        val pulse = pack.getShort()
-                        tcu.position = Stamped(now, pulse.let(rudderEncoder::toAngular))
-                        rudder = true
-                    }
-                    vcu.batteryPercentRx   -> {
-                        vcu.batteryPercent = pack.data[0]
-                        battery = true
-                    }
+                    left && right && rudder && battery
                 }
-                left && right && rudder && battery
             }
+        } catch (e: RuntimeException) {
+            throw DeviceNotExistException("PM1 chassis", e.message)
         }
+
         // 启动轮转发送线程
         thread(isDaemon = true) {
             val msg =
@@ -257,6 +264,7 @@ class Chassis(
                                 serial.addAll(ecuR.targetSpeed.pack(pr).asList())
                                 if (pt != null)
                                     serial.addAll(tcu.targetPosition.pack(pt).asList())
+                                commandsLogger.log(l, r, t)
                             }
                         }
                     }
@@ -291,8 +299,8 @@ class Chassis(
         ecuL.position = Stamped(t, l)
         ecuR.position = Stamped(t, r)
         val delta = structure.toDeltaOdometry(
-                (l.value - `ln-1`).toRad(),
-                (r.value - `rn-1`).toRad())
+            (l.value - `ln-1`).toRad(),
+            (r.value - `rn-1`).toRad())
         odometry = Stamped(t, odometry.data plusDelta delta)
         launch { robotOnOdometry.send(odometry) }
     }

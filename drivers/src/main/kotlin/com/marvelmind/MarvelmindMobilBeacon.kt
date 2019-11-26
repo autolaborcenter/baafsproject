@@ -75,14 +75,18 @@ internal class MarvelmindMobilBeacon(
                         ?.let { listOf(SerialPort.getCommPort(it)) }
                     ?: SerialPort.getCommPorts()
                         ?.takeIf(Array<*>::isNotEmpty)
+                        ?.filter {
+                            val name = it.systemPortName.toLowerCase()
+                            "com" in name || "usb" in name || "acm" in name
+                        }
                         ?.groupBy { "marvelmind" in it.systemPortName.toLowerCase() }
                         ?.flatMap { it.value }
                         ?.toList()
                     ?: throw RuntimeException("no available port")
                 // 打开串口
                 SerialPortFinder.findSerialPort(
-                        candidates = candidates,
-                        engine = engine
+                    candidates = candidates,
+                    engine = engine
                 ) {
                     baudRate = 115200
                     timeoutMs = dataTimeout
@@ -139,8 +143,8 @@ internal class MarvelmindMobilBeacon(
                             && notStatic(x, y, z)
                         ) launch {
                             beaconOnMap.send(Stamped(
-                                    now - delay,
-                                    vector2DOf(x, y) / 1000.0))
+                                now - delay,
+                                vector2DOf(x, y) / 1000.0))
                             dataWatchDog.feed()
                             launch { exceptions.send(Recovered(dataTimeoutException)) }
                         }

@@ -68,10 +68,9 @@ try {
         // 连接定位标签
         println("trying to connect to marvelmind mobile beacon...")
         startMobileBeacon(
-                beaconOnMap = beaconOnMap,
-                exceptions = exceptions
-        ) {
-            port = "/dev/beacon"
+            beaconOnMap = beaconOnMap,
+            exceptions = exceptions) {
+            // port = "/dev/beacon"
             retryInterval = 100L
             connectionTimeout = 3000L
             parseTimeout = 2500L
@@ -115,9 +114,9 @@ try {
         // 启动定位融合模块（粒子滤波器）
         val particleFilter =
             startLocationFusion(
-                    robotOnOdometry = robotOnOdometry.outputs[0],
-                    beaconOnMap = beaconOnMap,
-                    robotOnMap = robotOnMap
+                robotOnOdometry = robotOnOdometry.outputs[0],
+                beaconOnMap = beaconOnMap,
+                robotOnMap = robotOnMap
             ) {
                 filter {
                     beaconOnRobot = vector2DOf(-.01, -.02)
@@ -130,8 +129,8 @@ try {
         // 启动业务交互后台
         val business =
             startBusiness(
-                    robotOnMap = robotOnMap,
-                    globalOnRobot = globalOnRobot
+                robotOnMap = robotOnMap,
+                globalOnRobot = globalOnRobot
             ) {
                 localRadius = .5
                 pathInterval = .05
@@ -191,10 +190,10 @@ try {
         }.invokeOnCompletion { commandToSwitch.input.close(it) }
         // 启动碰撞预警模块
         startCollisionPredictingModule(
-                commandIn = commandToSwitch.outputs[0],
-                exception = exceptions,
-                lidarSet = lidarSet,
-                robotOutline = robotOutline
+            commandIn = commandToSwitch.outputs[0],
+            exception = exceptions,
+            lidarSet = lidarSet,
+            robotOutline = robotOutline
         ) {
             countToContinue = 4
             countToStop = 6
