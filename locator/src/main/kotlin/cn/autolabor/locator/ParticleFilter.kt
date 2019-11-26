@@ -44,8 +44,10 @@ class ParticleFilter(
     private val sigma: Double,
     private val predicate: Schmitt<FusionQuality>
 ) : Mixer<Stamped<Odometry>, Stamped<Vector2D>, Stamped<Odometry>> {
+    // 无状态计算模型
+    private val gauss = Gauss(.0, maxInconsistency / 3)
+    // 匹配器
     private val matcher = ClampMatcher<Stamped<Odometry>, Stamped<Vector2D>>(true)
-
     // 过程记录器
     @DebugTemporary(DELETE)
     val stepFeedbacks = mutableListOf<(Stamped<StepState>) -> Unit>()
@@ -125,7 +127,7 @@ class ParticleFilter(
                     // 计算不一致性
                     abs(lengthM - lengthS)
                         .takeIf { it < maxInconsistency }
-                        ?.let { stamped to locatorWeight * (1 - it / maxInconsistency) }
+                        ?.let { stamped to locatorWeight * gauss.p(it) }
                 }
             }
             // 计算
@@ -146,7 +148,7 @@ class ParticleFilter(
                 }
                 // 计算粒子权重
                 val weights = ages.zip(distances) { age, distance ->
-                    (age.toDouble() / maxAge) * (1 - min(1.0, distance / maxInconsistency))
+                    age.toDouble() / maxAge * gauss.p(distance)
                 }
                 // 计算粒子总权重，若过低，直接重新初始化
                 val weightsSum = weights.sum()
