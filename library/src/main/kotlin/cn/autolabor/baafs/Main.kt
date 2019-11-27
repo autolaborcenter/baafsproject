@@ -1,6 +1,6 @@
 package cn.autolabor.baafs
 
-import cn.autolabor.baafs.CollisionPredictingModuleBuilderDsl.Companion.startCollisionPredictingModule
+import cn.autolabor.baafs.CollisionPredictorBuilderDsl.Companion.collisionPredictor
 import cn.autolabor.business.Business.Functions.Following
 import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.business.parseFromConsole
@@ -58,7 +58,6 @@ fun main() {
     val beaconOnMap = channel<Stamped<Vector2D>>()
     val globalOnRobot = channel<Pair<Sequence<Odometry>, Double>>()
     val commandToSwitch = channel<NonOmnidirectional>()
-    val predictToSwitch = channel<Odometry>()
     // 任务
     try {
         runBlocking(Dispatchers.Default) {
@@ -187,6 +186,15 @@ fun main() {
                         else business.cancel()
                     }
                 }
+            // 碰撞预警模块
+            val predictor =
+                collisionPredictor(lidarSet = lidarSet,
+                                   robotOutline = robotOutline) {
+                    countToContinue = 4
+                    countToStop = 6
+                    predictingTime = 1000L
+                    painter = remote
+                }
             // 启动循径模块
             launch {
                 for ((global, progress) in globalOnRobot)
@@ -199,21 +207,12 @@ fun main() {
             launch {
                 for ((v, w) in commandToSwitch) {
                     val target = ControlVariable.Velocity(v, w.toRad())
-                    predictToSwitch.send(chassis.predict(target)(1000L))
+                    if (predictor.predict(chassis.predict(target)))
+                        exceptionServer.update(CollisionDetectedException.recovered())
+                    else
+                        exceptionServer.update(CollisionDetectedException.occurred())
                     if (exceptionServer.isEmpty()) chassis.target = target
                 }
-            }
-            // 启动碰撞预警模块
-            startCollisionPredictingModule(
-                    predictIn = predictToSwitch,
-                    exception = exceptions,
-                    lidarSet = lidarSet,
-                    robotOutline = robotOutline
-            ) {
-                countToContinue = 4
-                countToStop = 6
-                predictingTime = 1000L
-                painter = remote
             }
             println("done")
             // 指令解析器

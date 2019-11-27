@@ -4,4 +4,7 @@ package org.mechdancer.exceptions
 open class RecoverableException(message: String)
     : ApplicationException(message) {
     override fun toString() = "${this::class.java.simpleName}: $message"
+
+    fun occurred() = ExceptionMessage.Occurred(this)
+    fun recovered() = ExceptionMessage.Recovered(this)
 }
