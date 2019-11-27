@@ -6,7 +6,7 @@ import kotlin.math.PI
 import kotlin.math.roundToInt
 
 /** 增量式编码器（计算模型） */
-class IncrementalEncoder(pulsesPerRound: Int) {
+internal class IncrementalEncoder(pulsesPerRound: Int) {
     private val toRad = 2 * PI / pulsesPerRound
     fun toAngular(pulses: Number) = (pulses.toDouble() * toRad).toRad()
     fun toPulses(angle: Angle) = (angle.asRadian() / toRad).roundToInt()

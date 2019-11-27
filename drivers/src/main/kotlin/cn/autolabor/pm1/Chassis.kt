@@ -3,11 +3,8 @@ package cn.autolabor.pm1
 import cn.autolabor.autocan.AutoCANPackageHead
 import cn.autolabor.autocan.PM1Pack
 import cn.autolabor.autocan.engine
-import cn.autolabor.pm1.model.ChassisStructure
-import cn.autolabor.pm1.model.ControlVariable
+import cn.autolabor.pm1.model.*
 import cn.autolabor.pm1.model.ControlVariable.Physical
-import cn.autolabor.pm1.model.IncrementalEncoder
-import cn.autolabor.pm1.model.Optimizer
 import cn.autolabor.serialport.parser.SerialPortFinder.Companion.findSerialPort
 import cn.autolabor.serialport.parser.readOrReboot
 import com.fazecast.jSerialComm.SerialPort
@@ -16,6 +13,7 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.mechdancer.Chassis
 import org.mechdancer.ClampMatcher
 import org.mechdancer.SimpleLogger
 import org.mechdancer.WatchDog
@@ -23,6 +21,7 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.exceptions.device.DeviceNotExistException
 import org.mechdancer.geometry.angle.Angle
+import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -34,7 +33,7 @@ import kotlin.math.max
 /**
  * 机器人底盘
  */
-class Chassis(
+class Chassis internal constructor(
     scope: CoroutineScope,
     private val robotOnOdometry: SendChannel<Stamped<Odometry>>,
 
@@ -54,54 +53,61 @@ class Chassis(
     maxAccelerate: Double,
 
     private val retryInterval: Long
-) : CoroutineScope by scope {
+) : Chassis<ControlVariable>,
+    CoroutineScope by scope {
     // 无状态计算模型
+    private val controlPeriod = odometryInterval / 2
     private val wheelsEncoder = IncrementalEncoder(wheelEncodersPulsesPerRound)
     private val rudderEncoder = IncrementalEncoder(rudderEncoderPulsesPerRound)
     private val structure = ChassisStructure(width, leftRadius, rightRadius, length)
-    private val optimizer = Optimizer(maxWheelSpeed, maxV, maxW, optimizeWidth, maxAccelerate, odometryInterval / 2)
+    private val optimizer = Optimizer(structure, maxWheelSpeed, maxV, maxW, optimizeWidth, maxAccelerate, controlPeriod)
+    private val predictor = Predictor(structure, optimizer, controlPeriod, 30.toDegree())
     // 解析引擎
     private val engine = engine()
-    private val wheelsEncoderMatcher =
-        ClampMatcher<Stamped<Int>, Stamped<Int>>(false)
+    private val wheelsEncoderMatcher = ClampMatcher<Stamped<Int>, Stamped<Int>>(false)
     // 节点状态
     private val ecuL = CanNode.ECU(0)
     private val ecuR = CanNode.ECU(1)
     private val tcu = CanNode.TCU(0)
     private val vcu = CanNode.VCU(0)
-
-    var odometry = Stamped(0L, Odometry.pose())
-        private set
-
-    var enabled = false
-        set(value) {
-            if (!value) lastSpeed = .0
-            field = value
-        }
-
+    // 内部状态
     private val controlWatchDog =
         WatchDog(this, 10 * odometryInterval)
         { enabled = false }
-    private var lastSpeed = .0
-    var target: ControlVariable =
+    private var lastPhysical = Physical(.0, 0.toRad())
+
+    var enabled = false
+        set(value) {
+            if (!value) lastPhysical = lastPhysical.copy(speed = .0)
+            field = value
+        }
+
+    override var odometry = Stamped(0L, Odometry.pose())
+        private set
+
+    override var target: ControlVariable =
         Physical(.0, Double.NaN.toRad())
         set(value) {
             enabled = true
             controlWatchDog.feed()
             field = value
         }
-
+    // 日志
     private val logger = SimpleLogger("Chassis")
     private val commandsLogger = SimpleLogger("ChassisCommands")
 
+    // 轨迹预测
+    override fun predict(target: ControlVariable) =
+        predictor.predict(target, lastPhysical)
+
     init {
         // 开串口
-        val candidates = SerialPort
-            .getCommPorts()
-            .filter {
-                val name = it.systemPortName.toLowerCase()
-                "com" in name || "usb" in name || "acm" in name
-            }
+        val candidates =
+            SerialPort.getCommPorts()
+                .filter {
+                    val name = it.systemPortName.toLowerCase()
+                    "com" in name || "usb" in name || "acm" in name
+                }
         val port = try {
             findSerialPort(
                     candidates = candidates,
@@ -148,7 +154,6 @@ class Chassis(
         } catch (e: RuntimeException) {
             throw DeviceNotExistException("PM1 chassis", e.message)
         }
-
         // 启动轮转发送线程
         launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
             val msg =
@@ -191,6 +196,7 @@ class Chassis(
         }
     }
 
+    // 解析串口输入
     private operator fun invoke(bytes: Iterable<Byte>): ByteArray? {
         val serial = mutableListOf<Byte>()
         engine(bytes) { pack ->
@@ -253,13 +259,13 @@ class Chassis(
                         }
                         // 舵轮编码器
                         tcu.currentPositionRx  -> {
-                            val current = pack.getShort().let(rudderEncoder::toAngular)
-                            tcu.position = Stamped(now, current)
+                            val rudder = pack.getShort().let(rudderEncoder::toAngular)
+                            tcu.position = Stamped(now, rudder)
                             logger.log("rudder encoder received")
                             if (enabled) {
                                 // 优化控制量
-                                val (speed, l, r, t) = optimizer(target, Physical(lastSpeed, current), structure)
-                                lastSpeed = speed
+                                val (speed, l, r, t) = optimizer(target, lastPhysical.copy(rudder = rudder))
+                                lastPhysical = Physical(speed, rudder)
                                 // 生成脉冲数
                                 val pl = l.let(wheelsEncoder::toPulses)
                                 val pr = r.let(wheelsEncoder::toPulses)
@@ -299,13 +305,13 @@ class Chassis(
 
     // 更新里程计
     private fun updateOdometry(t: Long, l: Angle, r: Angle) {
-        val `ln-1` = ecuL.position.data.value
-        val `rn-1` = ecuR.position.data.value
+        val `ln-1` = ecuL.position.data.asRadian()
+        val `rn-1` = ecuR.position.data.asRadian()
         ecuL.position = Stamped(t, l)
         ecuR.position = Stamped(t, r)
         val delta = structure.toDeltaOdometry(
-                (l.value - `ln-1`).toRad(),
-                (r.value - `rn-1`).toRad())
+                (l.asRadian() - `ln-1`).toRad(),
+                (r.asRadian() - `rn-1`).toRad())
         odometry = Stamped(t, odometry.data plusDelta delta)
         launch { robotOnOdometry.send(odometry) }
     }

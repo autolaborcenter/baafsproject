@@ -11,7 +11,7 @@ import org.mechdancer.geometry.angle.toRad
 import kotlin.math.*
 
 /** 机器人机械结构（计算模型） */
-data class ChassisStructure(
+internal data class ChassisStructure(
     val width: Double,
     val leftRadius: Double,
     val rightRadius: Double,

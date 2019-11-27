@@ -7,6 +7,7 @@ import kotlin.math.max
 
 /** 优化器 */
 internal class Optimizer(
+    private val structure: ChassisStructure,
     maxWheelSpeed: Angle,     // 最大轮速
     private val maxV: Double, // 最大线速度
     maxW: Angle,              // 最大角速度
@@ -27,8 +28,7 @@ internal class Optimizer(
 
     // 生成目标控制量 -> 等轨迹限速 -> 变轨迹限速 -> 生成轮速域控制量
     operator fun invoke(target: ControlVariable,
-                        current: ControlVariable.Physical,
-                        structure: ChassisStructure
+                        current: ControlVariable.Physical
     ): Optimized {
         // 处理奇点
         val physical = when (target) {

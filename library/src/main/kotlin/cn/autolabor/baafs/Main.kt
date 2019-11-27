@@ -17,6 +17,7 @@ import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
 import kotlinx.coroutines.*
 import org.mechdancer.YChannel
+import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
@@ -27,6 +28,8 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.shape.Circle
+import org.mechdancer.common.shape.Polygon
+import org.mechdancer.common.toTransformation
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
@@ -149,13 +152,13 @@ fun main() {
             // 局部规划器（势场法）
             val localPlanner =
                 potentialFieldLocalPlanner {
-                    repelWeight = .5
+                    repelWeight = .8
                     stepLength = .05
 
                     lookAhead = 8
                     minRepelPointsCount = 12
 
-                    val radius = .5
+                    val radius = .6
                     val r0 = 1 / (radius * radius)
                     repel {
                         if (it.length > radius) vector2DOfZero()
@@ -165,14 +168,15 @@ fun main() {
             // 循径器（虚拟光感法）
             val pathFollower =
                 pathFollower {
-                    sensorPose = Odometry.pose(x = .2)
-                    lightRange = Circle(.24, 32)
-                    controller = Proportion(.9)
+                    sensorPose = Odometry.pose(x = .3)
+                    lightRange = Circle(.3, 32)
+                    controller = Proportion(1.0)
                     minTipAngle = 60.toDegree()
                     minTurnAngle = 15.toDegree()
                     turnThreshold = (-120).toDegree()
-                    maxLinearSpeed = .16
-                    maxAngularSpeed = .5.toRad()
+                    maxLinearSpeed = .18
+                    maxAngularSpeed = .6.toRad()
+                    kLinearSpeed = 1.2
 
                     painter = remote
                 }
@@ -208,8 +212,22 @@ fun main() {
             // 启动指令转发
             launch {
                 for ((v, w) in commandToSwitch.outputs[1])
-                    if (exceptionServer.isEmpty())
-                        chassis.target = ControlVariable.Velocity(v, w.toRad())
+                    if (exceptionServer.isEmpty()) {
+                        val target = ControlVariable.Velocity(v, w.toRad())
+                        chassis.target = target
+
+                        remote?.run {
+                            val pre = chassis.predict(target)(1000L).toTransformation()
+                            val outline = robotOutline
+                                .vertex
+                                .asSequence()
+                                .map(pre::invoke)
+                                .map(Vector::to2D)
+                                .toList()
+                                .let(::Polygon)
+                            paint("R 新轨迹预测", outline)
+                        }
+                    }
             }
             println("done")
             // 指令解析器

@@ -2,6 +2,7 @@ package cn.autolabor.locator
 
 import org.mechdancer.algebra.function.vector.euclid
 import org.mechdancer.algebra.function.vector.norm
+import org.mechdancer.average
 import org.mechdancer.common.Odometry
 import kotlin.math.tanh
 
