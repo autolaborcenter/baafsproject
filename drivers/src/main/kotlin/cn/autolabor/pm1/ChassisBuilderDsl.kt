@@ -54,8 +54,7 @@ class ChassisBuilderDsl private constructor() {
                     require(retryInterval > 0)
                 }
                 .run {
-                    Chassis(
-                            scope = this@startPM1Chassis,
+                    Chassis(scope = this@startPM1Chassis,
                             robotOnOdometry = robotOnOdometry,
 
                             wheelEncodersPulsesPerRound = wheelEncodersPulsesPerRound,
