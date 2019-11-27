@@ -15,7 +15,6 @@ import cn.autolabor.pm1.ChassisBuilderDsl.Companion.startPM1Chassis
 import cn.autolabor.pm1.model.ControlVariable
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
-import kotlinx.coroutines.*
 import org.mechdancer.YChannel
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -54,7 +53,8 @@ val robotOnOdometry = YChannel<Stamped<Odometry>>()
 val robotOnMap = channel<Stamped<Odometry>>()
 val beaconOnMap = channel<Stamped<Vector2D>>()
 val globalOnRobot = channel<Pair<Sequence<Odometry>, Double>>()
-val commandToSwitch = YChannel<NonOmnidirectional>()
+val commandToSwitch = channel<NonOmnidirectional>()
+val predictToSwitch = channel<Odometry>()
 // 任务
 try {
     runBlocking(Dispatchers.Default) {
@@ -176,7 +176,7 @@ try {
             }
         // 指令器
         val commander =
-            Commander(commandOut = commandToSwitch.input,
+            Commander(commandOut = commandToSwitch,
                       exceptions = exceptions) {
                 (business.function as? Following)?.run {
                     if (loop) global.progress = .0
@@ -190,10 +190,18 @@ try {
                               1.0  -> FollowCommand.Finish
                               else -> pathFollower(Stamped.stamp(localPlanner.modify(global, lidarSet.frame)))
                           })
-        }.invokeOnCompletion { commandToSwitch.input.close(it) }
+        }.invokeOnCompletion { commandToSwitch.close(it) }
+        // 启动指令转发
+        launch {
+            for ((v, w) in commandToSwitch) {
+                val target = ControlVariable.Velocity(v, w.toRad())
+                predictToSwitch.send(chassis.predict(target)(1000L))
+                if (exceptionServer.isEmpty()) chassis.target = target
+            }
+        }
         // 启动碰撞预警模块
         startCollisionPredictingModule(
-                commandIn = commandToSwitch.outputs[0],
+                predictIn = predictToSwitch,
                 exception = exceptions,
                 lidarSet = lidarSet,
                 robotOutline = robotOutline
@@ -202,12 +210,6 @@ try {
             countToStop = 6
             predictingTime = 1000L
             painter = remote
-        }
-        // 启动指令转发
-        launch {
-            for ((v, w) in commandToSwitch.outputs[1])
-                if (exceptionServer.isEmpty())
-                    chassis.target = ControlVariable.Velocity(v, w.toRad())
         }
         println("done")
         // 指令解析器

@@ -11,7 +11,7 @@ import org.mechdancer.BuilderDslMarker
 import org.mechdancer.SimpleLogger
 import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.implement.vector.to2D
-import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.common.Odometry
 import org.mechdancer.common.shape.Polygon
 import org.mechdancer.common.toTransformation
 import org.mechdancer.exceptions.ExceptionMessage
@@ -33,7 +33,7 @@ class CollisionPredictingModuleBuilderDsl {
 
     companion object {
         fun CoroutineScope.startCollisionPredictingModule(
-            commandIn: ReceiveChannel<NonOmnidirectional>,
+            predictIn: ReceiveChannel<Odometry>,
             exception: SendChannel<ExceptionMessage>,
             lidarSet: LidarSet,
             robotOutline: Polygon,
@@ -62,9 +62,9 @@ class CollisionPredictingModuleBuilderDsl {
                         }
                     }
                     launch {
-                        for (command in commandIn) {
+                        for (pose in predictIn) {
                             updateTime = System.currentTimeMillis()
-                            val delta = command.toDeltaOdometry(predictingTime / 1000.0).toTransformation()
+                            val delta = pose.toTransformation()
                             val getting = async { lidarSet.frame }
                             val outline = origin
                                 .asSequence()

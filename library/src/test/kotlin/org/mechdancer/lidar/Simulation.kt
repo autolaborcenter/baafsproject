@@ -73,7 +73,8 @@ fun main() {
     // 话题
     val robotOnMap = YChannel<Stamped<Odometry>>()
     val globalOnRobot = channel<Pair<Sequence<Odometry>, Double>>()
-    val commandToRobot = YChannel<NonOmnidirectional>()
+    val commandToRobot = channel<NonOmnidirectional>()
+    val predictToSwitch = channel<Odometry>()
     val exceptions = channel<ExceptionMessage>()
     val command = AtomicReference(Velocity.velocity(.0, .0))
     runBlocking(Dispatchers.Default) {
@@ -127,7 +128,7 @@ fun main() {
             }
         // 指令器
         val commander =
-            Commander(commandOut = commandToRobot.input,
+            Commander(commandOut = commandToRobot,
                       exceptions = exceptions) {
                 (business.function as? Following)?.run {
                     if (loop) global.progress = .0
@@ -141,10 +142,10 @@ fun main() {
                               1.0  -> FollowCommand.Finish
                               else -> pathFollower(Stamped.stamp(localPlanner.modify(global, lidarSet.frame)))
                           })
-        }.invokeOnCompletion { commandToRobot.input.close(it) }
+        }.invokeOnCompletion { commandToRobot.close(it) }
         // 启动碰撞预警模块
         startCollisionPredictingModule(
-                commandIn = commandToRobot.outputs[0],
+                predictIn = predictToSwitch,
                 exception = exceptions,
                 lidarSet = lidarSet,
                 robotOutline = robotOutline
@@ -160,7 +161,9 @@ fun main() {
         // 发送指令
         launch {
             val watchDog = WatchDog(this, 3 * dt) { command.set(Velocity.velocity(0, 0)) }
-            for (v in commandToRobot.outputs[1]) {
+            for (v in commandToRobot) {
+                val pre = v.toDeltaOdometry(1.0)
+                predictToSwitch.send(pre)
                 if (!exceptionServer.isEmpty()) continue
                 watchDog.feed()
                 command.set(v)
