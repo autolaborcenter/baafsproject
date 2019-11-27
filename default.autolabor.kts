@@ -1,6 +1,6 @@
 package cn.autolabor.baafs
 
-import cn.autolabor.baafs.CollisionPredictingModuleBuilderDsl.Companion.startCollisionPredictingModule
+import cn.autolabor.baafs.CollisionPredictorBuilderDsl.Companion.collisionPredictor
 import cn.autolabor.business.Business.Functions.Following
 import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.business.parseFromConsole
@@ -15,6 +15,7 @@ import cn.autolabor.pm1.ChassisBuilderDsl.Companion.startPM1Chassis
 import cn.autolabor.pm1.model.ControlVariable
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
+import kotlinx.coroutines.*
 import org.mechdancer.YChannel
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -54,7 +55,6 @@ val robotOnMap = channel<Stamped<Odometry>>()
 val beaconOnMap = channel<Stamped<Vector2D>>()
 val globalOnRobot = channel<Pair<Sequence<Odometry>, Double>>()
 val commandToSwitch = channel<NonOmnidirectional>()
-val predictToSwitch = channel<Odometry>()
 // 任务
 try {
     runBlocking(Dispatchers.Default) {
@@ -69,8 +69,8 @@ try {
         // 连接定位标签
         println("trying to connect to marvelmind mobile beacon...")
         startMobileBeacon(
-                beaconOnMap = beaconOnMap,
-                exceptions = exceptions
+            beaconOnMap = beaconOnMap,
+            exceptions = exceptions
         ) {
             port = "/dev/beacon"
             retryInterval = 100L
@@ -116,9 +116,9 @@ try {
         // 启动定位融合模块（粒子滤波器）
         val particleFilter =
             startLocationFusion(
-                    robotOnOdometry = robotOnOdometry.outputs[0],
-                    beaconOnMap = beaconOnMap,
-                    robotOnMap = robotOnMap
+                robotOnOdometry = robotOnOdometry.outputs[0],
+                beaconOnMap = beaconOnMap,
+                robotOnMap = robotOnMap
             ) {
                 filter {
                     beaconOnRobot = vector2DOf(-.01, -.02)
@@ -131,8 +131,8 @@ try {
         // 启动业务交互后台
         val business =
             startBusiness(
-                    robotOnMap = robotOnMap,
-                    globalOnRobot = globalOnRobot
+                robotOnMap = robotOnMap,
+                globalOnRobot = globalOnRobot
             ) {
                 localRadius = .5
                 pathInterval = .05
@@ -183,6 +183,15 @@ try {
                     else business.cancel()
                 }
             }
+        // 碰撞预警模块
+        val predictor =
+            collisionPredictor(lidarSet = lidarSet,
+                               robotOutline = robotOutline) {
+                countToContinue = 4
+                countToStop = 6
+                predictingTime = 1000L
+                painter = remote
+            }
         // 启动循径模块
         launch {
             for ((global, progress) in globalOnRobot)
@@ -195,21 +204,12 @@ try {
         launch {
             for ((v, w) in commandToSwitch) {
                 val target = ControlVariable.Velocity(v, w.toRad())
-                predictToSwitch.send(chassis.predict(target)(1000L))
+                if (predictor.predict(chassis.predict(target)))
+                    exceptionServer.update(CollisionDetectedException.recovered())
+                else
+                    exceptionServer.update(CollisionDetectedException.occurred())
                 if (exceptionServer.isEmpty()) chassis.target = target
             }
-        }
-        // 启动碰撞预警模块
-        startCollisionPredictingModule(
-                predictIn = predictToSwitch,
-                exception = exceptions,
-                lidarSet = lidarSet,
-                robotOutline = robotOutline
-        ) {
-            countToContinue = 4
-            countToStop = 6
-            predictingTime = 1000L
-            painter = remote
         }
         println("done")
         // 指令解析器
