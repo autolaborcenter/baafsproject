@@ -1,22 +1,11 @@
-package cn.autolabor.business
+package cn.autolabor.baafs.parser
 
+import cn.autolabor.business.Business
 import cn.autolabor.business.Business.Functions.Following
 import cn.autolabor.business.Business.Functions.Recording
 import kotlinx.coroutines.*
 import org.mechdancer.console.parser.Parser
-import org.mechdancer.console.parser.display
-import org.mechdancer.console.parser.feedback
 import org.mechdancer.console.parser.numbers
-import org.mechdancer.remote.presets.RemoteHub
-
-/** 从控制台解析一行并在控制台上打印反馈 */
-suspend fun Parser.parseFromConsole() {
-    print(">> ")
-    withContext(Dispatchers.Default) { readLine() }
-        ?.let(this::invoke)
-        ?.map(::feedback)
-        ?.forEach(::display)
-}
 
 @ExperimentalCoroutinesApi
 fun CoroutineScope.registerBusinessParser(
@@ -91,17 +80,6 @@ fun CoroutineScope.registerBusinessParser(
         (business.function as? Following)
             ?.let { "progress = ${formatter.format(it.global.progress * 100)}%" }
         ?: business.globals.toString()
-    }
-
-    parser["loop on"] = {
-        (business.function as? Following)
-            ?.let { it.loop = true; "loop on" }
-        ?: "cannot set loop unless when following"
-    }
-    parser["loop off"] = {
-        (business.function as? Following)
-            ?.let { it.loop = false; "loop off" }
-        ?: "cannot set loop unless when following"
     }
 
     parser["function"] = { business.function?.toString() ?: "Idle" }

@@ -1,12 +1,11 @@
 package cn.autolabor.pathfollower
 
-import cn.autolabor.pathfollower.FollowCommand.Error
-import cn.autolabor.pathfollower.FollowCommand.Follow
 import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.plus
 import org.mechdancer.algebra.function.vector.times
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
+import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.filters.Filter
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.adjust
@@ -63,15 +62,15 @@ class VirtualLightSensorPathFollower(
         return turn
     }
 
-    private fun turn(): Follow {
+    private fun turn(): NonOmnidirectional {
         turning = true
-        return Follow(.0, dir * maxOmegaRad)
+        return NonOmnidirectional(.0, dir * maxOmegaRad)
     }
 
     private val turnCount = 4
 
     /** 计算控制量 */
-    operator fun invoke(local: Stamped<Sequence<Odometry>>): FollowCommand {
+    operator fun invoke(local: Stamped<Sequence<Odometry>>): NonOmnidirectional? {
         if (t0 == 0L) t0 = local.time
         // 光感采样
         val bright = sensor.shine(local.data)
@@ -81,7 +80,7 @@ class VirtualLightSensorPathFollower(
             bright.firstOrNull()
             ?: return when {
                 dir != 0 -> turn()
-                else     -> Error
+                else     -> null
             }
         // 查找尖点
         val (tip, i) =
@@ -109,9 +108,10 @@ class VirtualLightSensorPathFollower(
         }
         painter?.paint("控制器输入", (local.time - t0).toDouble(), light)
         // 计算控制量
-        return Follow(v = maxLinearSpeed * min(1.0, kLinearSpeed * (1 - abs(light))),
-                      w = controller
-                          .update(new = light, time = local.time)
-                          .run { sign * min(maxOmegaRad, absoluteValue) })
+        return NonOmnidirectional(
+                v = maxLinearSpeed * min(1.0, kLinearSpeed * (1 - abs(light))),
+                w = controller
+                    .update(new = light, time = local.time)
+                    .run { sign * min(maxOmegaRad, absoluteValue) })
     }
 }

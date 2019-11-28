@@ -1,30 +1,30 @@
 package cn.autolabor.baafs
 
-import cn.autolabor.baafs.CollisionPredictingModuleBuilderDsl.Companion.startCollisionPredictingModule
+import cn.autolabor.baafs.CollisionPredictorBuilderDsl.Companion.collisionPredictor
+import cn.autolabor.baafs.parser.parseFromConsole
+import cn.autolabor.baafs.parser.registerBusinessParser
+import cn.autolabor.baafs.parser.registerExceptionServerParser
+import cn.autolabor.baafs.parser.registerParticleFilterParser
 import cn.autolabor.business.Business.Functions.Following
 import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
-import cn.autolabor.business.parseFromConsole
-import cn.autolabor.business.registerBusinessParser
+import cn.autolabor.business.FollowFailedException
 import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
-import cn.autolabor.pathfollower.Commander
-import cn.autolabor.pathfollower.FollowCommand
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import cn.autolabor.pathfollower.Proportion
 import cn.autolabor.pm1.ChassisBuilderDsl.Companion.startPM1Chassis
 import cn.autolabor.pm1.model.ControlVariable
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
-import org.mechdancer.YChannel
+import org.mechdancer.*
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
-import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
-import org.mechdancer.common.Velocity.NonOmnidirectional
+import org.mechdancer.common.Stamped.Companion.stamp
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
@@ -33,8 +33,6 @@ import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.startExcept
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
-import org.mechdancer.networksInfo
-import org.mechdancer.paint
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.presets.remoteHub
 import kotlin.math.PI
@@ -53,8 +51,7 @@ val robotOnOdometry = YChannel<Stamped<Odometry>>()
 val robotOnMap = channel<Stamped<Odometry>>()
 val beaconOnMap = channel<Stamped<Vector2D>>()
 val globalOnRobot = channel<Pair<Sequence<Odometry>, Double>>()
-val commandToSwitch = channel<NonOmnidirectional>()
-val predictToSwitch = channel<Odometry>()
+val commandToSwitch = channel<ControlVariable>()
 // 任务
 try {
     runBlocking(Dispatchers.Default) {
@@ -174,77 +171,89 @@ try {
 
                 painter = remote
             }
-        // 指令器
-        val commander =
-            Commander(commandOut = commandToSwitch,
-                      exceptions = exceptions) {
-                (business.function as? Following)?.run {
-                    if (loop) global.progress = .0
-                    else business.cancel()
-                }
+        // 碰撞预警模块
+        val predictor =
+            collisionPredictor(lidarSet = lidarSet,
+                               robotOutline = robotOutline) {
+                countToContinue = 4
+                countToStop = 6
+                predictingTime = 1000L
+                painter = remote
             }
+        var loop = false
+        var isEnabled = false
+        var invokeTime = 0L
         // 启动循径模块
         launch {
-            for ((global, progress) in globalOnRobot)
-                commander(when (progress) {
-                              1.0  -> FollowCommand.Finish
-                              else -> pathFollower(Stamped.stamp(localPlanner.modify(global, lidarSet.frame)))
-                          })
-        }.invokeOnCompletion { commandToSwitch.close(it) }
-        // 启动指令转发
-        launch {
-            for ((v, w) in commandToSwitch) {
-                val target = ControlVariable.Velocity(v, w.toRad())
-                predictToSwitch.send(chassis.predict(target)(1000L))
-                if (exceptionServer.isEmpty()) chassis.target = target
+            val stop = ControlVariable.Physical(.0, Double.NaN.toRad())
+            for ((global, progress) in globalOnRobot) {
+                invokeTime = System.currentTimeMillis()
+                // 生成控制量
+                val target =
+                    if (progress == 1.0) {
+                        exceptions.send(FollowFailedException.recovered())
+                        (business.function as? Following)?.let {
+                            if (loop) it.global.progress = .0
+                            else {
+                                isEnabled = false
+                                business.cancel()
+                            }
+                        }
+                        stop
+                    } else {
+                        localPlanner
+                            .modify(global, lidarSet.frame)
+                            .let(::stamp)
+                            .let(pathFollower::invoke)
+                            ?.let { (v, w) ->
+                                exceptions.send(FollowFailedException.recovered())
+                                ControlVariable.Velocity(v, w.toRad())
+                            }
+                        ?: run {
+                            exceptions.send(FollowFailedException.occurred())
+                            stop
+                        }
+                    }
+                // 急停
+                if (predictor.predict(chassis.predict(target)))
+                    exceptionServer.update(CollisionDetectedException.recovered())
+                else
+                    exceptionServer.update(CollisionDetectedException.occurred())
+                // 转发
+                if (isEnabled && exceptionServer.isEmpty())
+                    chassis.target = target
             }
-        }
-        // 启动碰撞预警模块
-        startCollisionPredictingModule(
-                predictIn = predictToSwitch,
-                exception = exceptions,
-                lidarSet = lidarSet,
-                robotOutline = robotOutline
-        ) {
-            countToContinue = 4
-            countToStop = 6
-            predictingTime = 1000L
-            painter = remote
-        }
+        }.invokeOnCompletion { commandToSwitch.close(it) }
         println("done")
         // 指令解析器
         val parser = buildParser {
             this["coroutines"] = { coroutineContext[Job]?.children?.count() }
-            this["exceptions"] = { exceptionServer.get().joinToString("\n") }
-            this["fusion state"] = {
-                buildString {
-                    val now = System.currentTimeMillis()
-                    appendln(particleFilter.lastQuery
-                                 ?.let { (t, pose) -> "last locate at $pose ${now - t}ms ago" }
-                             ?: "never query pose before")
-                    val (t, quality) = particleFilter.quality
-                    appendln("particles last update ${now - t}ms ago")
-                    appendln("now system is ${if (particleFilter.isConvergent) "" else "not "}ready for work")
-                    append("quality = $quality")
-                }
-            }
-            this["\'"] = {
-                (business.function as? Following)?.let {
-                    commander.isEnabled = !commander.isEnabled
-                    if (commander.isEnabled) "continue" else "pause"
-                } ?: "cannot set enabled unless when following"
-            }
+            this["\'"] = { isEnabled = !isEnabled; if (isEnabled) "enabled" else "disabled" }
+            this["loop on"] = { loop = true; "loop on" }
+            this["loop off"] = { loop = false; "loop off" }
+            registerExceptionServerParser(exceptionServer, this)
+            registerParticleFilterParser(particleFilter, this)
             registerBusinessParser(business, this)
         }
         launch { while (isActive) parser.parseFromConsole() }
         // 刷新固定显示
-        if (remote != null)
+        if (remote != null) {
             launch {
                 while (isActive) {
                     remote.paint("R 机器人轮廓", robotOutline)
                     delay(5000L)
                 }
             }
+            launch {
+                while (isActive) {
+                    while (System.currentTimeMillis() - invokeTime > 2000L) {
+                        remote.paintVectors("R 雷达", lidarSet.frame)
+                        delay(100L)
+                    }
+                    delay(5000L)
+                }
+            }
+        }
     }
 } catch (e: CancellationException) {
 } catch (e: ApplicationException) {

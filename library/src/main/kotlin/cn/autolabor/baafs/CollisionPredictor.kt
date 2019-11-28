@@ -15,7 +15,9 @@ import org.mechdancer.remote.presets.RemoteHub
 import kotlin.math.max
 import kotlin.math.min
 
-class CollisionPredictor internal constructor(
+/** 碰撞预测器 */
+class CollisionPredictor
+internal constructor(
     private val lidarSet: LidarSet,
     robotOutline: Polygon,
 

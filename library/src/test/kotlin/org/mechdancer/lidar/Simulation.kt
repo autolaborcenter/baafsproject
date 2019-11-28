@@ -3,14 +3,14 @@ package org.mechdancer.lidar
 import cn.autolabor.baafs.CollisionDetectedException
 import cn.autolabor.baafs.CollisionPredictorBuilderDsl.Companion.collisionPredictor
 import cn.autolabor.baafs.outlineFilter
+import cn.autolabor.baafs.parser.parseFromConsole
+import cn.autolabor.baafs.parser.registerBusinessParser
+import cn.autolabor.baafs.parser.registerExceptionServerParser
 import cn.autolabor.baafs.robotOutline
 import cn.autolabor.business.Business.Functions.Following
 import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
-import cn.autolabor.business.parseFromConsole
-import cn.autolabor.business.registerBusinessParser
+import cn.autolabor.business.FollowFailedException
 import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
-import cn.autolabor.pathfollower.Commander
-import cn.autolabor.pathfollower.FollowCommand
 import cn.autolabor.pathfollower.PIController
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import com.faselase.LidarSet
@@ -25,7 +25,6 @@ import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity
-import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.common.toTransformation
 import org.mechdancer.console.parser.buildParser
@@ -74,7 +73,6 @@ fun main() {
     // 话题
     val robotOnMap = YChannel<Stamped<Odometry>>()
     val globalOnRobot = channel<Pair<Sequence<Odometry>, Double>>()
-    val commandToRobot = channel<NonOmnidirectional>()
     val exceptions = channel<ExceptionMessage>()
     val command = AtomicReference(Velocity.velocity(.0, .0))
     runBlocking(Dispatchers.Default) {
@@ -126,15 +124,6 @@ fun main() {
 
                 painter = remote
             }
-        // 指令器
-        val commander =
-            Commander(commandOut = commandToRobot,
-                      exceptions = exceptions) {
-                (business.function as? Following)?.run {
-                    if (loop) global.progress = .0
-                    else business.cancel()
-                }
-            }
         // 碰撞预警模块
         val predictor =
             collisionPredictor(lidarSet = lidarSet,
@@ -144,41 +133,60 @@ fun main() {
                 predictingTime = 1000L
                 painter = remote
             }
+        var loop = false
+        var isEnabled = false
+        var invokeTime = 0L
+        val watchDog = WatchDog(this, 3 * dt) { command.set(Velocity.velocity(0, 0)) }
         // 启动循径模块
         launch {
-            for ((global, progress) in globalOnRobot)
-                commander(when (progress) {
-                              1.0  -> FollowCommand.Finish
-                              else -> pathFollower(Stamped.stamp(localPlanner.modify(global, lidarSet.frame)))
-                          })
-        }.invokeOnCompletion { commandToRobot.close(it) }
+            for ((global, progress) in globalOnRobot) {
+                invokeTime = System.currentTimeMillis()
+                // 生成控制量
+                val target =
+                    if (progress == 1.0) {
+                        exceptions.send(FollowFailedException.recovered())
+                        (business.function as? Following)?.let {
+                            if (loop) it.global.progress = .0
+                            else {
+                                isEnabled = false
+                                business.cancel()
+                            }
+                        }
+                        Velocity.velocity(.0, .0)
+                    } else {
+                        localPlanner
+                            .modify(global, lidarSet.frame)
+                            .let(Stamped.Companion::stamp)
+                            .let(pathFollower::invoke)
+                            ?.also { exceptions.send(FollowFailedException.recovered()) }
+                        ?: run {
+                            exceptions.send(FollowFailedException.occurred())
+                            Velocity.velocity(.0, .0)
+                        }
+                    }
+                // 急停
+                if (predictor.predict { target.toDeltaOdometry(it / 1000.0) })
+                    exceptionServer.update(CollisionDetectedException.recovered())
+                else
+                    exceptionServer.update(CollisionDetectedException.occurred())
+                // 转发
+                if (isEnabled && exceptionServer.isEmpty()) {
+                    watchDog.feed()
+                    command.set(target)
+                }
+            }
+        }
         // 接收指令
         launch {
             for ((v, w) in commands)
                 command.set(Velocity.velocity(0.2 * v, 0.8 * w))
         }
-        // 发送指令
-        launch {
-            val watchDog = WatchDog(this, 3 * dt) { command.set(Velocity.velocity(0, 0)) }
-            for (v in commandToRobot) {
-                if (predictor.predict { v.toDeltaOdometry(it / 1000.0) })
-                    exceptionServer.update(CollisionDetectedException.recovered())
-                else
-                    exceptionServer.update(CollisionDetectedException.occurred())
-                if (!exceptionServer.isEmpty()) continue
-                watchDog.feed()
-                command.set(v)
-            }
-        }
         val parser = buildParser {
             this["coroutines"] = { coroutineContext[Job]?.children?.count() }
-            this["exceptions"] = { exceptionServer.get().joinToString("\n") }
-            this["\'"] = {
-                (business.function as? Following)?.let {
-                    commander.isEnabled = !commander.isEnabled
-                    if (commander.isEnabled) "continue" else "pause"
-                } ?: "cannot set enabled unless when following"
-            }
+            this["\'"] = { isEnabled = !isEnabled; if (isEnabled) "enabled" else "disabled" }
+            this["loop on"] = { loop = true; "loop on" }
+            this["loop off"] = { loop = false; "loop off" }
+            registerExceptionServerParser(exceptionServer, this)
             registerBusinessParser(business, this)
         }
         // 处理控制台
@@ -189,6 +197,15 @@ fun main() {
             while (isActive) {
                 remote.paint("R 机器人轮廓", robotOutline)
                 remote.paintVectors("障碍物", o)
+                delay(5000L)
+            }
+        }
+        launch {
+            while (isActive) {
+                while (System.currentTimeMillis() - invokeTime > 2000L) {
+                    remote.paintVectors("R 雷达", lidarSet.frame)
+                    delay(100L)
+                }
                 delay(5000L)
             }
         }

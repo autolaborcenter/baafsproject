@@ -9,7 +9,4 @@ sealed class FollowCommand {
 
     /** 循径失败 */
     object Error : FollowCommand()
-
-    /** 循径完成 */
-    object Finish : FollowCommand()
 }

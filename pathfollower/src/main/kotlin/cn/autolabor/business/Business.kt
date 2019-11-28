@@ -93,8 +93,6 @@ class Business internal constructor(
             private val globalOnRobot: SendChannel<Pair<Sequence<Odometry>, Double>>,
             val global: GlobalPath
         ) : Functions() {
-            var loop = false
-
             override val job = scope.launch {
                 for ((_, pose) in robotOnMap)
                     globalOnRobot.send(global[pose] to global.progress)
