@@ -1,6 +1,6 @@
 package cn.autolabor.baafs
 
-import cn.autolabor.baafs.CollisionPredictingModuleBuilderDsl.Companion.startCollisionPredictingModule
+import cn.autolabor.baafs.CollisionPredictorBuilderDsl.Companion.collisionPredictor
 import cn.autolabor.business.Business.Functions.Following
 import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.business.parseFromConsole
@@ -17,7 +17,6 @@ import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
 import kotlinx.coroutines.*
 import org.mechdancer.YChannel
-import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
@@ -28,8 +27,6 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.shape.Circle
-import org.mechdancer.common.shape.Polygon
-import org.mechdancer.common.toTransformation
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
@@ -60,7 +57,7 @@ fun main() {
     val robotOnMap = channel<Stamped<Odometry>>()
     val beaconOnMap = channel<Stamped<Vector2D>>()
     val globalOnRobot = channel<Pair<Sequence<Odometry>, Double>>()
-    val commandToSwitch = YChannel<NonOmnidirectional>()
+    val commandToSwitch = channel<NonOmnidirectional>()
     // 任务
     try {
         runBlocking(Dispatchers.Default) {
@@ -182,12 +179,21 @@ fun main() {
                 }
             // 指令器
             val commander =
-                Commander(commandOut = commandToSwitch.input,
+                Commander(commandOut = commandToSwitch,
                           exceptions = exceptions) {
                     (business.function as? Following)?.run {
                         if (loop) global.progress = .0
                         else business.cancel()
                     }
+                }
+            // 碰撞预警模块
+            val predictor =
+                collisionPredictor(lidarSet = lidarSet,
+                                   robotOutline = robotOutline) {
+                    countToContinue = 4
+                    countToStop = 6
+                    predictingTime = 1000L
+                    painter = remote
                 }
             // 启动循径模块
             launch {
@@ -196,38 +202,17 @@ fun main() {
                                   1.0  -> FollowCommand.Finish
                                   else -> pathFollower(Stamped.stamp(localPlanner.modify(global, lidarSet.frame)))
                               })
-            }.invokeOnCompletion { commandToSwitch.input.close(it) }
-            // 启动碰撞预警模块
-            startCollisionPredictingModule(
-                    commandIn = commandToSwitch.outputs[0],
-                    exception = exceptions,
-                    lidarSet = lidarSet,
-                    robotOutline = robotOutline
-            ) {
-                countToContinue = 4
-                countToStop = 6
-                predictingTime = 1000L
-                painter = remote
-            }
+            }.invokeOnCompletion { commandToSwitch.close(it) }
             // 启动指令转发
             launch {
-                for ((v, w) in commandToSwitch.outputs[1])
-                    if (exceptionServer.isEmpty()) {
-                        val target = ControlVariable.Velocity(v, w.toRad())
-                        chassis.target = target
-
-                        remote?.run {
-                            val pre = chassis.predict(target)(1000L).toTransformation()
-                            val outline = robotOutline
-                                .vertex
-                                .asSequence()
-                                .map(pre::invoke)
-                                .map(Vector::to2D)
-                                .toList()
-                                .let(::Polygon)
-                            paint("R 新轨迹预测", outline)
-                        }
-                    }
+                for ((v, w) in commandToSwitch) {
+                    val target = ControlVariable.Velocity(v, w.toRad())
+                    if (predictor.predict(chassis.predict(target)))
+                        exceptionServer.update(CollisionDetectedException.recovered())
+                    else
+                        exceptionServer.update(CollisionDetectedException.occurred())
+                    if (exceptionServer.isEmpty()) chassis.target = target
+                }
             }
             println("done")
             // 指令解析器

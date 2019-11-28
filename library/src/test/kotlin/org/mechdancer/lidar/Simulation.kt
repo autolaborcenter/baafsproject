@@ -1,6 +1,7 @@
 package org.mechdancer.lidar
 
-import cn.autolabor.baafs.CollisionPredictingModuleBuilderDsl.Companion.startCollisionPredictingModule
+import cn.autolabor.baafs.CollisionDetectedException
+import cn.autolabor.baafs.CollisionPredictorBuilderDsl.Companion.collisionPredictor
 import cn.autolabor.baafs.outlineFilter
 import cn.autolabor.baafs.robotOutline
 import cn.autolabor.business.Business.Functions.Following
@@ -73,7 +74,7 @@ fun main() {
     // 话题
     val robotOnMap = YChannel<Stamped<Odometry>>()
     val globalOnRobot = channel<Pair<Sequence<Odometry>, Double>>()
-    val commandToRobot = YChannel<NonOmnidirectional>()
+    val commandToRobot = channel<NonOmnidirectional>()
     val exceptions = channel<ExceptionMessage>()
     val command = AtomicReference(Velocity.velocity(.0, .0))
     runBlocking(Dispatchers.Default) {
@@ -127,12 +128,21 @@ fun main() {
             }
         // 指令器
         val commander =
-            Commander(commandOut = commandToRobot.input,
+            Commander(commandOut = commandToRobot,
                       exceptions = exceptions) {
                 (business.function as? Following)?.run {
                     if (loop) global.progress = .0
                     else business.cancel()
                 }
+            }
+        // 碰撞预警模块
+        val predictor =
+            collisionPredictor(lidarSet = lidarSet,
+                               robotOutline = robotOutline) {
+                countToContinue = 4
+                countToStop = 6
+                predictingTime = 1000L
+                painter = remote
             }
         // 启动循径模块
         launch {
@@ -141,17 +151,7 @@ fun main() {
                               1.0  -> FollowCommand.Finish
                               else -> pathFollower(Stamped.stamp(localPlanner.modify(global, lidarSet.frame)))
                           })
-        }.invokeOnCompletion { commandToRobot.input.close(it) }
-        // 启动碰撞预警模块
-        startCollisionPredictingModule(
-                commandIn = commandToRobot.outputs[0],
-                exception = exceptions,
-                lidarSet = lidarSet,
-                robotOutline = robotOutline
-        ) {
-            predictingTime = 1000L
-            painter = remote
-        }
+        }.invokeOnCompletion { commandToRobot.close(it) }
         // 接收指令
         launch {
             for ((v, w) in commands)
@@ -160,7 +160,11 @@ fun main() {
         // 发送指令
         launch {
             val watchDog = WatchDog(this, 3 * dt) { command.set(Velocity.velocity(0, 0)) }
-            for (v in commandToRobot.outputs[1]) {
+            for (v in commandToRobot) {
+                if (predictor.predict { v.toDeltaOdometry(it / 1000.0) })
+                    exceptionServer.update(CollisionDetectedException.recovered())
+                else
+                    exceptionServer.update(CollisionDetectedException.occurred())
                 if (!exceptionServer.isEmpty()) continue
                 watchDog.feed()
                 command.set(v)
