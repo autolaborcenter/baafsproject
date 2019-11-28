@@ -17,6 +17,7 @@ import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
 import kotlinx.coroutines.*
 import org.mechdancer.YChannel
+import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
@@ -27,6 +28,8 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.shape.Circle
+import org.mechdancer.common.shape.Polygon
+import org.mechdancer.common.toTransformation
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
@@ -69,8 +72,8 @@ try {
         // 连接定位标签
         println("trying to connect to marvelmind mobile beacon...")
         startMobileBeacon(
-                beaconOnMap = beaconOnMap,
-                exceptions = exceptions
+            beaconOnMap = beaconOnMap,
+            exceptions = exceptions
         ) {
             port = "/dev/beacon"
             retryInterval = 100L
@@ -116,9 +119,9 @@ try {
         // 启动定位融合模块（粒子滤波器）
         val particleFilter =
             startLocationFusion(
-                    robotOnOdometry = robotOnOdometry.outputs[0],
-                    beaconOnMap = beaconOnMap,
-                    robotOnMap = robotOnMap
+                robotOnOdometry = robotOnOdometry.outputs[0],
+                beaconOnMap = beaconOnMap,
+                robotOnMap = robotOnMap
             ) {
                 filter {
                     beaconOnRobot = vector2DOf(-.01, -.02)
@@ -131,8 +134,8 @@ try {
         // 启动业务交互后台
         val business =
             startBusiness(
-                    robotOnMap = robotOnMap,
-                    globalOnRobot = globalOnRobot
+                robotOnMap = robotOnMap,
+                globalOnRobot = globalOnRobot
             ) {
                 localRadius = .5
                 pathInterval = .05
@@ -193,10 +196,10 @@ try {
         }.invokeOnCompletion { commandToSwitch.input.close(it) }
         // 启动碰撞预警模块
         startCollisionPredictingModule(
-                commandIn = commandToSwitch.outputs[0],
-                exception = exceptions,
-                lidarSet = lidarSet,
-                robotOutline = robotOutline
+            commandIn = commandToSwitch.outputs[0],
+            exception = exceptions,
+            lidarSet = lidarSet,
+            robotOutline = robotOutline
         ) {
             countToContinue = 4
             countToStop = 6
@@ -206,8 +209,22 @@ try {
         // 启动指令转发
         launch {
             for ((v, w) in commandToSwitch.outputs[1])
-                if (exceptionServer.isEmpty())
-                    chassis.target = ControlVariable.Velocity(v, w.toRad())
+                if (exceptionServer.isEmpty()) {
+                    val target = ControlVariable.Velocity(v, w.toRad())
+                    chassis.target = target
+
+                    remote?.run {
+                        val pre = chassis.predict(target)(1000L).toTransformation()
+                        val outline = robotOutline
+                            .vertex
+                            .asSequence()
+                            .map(pre::invoke)
+                            .map(Vector::to2D)
+                            .toList()
+                            .let(::Polygon)
+                        paint("R 新轨迹预测", outline)
+                    }
+                }
         }
         println("done")
         // 指令解析器
