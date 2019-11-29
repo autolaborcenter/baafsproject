@@ -1,6 +1,6 @@
 package cn.autolabor.pathfollower
 
-import cn.autolabor.pm1.model.ControlVariable
+import cn.autolabor.pm1.model.ControlVariable.Physical
 import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.plus
 import org.mechdancer.algebra.function.vector.times
@@ -20,29 +20,25 @@ import kotlin.math.sign
  *
  * * 参数
  *   * 主传感器 [sensor], 包括形状和位置
- *   * 主控制器 [controller]
  *   * 两点方向差大于 [minTipAngle] 判定为尖点
  *   * 在尖点处目标转角大于 [minTurnAngle] 触发转动
  *   * 转向分界线 [turnThreshold]
- *   * 最大线速度 [maxLinearSpeed]
- *   * 最大角速度 [maxAngularSpeed]
+ *   * 最大线速度 [maxSpeed]
  */
 class VirtualLightSensorPathFollower(
     private val sensor: VirtualLightSensor,
     minTipAngle: Angle,
     minTurnAngle: Angle,
     turnThreshold: Angle,
-    private val maxLinearSpeed: Double,
-    maxAngularSpeed: Angle,
+    private val maxSpeed: Double,
 
     private val painter: RemoteHub?
-) : LocalFollower<ControlVariable> {
+) : LocalFollower<Physical> {
     private var dir = 0
     private var turning = false
 
     private val cosMinTip = cos(minTipAngle.asRadian())
     private val minTurnRad = minTurnAngle.asRadian()
-    private val maxOmegaRad = maxAngularSpeed.asRadian()
     private val turnThresholdRad = turnThreshold.asRadian()
 
     private fun calculateDir(tip: Odometry): Boolean {
@@ -57,15 +53,15 @@ class VirtualLightSensorPathFollower(
         return turn
     }
 
-    private fun turn(): ControlVariable {
+    private fun turn(): Physical {
         turning = true
-        return ControlVariable.Velocity(.0, (dir * maxOmegaRad).toRad())
+        return Physical(maxSpeed, (-dir * PI / 2).toRad())
     }
 
     private val turnCount = 4
 
     /** 计算控制量 */
-    override operator fun invoke(local: Sequence<Odometry>): ControlVariable? {
+    override operator fun invoke(local: Sequence<Odometry>): Physical? {
         // 光感采样
         val bright = sensor.shine(local)
         if (turning && bright.size < turnCount) return turn()
@@ -101,6 +97,6 @@ class VirtualLightSensorPathFollower(
             painter?.paintPoses("R 尖点", listOf(tip))
         }
         // 计算控制量
-        return ControlVariable.Physical(maxLinearSpeed, (-PI / 2 * light).toRad())
+        return Physical(maxSpeed, (-PI / 2 * light).toRad())
     }
 }

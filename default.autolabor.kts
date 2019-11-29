@@ -14,6 +14,7 @@ import cn.autolabor.pm1.ChassisBuilderDsl.Companion.startPM1Chassis
 import cn.autolabor.pm1.model.ControlVariable
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
+import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -64,8 +65,8 @@ try {
         // 连接定位标签
         println("trying to connect to marvelmind mobile beacon...")
         startMobileBeacon(
-                beaconOnMap = beaconOnMap,
-                exceptions = exceptions
+            beaconOnMap = beaconOnMap,
+            exceptions = exceptions
         ) {
             port = "/dev/beacon"
             retryInterval = 100L
@@ -111,9 +112,9 @@ try {
         // 启动定位融合模块（粒子滤波器）
         val particleFilter =
             startLocationFusion(
-                    robotOnOdometry = robotOnOdometry.outputs[0],
-                    beaconOnMap = beaconOnMap,
-                    robotOnMap = robotOnMap
+                robotOnOdometry = robotOnOdometry.outputs[0],
+                beaconOnMap = beaconOnMap,
+                robotOnMap = robotOnMap
             ) {
                 filter {
                     beaconOnRobot = vector2DOf(-.01, -.02)
@@ -126,8 +127,8 @@ try {
         // 启动业务交互后台
         val business =
             startBusiness(
-                    robotOnMap = robotOnMap,
-                    globalOnRobot = globalOnRobot
+                robotOnMap = robotOnMap,
+                globalOnRobot = globalOnRobot
             ) {
                 localRadius = .5
                 pathInterval = .05
@@ -162,8 +163,7 @@ try {
                 minTipAngle = 60.toDegree()
                 minTurnAngle = 15.toDegree()
                 turnThreshold = (-120).toDegree()
-                maxLinearSpeed = .18
-                maxAngularSpeed = .6.toRad()
+                maxSpeed = .2
 
                 painter = remote
             }

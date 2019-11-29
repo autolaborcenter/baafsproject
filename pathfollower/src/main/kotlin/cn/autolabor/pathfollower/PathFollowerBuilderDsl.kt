@@ -6,7 +6,6 @@ import org.mechdancer.common.shape.Circle
 import org.mechdancer.common.shape.Shape
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toDegree
-import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.remote.presets.RemoteHub
 import kotlin.math.PI
 
@@ -17,8 +16,7 @@ class PathFollowerBuilderDsl private constructor() {
     var minTipAngle: Angle = 60.toDegree()
     var minTurnAngle: Angle = 15.toDegree()
     var turnThreshold: Angle = 180.toDegree()
-    var maxLinearSpeed: Double = 0.1
-    var maxAngularSpeed: Angle = 0.5.toRad()
+    var maxSpeed: Double = 0.2
 
     var painter: RemoteHub? = null
 
@@ -29,8 +27,7 @@ class PathFollowerBuilderDsl private constructor() {
                 .apply {
                     require(minTipAngle.asRadian() in .0..PI)
                     require(minTurnAngle.asRadian() in .0..PI)
-                    require(maxLinearSpeed > 0)
-                    require(maxAngularSpeed.asRadian() > 0)
+                    require(maxSpeed > 0)
                 }
                 .run {
                     VirtualLightSensorPathFollower(
@@ -40,8 +37,7 @@ class PathFollowerBuilderDsl private constructor() {
                         minTipAngle = minTipAngle,
                         minTurnAngle = minTurnAngle,
                         turnThreshold = turnThreshold,
-                        maxLinearSpeed = maxLinearSpeed,
-                        maxAngularSpeed = maxAngularSpeed,
+                        maxSpeed = maxSpeed,
                         painter = painter)
                 }
     }

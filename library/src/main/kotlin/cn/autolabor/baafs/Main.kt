@@ -68,8 +68,8 @@ fun main() {
             // 连接定位标签
             println("trying to connect to marvelmind mobile beacon...")
             startMobileBeacon(
-                    beaconOnMap = beaconOnMap,
-                    exceptions = exceptions
+                beaconOnMap = beaconOnMap,
+                exceptions = exceptions
             ) {
                 port = "/dev/beacon"
                 retryInterval = 100L
@@ -115,9 +115,9 @@ fun main() {
             // 启动定位融合模块（粒子滤波器）
             val particleFilter =
                 startLocationFusion(
-                        robotOnOdometry = robotOnOdometry.outputs[0],
-                        beaconOnMap = beaconOnMap,
-                        robotOnMap = robotOnMap
+                    robotOnOdometry = robotOnOdometry.outputs[0],
+                    beaconOnMap = beaconOnMap,
+                    robotOnMap = robotOnMap
                 ) {
                     filter {
                         beaconOnRobot = vector2DOf(-.01, -.02)
@@ -130,8 +130,8 @@ fun main() {
             // 启动业务交互后台
             val business =
                 startBusiness(
-                        robotOnMap = robotOnMap,
-                        globalOnRobot = globalOnRobot
+                    robotOnMap = robotOnMap,
+                    globalOnRobot = globalOnRobot
                 ) {
                     localRadius = .5
                     pathInterval = .05
@@ -166,8 +166,7 @@ fun main() {
                     minTipAngle = 60.toDegree()
                     minTurnAngle = 15.toDegree()
                     turnThreshold = (-120).toDegree()
-                    maxLinearSpeed = .18
-                    maxAngularSpeed = .6.toRad()
+                    maxSpeed = .2
 
                     painter = remote
                 }

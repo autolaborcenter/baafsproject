@@ -12,7 +12,6 @@ import cn.autolabor.business.FollowFailedException
 import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import cn.autolabor.pm1.model.ChassisStructure
-import cn.autolabor.pm1.model.ControlVariable
 import com.faselase.LidarSet
 import kotlinx.coroutines.*
 import org.mechdancer.*
@@ -32,7 +31,6 @@ import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.startExceptionServer
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toDegree
-import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.lidar.Default.commands
 import org.mechdancer.lidar.Default.remote
 import org.mechdancer.lidar.Default.simulationLidar
@@ -83,8 +81,8 @@ fun main() {
         // 启动业务交互后台
         val business =
             startBusiness(
-                    robotOnMap = robotOnMap.outputs[0],
-                    globalOnRobot = globalOnRobot
+                robotOnMap = robotOnMap.outputs[0],
+                globalOnRobot = globalOnRobot
             ) {
                 localRadius = .5
                 pathInterval = .05
@@ -118,8 +116,7 @@ fun main() {
                 lightRange = Circle(.3, 32)
                 minTipAngle = 60.toDegree()
                 minTurnAngle = 15.toDegree()
-                maxLinearSpeed = .18
-                maxAngularSpeed = .6.toRad()
+                maxSpeed = .18
 
                 painter = remote
             }
@@ -150,14 +147,8 @@ fun main() {
                             .modify(global, lidarSet.frame)
                             .let(pathFollower::invoke)
                             ?.also { exceptions.send(FollowFailedException.recovered()) }
-                            ?.let {
-                                val (v, w) = when (it) {
-                                    is ControlVariable.Velocity -> it
-                                    is ControlVariable.Physical -> it.let(struct::toVelocity)
-                                    is ControlVariable.Wheels   -> it.let(struct::toVelocity)
-                                }
-                                Velocity.velocity(v, w.asRadian())
-                            }
+                            ?.let(struct::toVelocity)
+                            ?.let { (v, w) -> Velocity.velocity(v, w.asRadian()) }
                         ?: run {
                             exceptions.send(FollowFailedException.occurred())
                             Velocity.velocity(.0, .0)
