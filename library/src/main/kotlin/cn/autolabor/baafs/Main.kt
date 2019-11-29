@@ -14,6 +14,7 @@ import cn.autolabor.pm1.ChassisBuilderDsl.Companion.startPM1Chassis
 import cn.autolabor.pm1.model.ControlVariable
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
+import com.usarthmi.UsartHmi
 import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.algebra.function.vector.*
@@ -28,6 +29,7 @@ import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.startExceptionServer
+import org.mechdancer.exceptions.device.DeviceNotExistException
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
@@ -48,6 +50,7 @@ fun main() {
             }
     // 话题
     val exceptions = channel<ExceptionMessage>()
+    val msgFromHmi = channel<String>()
     val robotOnOdometry = YChannel<Stamped<Odometry>>()
     val robotOnMap = channel<Stamped<Odometry>>()
     val beaconOnMap = channel<Stamped<Vector2D>>()
@@ -56,6 +59,15 @@ fun main() {
     // 任务
     try {
         runBlocking(Dispatchers.Default) {
+            println("try to connect to usart hmi")
+            val hmi: UsartHmi? =
+                try {
+                    UsartHmi(this, msgFromHmi, "COM3")
+                } catch (e: DeviceNotExistException) {
+                    println("cannot find usart hmi")
+                    null
+                }
+            println("done")
             // 连接外设
             // 连接底盘
             println("trying to connect to pm1 chassis...")
@@ -68,8 +80,8 @@ fun main() {
             // 连接定位标签
             println("trying to connect to marvelmind mobile beacon...")
             startMobileBeacon(
-                beaconOnMap = beaconOnMap,
-                exceptions = exceptions
+                    beaconOnMap = beaconOnMap,
+                    exceptions = exceptions
             ) {
                 port = "/dev/beacon"
                 retryInterval = 100L
@@ -115,9 +127,9 @@ fun main() {
             // 启动定位融合模块（粒子滤波器）
             val particleFilter =
                 startLocationFusion(
-                    robotOnOdometry = robotOnOdometry.outputs[0],
-                    beaconOnMap = beaconOnMap,
-                    robotOnMap = robotOnMap
+                        robotOnOdometry = robotOnOdometry.outputs[0],
+                        beaconOnMap = beaconOnMap,
+                        robotOnMap = robotOnMap
                 ) {
                     filter {
                         beaconOnRobot = vector2DOf(-.01, -.02)
@@ -130,8 +142,8 @@ fun main() {
             // 启动业务交互后台
             val business =
                 startBusiness(
-                    robotOnMap = robotOnMap,
-                    globalOnRobot = globalOnRobot
+                        robotOnMap = robotOnMap,
+                        globalOnRobot = globalOnRobot
                 ) {
                     localRadius = .5
                     pathInterval = .05
@@ -220,6 +232,16 @@ fun main() {
                 registerBusinessParser(business, this)
             }
             launch { while (isActive) parser.parseFromConsole() }
+            hmi?.run {
+                launch {
+                    for (msg in msgFromHmi) {
+                        if (!particleFilter.isConvergent)
+                            write("location system is not ready")
+                        else
+                            write(parser(msg).single().second.toString())
+                    }
+                }
+            }
             // 刷新固定显示
             if (remote != null) {
                 launch {
