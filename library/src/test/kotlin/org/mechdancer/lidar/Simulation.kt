@@ -7,12 +7,12 @@ import cn.autolabor.baafs.parser.parseFromConsole
 import cn.autolabor.baafs.parser.registerBusinessParser
 import cn.autolabor.baafs.parser.registerExceptionServerParser
 import cn.autolabor.baafs.robotOutline
-import cn.autolabor.business.Business.Functions.Following
 import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.business.FollowFailedException
 import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
 import cn.autolabor.pathfollower.PIController
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
+import cn.autolabor.pathfollower.Proportion
 import com.faselase.LidarSet
 import kotlinx.coroutines.*
 import org.mechdancer.*
@@ -114,13 +114,13 @@ fun main() {
         // 循径器（虚拟光感法）
         val pathFollower =
             pathFollower {
-                sensorPose = Odometry.pose(x = .2)
-                lightRange = Circle(.24, 32)
-                controller = PIController(.9, 2.0, .7)
+                sensorPose = Odometry.pose(x = .3)
+                lightRange = Circle(.3, 32)
+                controller = Proportion(1.0)
                 minTipAngle = 60.toDegree()
                 minTurnAngle = 15.toDegree()
-                maxLinearSpeed = .16
-                maxAngularSpeed = .5.toRad()
+                maxLinearSpeed = .18
+                maxAngularSpeed = .6.toRad()
 
                 painter = remote
             }
@@ -133,7 +133,6 @@ fun main() {
                 predictingTime = 1000L
                 painter = remote
             }
-        var loop = false
         var isEnabled = false
         var invokeTime = 0L
         val watchDog = WatchDog(this, 3 * dt) { command.set(Velocity.velocity(0, 0)) }
@@ -145,13 +144,6 @@ fun main() {
                 val target =
                     if (progress == 1.0) {
                         exceptions.send(FollowFailedException.recovered())
-                        (business.function as? Following)?.let {
-                            if (loop) it.global.progress = .0
-                            else {
-                                isEnabled = false
-                                business.cancel()
-                            }
-                        }
                         Velocity.velocity(.0, .0)
                     } else {
                         localPlanner
@@ -184,8 +176,6 @@ fun main() {
         val parser = buildParser {
             this["coroutines"] = { coroutineContext[Job]?.children?.count() }
             this["\'"] = { isEnabled = !isEnabled; if (isEnabled) "enabled" else "disabled" }
-            this["loop on"] = { loop = true; "loop on" }
-            this["loop off"] = { loop = false; "loop off" }
             registerExceptionServerParser(exceptionServer, this)
             registerBusinessParser(business, this)
         }

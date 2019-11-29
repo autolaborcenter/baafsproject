@@ -1,5 +1,7 @@
 package cn.autolabor.business
 
+import cn.autolabor.business.Business.Functions.Following
+import cn.autolabor.business.Business.Functions.Recording
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -30,24 +32,16 @@ class Business internal constructor(
 
     /** 开始录制 */
     suspend fun startRecording() {
-        if (function is Functions.Recording) return
+        if (function is Recording) return
         function?.job?.cancelAndJoin()
-        function = Functions.Recording(
-                scope,
-                robotOnMap,
-                globals,
-                pathInterval)
+        function = Recording(scope, robotOnMap, globals, pathInterval)
     }
 
     /** 开始循径 */
     suspend fun startFollowing(global: GlobalPath) {
-        if (function is Functions.Following) return
         function?.job?.cancelAndJoin()
-        function = Functions.Following(
-                scope,
-                robotOnMap,
-                globalOnRobot,
-                global)
+        function = Following(scope, robotOnMap, globalOnRobot, global)
+            .apply { job.invokeOnCompletion { function = null } }
     }
 
     /** 取消任务 */
@@ -60,7 +54,7 @@ class Business internal constructor(
         internal abstract val job: Job
         override fun toString(): String = javaClass.simpleName
 
-        class Recording(
+        class Recording internal constructor(
             scope: CoroutineScope,
             robotOnMap: ReceiveChannel<Stamped<Odometry>>,
             private val globals: PathManager,
@@ -87,15 +81,20 @@ class Business internal constructor(
             }
         }
 
-        class Following(
+        class Following internal constructor(
             scope: CoroutineScope,
             private val robotOnMap: ReceiveChannel<Stamped<Odometry>>,
             private val globalOnRobot: SendChannel<Pair<Sequence<Odometry>, Double>>,
             val global: GlobalPath
         ) : Functions() {
+            var loop = false
             override val job = scope.launch {
-                for ((_, pose) in robotOnMap)
+                for ((_, pose) in robotOnMap) {
                     globalOnRobot.send(global[pose] to global.progress)
+                    if (global.progress == 1.0)
+                        if (loop) global.progress = .0
+                        else break
+                }
             }
         }
     }

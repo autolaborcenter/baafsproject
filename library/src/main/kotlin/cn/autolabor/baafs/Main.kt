@@ -5,7 +5,6 @@ import cn.autolabor.baafs.parser.parseFromConsole
 import cn.autolabor.baafs.parser.registerBusinessParser
 import cn.autolabor.baafs.parser.registerExceptionServerParser
 import cn.autolabor.baafs.parser.registerParticleFilterParser
-import cn.autolabor.business.Business.Functions.Following
 import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.business.FollowFailedException
 import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
@@ -184,26 +183,17 @@ fun main() {
                     predictingTime = 1000L
                     painter = remote
                 }
-            var loop = false
             var isEnabled = false
             var invokeTime = 0L
             // 启动循径模块
             launch {
-                val stop = ControlVariable.Physical(.0, Double.NaN.toRad())
                 for ((global, progress) in globalOnRobot) {
                     invokeTime = System.currentTimeMillis()
                     // 生成控制量
                     val target =
                         if (progress == 1.0) {
                             exceptions.send(FollowFailedException.recovered())
-                            (business.function as? Following)?.let {
-                                if (loop) it.global.progress = .0
-                                else {
-                                    isEnabled = false
-                                    business.cancel()
-                                }
-                            }
-                            stop
+                            ControlVariable.Physical.static
                         } else {
                             localPlanner
                                 .modify(global, lidarSet.frame)
@@ -215,7 +205,7 @@ fun main() {
                                 }
                             ?: run {
                                 exceptions.send(FollowFailedException.occurred())
-                                stop
+                                ControlVariable.Physical.static
                             }
                         }
                     // 急停
@@ -233,8 +223,6 @@ fun main() {
             val parser = buildParser {
                 this["coroutines"] = { coroutineContext[Job]?.children?.count() }
                 this["\'"] = { isEnabled = !isEnabled; if (isEnabled) "enabled" else "disabled" }
-                this["loop on"] = { loop = true; "loop on" }
-                this["loop off"] = { loop = false; "loop off" }
                 registerExceptionServerParser(exceptionServer, this)
                 registerParticleFilterParser(particleFilter, this)
                 registerBusinessParser(business, this)

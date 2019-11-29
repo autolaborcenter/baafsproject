@@ -75,6 +75,17 @@ fun CoroutineScope.registerBusinessParser(
         ?: "no path named $name"
     }
 
+    parser["loop on"] = {
+        (business.function as? Following)
+            ?.run { loop = true; "loop on" }
+        ?: "cannot set loop on unless when following"
+    }
+    parser["loop off"] = {
+        (business.function as? Following)
+            ?.run { loop = false; "loop off" }
+        ?: "cannot set loop on unless when following"
+    }
+
     val formatter = java.text.DecimalFormat("0.00")
     parser["progress"] = {
         (business.function as? Following)

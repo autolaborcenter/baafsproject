@@ -34,14 +34,13 @@ class BusinessBuilderDsl private constructor() {
                 require(pathInterval > 0)
             }
             .run {
-                Business(
-                        scope = this@startBusiness,
-                        robotOnMap = robotOnMap,
-                        globalOnRobot = globalOnRobot,
+                Business(scope = this@startBusiness,
+                         robotOnMap = robotOnMap,
+                         globalOnRobot = globalOnRobot,
 
-                        pathInterval = pathInterval,
-                        localFirst = localFirst,
-                        painter = painter)
+                         pathInterval = pathInterval,
+                         localFirst = localFirst,
+                         painter = painter)
             }
     }
 }

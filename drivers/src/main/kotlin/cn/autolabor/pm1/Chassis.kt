@@ -74,7 +74,7 @@ class Chassis internal constructor(
     private val controlWatchDog =
         WatchDog(this, 10 * odometryInterval)
         { enabled = false }
-    private var lastPhysical = Physical(.0, 0.toRad())
+    private var lastPhysical = Physical.static
 
     var enabled = false
         set(value) {
@@ -86,7 +86,7 @@ class Chassis internal constructor(
         private set
 
     override var target: ControlVariable =
-        Physical(.0, Double.NaN.toRad())
+        Physical.static
         set(value) {
             enabled = true
             controlWatchDog.feed()
