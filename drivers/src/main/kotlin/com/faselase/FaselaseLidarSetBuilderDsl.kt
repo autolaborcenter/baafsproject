@@ -2,9 +2,9 @@ package com.faselase
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.SendChannel
-import org.mechdancer.BuilderDslMarker
 import org.mechdancer.algebra.implement.matrix.builder.toDiagonalMatrix
 import org.mechdancer.algebra.implement.vector.Vector2D
+import org.mechdancer.annotations.BuilderDslMarker
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.toTransformation
 import org.mechdancer.exceptions.ExceptionMessage

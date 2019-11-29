@@ -1,12 +1,12 @@
 package cn.autolabor.pathfollower
 
-import org.mechdancer.DebugTemporary
-import org.mechdancer.DebugTemporary.Operation.DELETE
 import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.minus
 import org.mechdancer.algebra.function.vector.normalize
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
+import org.mechdancer.annotations.DebugTemporary
+import org.mechdancer.annotations.DebugTemporary.Operation.DELETE
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.shape.AnalyticalShape
 import org.mechdancer.common.shape.Polygon

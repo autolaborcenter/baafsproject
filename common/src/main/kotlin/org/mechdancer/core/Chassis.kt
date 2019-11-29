@@ -1,4 +1,4 @@
-package org.mechdancer
+package org.mechdancer.core
 
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped

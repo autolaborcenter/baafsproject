@@ -10,9 +10,9 @@ import cn.autolabor.baafs.robotOutline
 import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.business.FollowFailedException
 import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
-import cn.autolabor.pathfollower.PIController
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
-import cn.autolabor.pathfollower.Proportion
+import cn.autolabor.pm1.model.ChassisStructure
+import cn.autolabor.pm1.model.ControlVariable
 import com.faselase.LidarSet
 import kotlinx.coroutines.*
 import org.mechdancer.*
@@ -116,7 +116,6 @@ fun main() {
             pathFollower {
                 sensorPose = Odometry.pose(x = .3)
                 lightRange = Circle(.3, 32)
-                controller = Proportion(1.0)
                 minTipAngle = 60.toDegree()
                 minTurnAngle = 15.toDegree()
                 maxLinearSpeed = .18
@@ -138,6 +137,7 @@ fun main() {
         val watchDog = WatchDog(this, 3 * dt) { command.set(Velocity.velocity(0, 0)) }
         // 启动循径模块
         launch {
+            val struct = ChassisStructure(.465, .105, .105, .355)
             for ((global, progress) in globalOnRobot) {
                 invokeTime = System.currentTimeMillis()
                 // 生成控制量
@@ -148,9 +148,16 @@ fun main() {
                     } else {
                         localPlanner
                             .modify(global, lidarSet.frame)
-                            .let(Stamped.Companion::stamp)
                             .let(pathFollower::invoke)
                             ?.also { exceptions.send(FollowFailedException.recovered()) }
+                            ?.let {
+                                val (v, w) = when (it) {
+                                    is ControlVariable.Velocity -> it
+                                    is ControlVariable.Physical -> it.let(struct::toVelocity)
+                                    is ControlVariable.Wheels   -> it.let(struct::toVelocity)
+                                }
+                                Velocity.velocity(v, w.asRadian())
+                            }
                         ?: run {
                             exceptions.send(FollowFailedException.occurred())
                             Velocity.velocity(.0, .0)

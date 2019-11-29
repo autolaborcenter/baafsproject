@@ -1,8 +1,7 @@
 package cn.autolabor.pathfollower
 
-import org.mechdancer.BuilderDslMarker
+import org.mechdancer.annotations.BuilderDslMarker
 import org.mechdancer.common.Odometry
-import org.mechdancer.common.filters.Filter
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.common.shape.Shape
 import org.mechdancer.geometry.angle.Angle
@@ -15,13 +14,11 @@ import kotlin.math.PI
 class PathFollowerBuilderDsl private constructor() {
     var sensorPose: Odometry = Odometry.pose(0.275, 0)
     var lightRange: Shape = Circle(0.3)
-    var controller: Filter<Double, Double> = UnitController
     var minTipAngle: Angle = 60.toDegree()
     var minTurnAngle: Angle = 15.toDegree()
     var turnThreshold: Angle = 180.toDegree()
     var maxLinearSpeed: Double = 0.1
     var maxAngularSpeed: Angle = 0.5.toRad()
-    var kLinearSpeed: Double = 2.0
 
     var painter: RemoteHub? = null
 
@@ -40,13 +37,11 @@ class PathFollowerBuilderDsl private constructor() {
                         sensor = VirtualLightSensor(
                             onRobot = sensorPose,
                             lightRange = lightRange),
-                        controller = controller,
                         minTipAngle = minTipAngle,
                         minTurnAngle = minTurnAngle,
                         turnThreshold = turnThreshold,
                         maxLinearSpeed = maxLinearSpeed,
                         maxAngularSpeed = maxAngularSpeed,
-                        kLinearSpeed = kLinearSpeed,
                         painter = painter)
                 }
     }

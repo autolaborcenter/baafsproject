@@ -6,10 +6,14 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
-import org.mechdancer.*
+import org.mechdancer.SimpleLogger
 import org.mechdancer.algebra.implement.vector.Vector2D
+import org.mechdancer.annotations.BuilderDslMarker
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
+import org.mechdancer.paint
+import org.mechdancer.paintPose
+import org.mechdancer.paintPoses
 import org.mechdancer.remote.presets.RemoteHub
 
 @BuilderDslMarker

@@ -2,9 +2,9 @@ package com.marvelmind
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.SendChannel
-import org.mechdancer.BuilderDslMarker
 import org.mechdancer.SimpleLogger
 import org.mechdancer.algebra.implement.vector.Vector2D
+import org.mechdancer.annotations.BuilderDslMarker
 import org.mechdancer.common.Stamped
 import org.mechdancer.exceptions.ExceptionMessage
 

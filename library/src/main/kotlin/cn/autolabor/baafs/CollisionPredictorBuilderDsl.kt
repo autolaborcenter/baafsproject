@@ -1,8 +1,8 @@
 package cn.autolabor.baafs
 
 import com.faselase.LidarSet
-import org.mechdancer.BuilderDslMarker
 import org.mechdancer.SimpleLogger
+import org.mechdancer.annotations.BuilderDslMarker
 import org.mechdancer.common.shape.Polygon
 import org.mechdancer.remote.presets.RemoteHub
 

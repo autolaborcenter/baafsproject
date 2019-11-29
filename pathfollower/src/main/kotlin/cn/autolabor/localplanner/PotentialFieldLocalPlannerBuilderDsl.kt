@@ -1,9 +1,9 @@
 package cn.autolabor.localplanner
 
-import org.mechdancer.BuilderDslMarker
 import org.mechdancer.algebra.function.vector.div
 import org.mechdancer.algebra.function.vector.unaryMinus
 import org.mechdancer.algebra.implement.vector.Vector2D
+import org.mechdancer.annotations.BuilderDslMarker
 import kotlin.math.pow
 
 @BuilderDslMarker

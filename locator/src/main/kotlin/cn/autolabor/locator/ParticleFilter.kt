@@ -1,14 +1,14 @@
 package cn.autolabor.locator
 
 import org.mechdancer.ClampMatcher
-import org.mechdancer.DebugTemporary
-import org.mechdancer.DebugTemporary.Operation.DELETE
-import org.mechdancer.DebugTemporary.Operation.REDUCE
 import org.mechdancer.Schmitt
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
+import org.mechdancer.annotations.DebugTemporary
+import org.mechdancer.annotations.DebugTemporary.Operation.DELETE
+import org.mechdancer.annotations.DebugTemporary.Operation.REDUCE
 import org.mechdancer.average
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped

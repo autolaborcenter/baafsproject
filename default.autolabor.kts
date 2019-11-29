@@ -10,12 +10,10 @@ import cn.autolabor.business.FollowFailedException
 import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
-import cn.autolabor.pathfollower.Proportion
 import cn.autolabor.pm1.ChassisBuilderDsl.Companion.startPM1Chassis
 import cn.autolabor.pm1.model.ControlVariable
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
-import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -24,7 +22,6 @@ import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
-import org.mechdancer.common.Stamped.Companion.stamp
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ApplicationException
@@ -61,6 +58,7 @@ try {
         val chassis =
             startPM1Chassis(robotOnOdometry.input) {
                 odometryInterval = 40L
+                maxW = 45.toDegree()
             }
         println("done")
         // 连接定位标签
@@ -161,13 +159,11 @@ try {
             pathFollower {
                 sensorPose = Odometry.pose(x = .3)
                 lightRange = Circle(.3, 32)
-                controller = Proportion(1.0)
                 minTipAngle = 60.toDegree()
                 minTurnAngle = 15.toDegree()
                 turnThreshold = (-120).toDegree()
                 maxLinearSpeed = .18
                 maxAngularSpeed = .6.toRad()
-                kLinearSpeed = 1.2
 
                 painter = remote
             }
@@ -194,12 +190,8 @@ try {
                     } else {
                         localPlanner
                             .modify(global, lidarSet.frame)
-                            .let(::stamp)
                             .let(pathFollower::invoke)
-                            ?.let { (v, w) ->
-                                exceptions.send(FollowFailedException.recovered())
-                                ControlVariable.Velocity(v, w.toRad())
-                            }
+                            ?.also { exceptions.send(FollowFailedException.recovered()) }
                         ?: run {
                             exceptions.send(FollowFailedException.occurred())
                             ControlVariable.Physical.static

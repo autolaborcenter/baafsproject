@@ -13,12 +13,12 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.mechdancer.Chassis
 import org.mechdancer.ClampMatcher
 import org.mechdancer.SimpleLogger
 import org.mechdancer.WatchDog
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
+import org.mechdancer.core.Chassis
 import org.mechdancer.exceptions.device.DeviceNotExistException
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toDegree

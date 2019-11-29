@@ -3,7 +3,7 @@ package org.mechdancer.exceptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.launch
-import org.mechdancer.BuilderDslMarker
+import org.mechdancer.annotations.BuilderDslMarker
 
 @BuilderDslMarker
 class ExceptionServerBuilderDsl private constructor() {

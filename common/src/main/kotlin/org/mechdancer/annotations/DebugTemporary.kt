@@ -1,6 +1,6 @@
-package org.mechdancer
+package org.mechdancer.annotations
 
-import org.mechdancer.DebugTemporary.Operation.DELETE
+import org.mechdancer.annotations.DebugTemporary.Operation.DELETE
 import kotlin.annotation.AnnotationRetention.SOURCE
 import kotlin.annotation.AnnotationTarget.*
 

@@ -1,7 +1,7 @@
 package cn.autolabor.serialport.parser
 
 import com.fazecast.jSerialComm.SerialPort
-import org.mechdancer.BuilderDslMarker
+import org.mechdancer.annotations.BuilderDslMarker
 
 /**
  * 通用串口查找器（DSL）
