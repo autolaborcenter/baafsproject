@@ -1,6 +1,6 @@
-package cn.autolabor.serialport.parser.new
+package cn.autolabor.serialport.parser.manager
 
-internal interface BySerialPort {
+internal interface SerialPortDevice {
     /** 开串口条件（名字条件） */
     val openCondition: OpenCondition
 

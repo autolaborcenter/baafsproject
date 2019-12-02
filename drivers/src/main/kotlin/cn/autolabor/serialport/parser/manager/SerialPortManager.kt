@@ -1,17 +1,18 @@
-package cn.autolabor.serialport.parser.new
+package cn.autolabor.serialport.parser.manager
 
-import cn.autolabor.serialport.parser.new.OpenCondition.Certain
+import cn.autolabor.serialport.parser.manager.OpenCondition.Certain
 import com.fazecast.jSerialComm.SerialPort
 import kotlinx.coroutines.*
 import java.util.concurrent.Executors
 
+/** 串口管理器 */
 class SerialPortManager {
-    private val waitingListCertain = mutableSetOf<BySerialPort>()
-    private val waitingListNormal = mutableSetOf<BySerialPort>()
+    private val waitingListCertain = mutableSetOf<SerialPortDevice>()
+    private val waitingListNormal = mutableSetOf<SerialPortDevice>()
     private val devices = mutableMapOf<SerialPort, Job>()
 
     @Synchronized
-    internal fun register(device: BySerialPort) {
+    internal fun register(device: SerialPortDevice) {
         if (device.openCondition is Certain)
             waitingListCertain.add(device)
         else
@@ -41,16 +42,19 @@ class SerialPortManager {
                     devices.keys.none { it.systemPortName == name }
                 }
                 .toMutableSet()
-        // 逐个处理串口
+        // 逐个测试串口
         waitingListNormal
             .removeIf { device ->
+                val predicate = (device.openCondition as? OpenCondition.Filter)?.predicate
                 null != ports
+                    .asSequence()
+                    .filter { false != predicate?.invoke(it) }
                     .firstOrNull { it.certificate(device) }
                     ?.also { ports.remove(it) }
             }
     }
 
-    private fun SerialPort.certificate(device: BySerialPort): Boolean {
+    private fun SerialPort.certificate(device: SerialPortDevice): Boolean {
         // 设置串口
         baudRate = device.baudRate
         setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 100, 100)
