@@ -56,7 +56,7 @@ internal fun engine() =
 
         val `package` =
             (begin + 4)
-                .takeIf { it < size }
+                .takeIf { it <= size }
                 ?.let { buffer.subList(begin, it) }
             ?: return@ParseEngine ParseInfo(begin, size, LidarPack.Nothing)
 
