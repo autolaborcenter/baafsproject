@@ -4,7 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 
-internal interface SerialPortDevice {
+interface SerialPortDevice {
     /** 标签 */
     val tag: String
 

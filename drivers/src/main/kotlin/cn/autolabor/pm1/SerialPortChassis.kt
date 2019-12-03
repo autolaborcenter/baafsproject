@@ -48,7 +48,7 @@ class SerialPortChassis internal constructor(
 ) : Chassis<ControlVariable>,
     SerialPortDevice {
 
-    override val tag = "Pm1Chassis"
+    override val tag = "PM1Chassis"
     override val openCondition = OpenCondition.None
     override val baudRate = 115200
     override val bufferSize = 64
@@ -286,8 +286,8 @@ class SerialPortChassis internal constructor(
         ecuL.position = Stamped(t, l)
         ecuR.position = Stamped(t, r)
         val delta = structure.toDeltaOdometry(
-                (l.asRadian() - `ln-1`).toRad(),
-                (r.asRadian() - `rn-1`).toRad())
+            (l.asRadian() - `ln-1`).toRad(),
+            (r.asRadian() - `rn-1`).toRad())
         odometry = Stamped(t, odometry.data plusDelta delta)
     }
 

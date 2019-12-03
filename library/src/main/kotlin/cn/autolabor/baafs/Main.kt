@@ -59,14 +59,13 @@ fun main() {
     val globalOnRobot = channel<Pair<Sequence<Odometry>, Double>>()
     val commandToSwitch = channel<ControlVariable>()
 
-    val chassis: Chassis<ControlVariable>
-    with(SerialPortManager()) {
-        chassis = registerPM1Chassis(robotOnOdometry.input) {
+    val manager = SerialPortManager()
+    val chassis: Chassis<ControlVariable> =
+        manager.registerPM1Chassis(robotOnOdometry.input) {
             odometryInterval = 40L
             maxW = 45.toDegree()
         }
-        while (!isReady) sync()
-    }
+    while (!manager.sync());
     // 任务
     try {
         runBlocking(Dispatchers.Default) {
@@ -83,8 +82,8 @@ fun main() {
             // 连接定位标签
             println("trying to connect to marvelmind mobile beacon...")
             startMobileBeacon(
-                    beaconOnMap = beaconOnMap,
-                    exceptions = exceptions
+                beaconOnMap = beaconOnMap,
+                exceptions = exceptions
             ) {
                 port = "/dev/beacon"
                 retryInterval = 100L
@@ -130,9 +129,9 @@ fun main() {
             // 启动定位融合模块（粒子滤波器）
             val particleFilter =
                 startLocationFusion(
-                        robotOnOdometry = robotOnOdometry.outputs[0],
-                        beaconOnMap = beaconOnMap,
-                        robotOnMap = robotOnMap
+                    robotOnOdometry = robotOnOdometry.outputs[0],
+                    beaconOnMap = beaconOnMap,
+                    robotOnMap = robotOnMap
                 ) {
                     filter {
                         beaconOnRobot = vector2DOf(-.01, -.02)
@@ -145,8 +144,8 @@ fun main() {
             // 启动业务交互后台
             val business =
                 startBusiness(
-                        robotOnMap = robotOnMap,
-                        globalOnRobot = globalOnRobot
+                    robotOnMap = robotOnMap,
+                    globalOnRobot = globalOnRobot
                 ) {
                     localRadius = .5
                     pathInterval = .05

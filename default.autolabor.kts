@@ -10,10 +10,12 @@ import cn.autolabor.business.FollowFailedException
 import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
-import cn.autolabor.pm1.ChassisBuilderDsl.Companion.startPM1Chassis
+import cn.autolabor.pm1.SerialPortChassisBuilderDsl.Companion.registerPM1Chassis
 import cn.autolabor.pm1.model.ControlVariable
+import cn.autolabor.serialport.manager.SerialPortManager
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
+import com.usarthmi.UsartHmi
 import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.algebra.function.vector.*
@@ -25,9 +27,11 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.console.parser.buildParser
+import org.mechdancer.core.Chassis
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.startExceptionServer
+import org.mechdancer.exceptions.device.DeviceNotExistException
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
@@ -45,23 +49,33 @@ val remote: RemoteHub? =
         }
 // 话题
 val exceptions = channel<ExceptionMessage>()
+val msgFromHmi = channel<String>()
 val robotOnOdometry = YChannel<Stamped<Odometry>>()
 val robotOnMap = channel<Stamped<Odometry>>()
 val beaconOnMap = channel<Stamped<Vector2D>>()
 val globalOnRobot = channel<Pair<Sequence<Odometry>, Double>>()
 val commandToSwitch = channel<ControlVariable>()
+
+val manager = SerialPortManager()
+val chassis: Chassis<ControlVariable> =
+    manager.registerPM1Chassis(robotOnOdometry.input) {
+        odometryInterval = 40L
+        maxW = 45.toDegree()
+    }
+while (!manager.sync());
 // 任务
 try {
     runBlocking(Dispatchers.Default) {
-        // 连接外设
-        // 连接底盘
-        println("trying to connect to pm1 chassis...")
-        val chassis =
-            startPM1Chassis(robotOnOdometry.input) {
-                odometryInterval = 40L
-                maxW = 45.toDegree()
+        println("try to connect to usart hmi")
+        val hmi: UsartHmi? =
+            try {
+                UsartHmi(this, msgFromHmi, "COM3")
+            } catch (e: DeviceNotExistException) {
+                println("cannot find usart hmi")
+                null
             }
         println("done")
+        // 连接外设
         // 连接定位标签
         println("trying to connect to marvelmind mobile beacon...")
         startMobileBeacon(
@@ -217,6 +231,16 @@ try {
             registerBusinessParser(business, this)
         }
         launch { while (isActive) parser.parseFromConsole() }
+        hmi?.run {
+            launch {
+                for (msg in msgFromHmi) {
+                    if (!particleFilter.isConvergent)
+                        write("location system is not ready")
+                    else
+                        write(parser(msg).single().second.toString())
+                }
+            }
+        }
         // 刷新固定显示
         if (remote != null) {
             launch {

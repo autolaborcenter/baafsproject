@@ -13,12 +13,6 @@ class SerialPortManager {
     private val devices = mutableMapOf<SerialPort, Job>()
 
     @Synchronized
-    fun waitingDevices() =
-        waitingListCertain.map { it.tag } + waitingListNormal.map { it.tag }
-
-    val isReady get() = waitingListCertain.isEmpty() && waitingListNormal.isEmpty()
-
-    @Synchronized
     internal fun register(device: SerialPortDevice) {
         if (device.openCondition is Certain)
             waitingListCertain.add(device)
@@ -27,23 +21,22 @@ class SerialPortManager {
     }
 
     @Synchronized
-    fun sync() {
+    fun sync(): Boolean {
         // 处理确定名字的目标串口
         waitingListCertain
             .removeIf { device ->
                 val name = (device.openCondition as Certain).name
                 val port = SerialPort.getCommPort(name)
-                println("searching ${device.tag} on $name")
                 port.certificate(device)
             }
-        if (waitingListNormal.isEmpty()) return
+        if (waitingListNormal.isEmpty()) return waitingListCertain.isEmpty()
         // 找到所有串口
         val ports =
             SerialPort.getCommPorts()
                 .asSequence()
                 .filter { port ->
                     val name = port.systemPortName.toLowerCase()
-                    "com" in name || "/dev/usb" in name || "/dev/acm" in name
+                    "com" in name || "ttyusb" in name || "ttyacm" in name
                 }
                 .filter { port ->
                     val name = port.systemPortName
@@ -57,13 +50,15 @@ class SerialPortManager {
                 null != ports
                     .asSequence()
                     .filter { false != predicate?.invoke(it) }
-                    .onEach { println("searching ${device.tag} on ${it.systemPortName} -> ${it.descriptivePortName}") }
+                    .onEach { }
                     .firstOrNull { it.certificate(device) }
                     ?.also { ports.remove(it) }
             }
+        return waitingListCertain.isEmpty() && waitingListNormal.isEmpty()
     }
 
     private fun SerialPort.certificate(device: SerialPortDevice): Boolean {
+        println("searching ${device.tag} on $systemPortName -> $descriptivePortName")
         // 设置串口
         baudRate = device.baudRate
         setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 100, 100)
@@ -83,7 +78,10 @@ class SerialPortManager {
                         .let(certificator::invoke)
                     ?: continue
                 if (result) break
-                else return false
+                else {
+                    closePort()
+                    return false
+                }
             }
         }
         // 开协程
