@@ -8,13 +8,10 @@ import cn.autolabor.pm1.model.ControlVariable.Physical
 import cn.autolabor.serialport.manager.Certificator
 import cn.autolabor.serialport.manager.OpenCondition
 import cn.autolabor.serialport.manager.SerialPortDevice
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import org.mechdancer.ClampMatcher
-import org.mechdancer.SimpleLogger
 import org.mechdancer.WatchDog
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
@@ -32,7 +29,6 @@ import kotlin.math.max
  * 机器人底盘
  */
 class SerialPortChassis internal constructor(
-    scope: CoroutineScope,
     private val robotOnOdometry: SendChannel<Stamped<Odometry>>,
 
     wheelEncodersPulsesPerRound: Int,
@@ -50,20 +46,13 @@ class SerialPortChassis internal constructor(
     optimizeWidth: Angle,
     maxAccelerate: Double
 ) : Chassis<ControlVariable>,
-    SerialPortDevice,
-    CoroutineScope by scope {
+    SerialPortDevice {
 
-    override val tag = "PM1 Chassis"
+    override val tag = "PM1Chassis"
     override val openCondition = OpenCondition.None
     override val baudRate = 115200
     override val bufferSize = 64
     override val retryInterval = 100L
-
-    private val _toDevice = Channel<ByteArray>()
-    private val _toDriver = Channel<Iterable<Byte>>()
-
-    override val toDevice get() = _toDevice
-    override val toDriver get() = _toDriver
 
     // 解析引擎
     private val engine = engine()
@@ -83,7 +72,7 @@ class SerialPortChassis internal constructor(
     private val vcu = CanNode.VCU(0)
     // 内部状态
     private val controlWatchDog =
-        WatchDog(this, 10 * odometryInterval)
+        WatchDog(GlobalScope, 10 * odometryInterval)
         { enabled = false }
     private var lastPhysical = Physical.static
 
@@ -103,9 +92,6 @@ class SerialPortChassis internal constructor(
             controlWatchDog.feed()
             field = value
         }
-    // 日志
-    private val logger = SimpleLogger("Chassis")
-    private val commandsLogger = SimpleLogger("ChassisCommands")
 
     // 轨迹预测
     override fun predict(target: ControlVariable) =
@@ -164,8 +150,11 @@ class SerialPortChassis internal constructor(
             }
         }
 
-    init {
-        // 启动轮转发送线程
+    override fun setup(
+        scope: CoroutineScope,
+        toDevice: SendChannel<List<Byte>>,
+        fromDevice: ReceiveChannel<List<Byte>>
+    ) {
         scope.launch {
             val msg =
                 listOf(CanNode.EveryNode.stateTx to 1000L,
@@ -176,7 +165,7 @@ class SerialPortChassis internal constructor(
                 System.currentTimeMillis().let {
                     LongArray(msg.size) { i -> it + msg[i].second }
                 }
-            while (true) {
+            while (isActive) {
                 val now = System.currentTimeMillis()
                 msg.indices
                     .flatMap { i ->
@@ -185,17 +174,14 @@ class SerialPortChassis internal constructor(
                             msg[i].first
                         } else emptyList()
                     }
-                    .toByteArray()
-                    .also {
-                        _toDevice.send(it)
-                        logger.log("${it.size} bytes sent")
-                    }
+                    .toList()
+                    .also { toDevice.send(it) }
                 delay(max(1, flags.min()!! - now + 1))
             }
         }
         scope.launch {
             val serial = mutableListOf<Byte>()
-            for (bytes in toDriver) {
+            for (bytes in fromDevice) {
                 serial.clear()
                 engine(bytes) { pack ->
                     val now = System.currentTimeMillis()
@@ -206,25 +192,17 @@ class SerialPortChassis internal constructor(
                         is PM1Pack.WithData    ->
                             when (pack.head) {
                                 // 左轮状态
-                                ecuL.stateRx           -> {
+                                ecuL.stateRx           ->
                                     ecuL.state = Stamped(now, pack.getState())
-                                    logger.log("left ecu state received")
-                                }
                                 // 右轮状态
-                                ecuR.stateRx           -> {
+                                ecuR.stateRx           ->
                                     ecuR.state = Stamped(now, pack.getState())
-                                    logger.log("right ecu state received")
-                                }
                                 // 舵轮状态
-                                tcu.stateRx            -> {
+                                tcu.stateRx            ->
                                     tcu.state = Stamped(now, pack.getState())
-                                    logger.log("tcu state received")
-                                }
                                 // 整车控制器状态
-                                vcu.stateRx            -> {
+                                vcu.stateRx            ->
                                     vcu.state = Stamped(now, pack.getState())
-                                    logger.log("vcu state received")
-                                }
                                 // 左轮编码器
                                 ecuL.currentPositionRx -> {
                                     wheelsEncoderMatcher.add1(Stamped(now, pack.getInt()))
@@ -238,7 +216,7 @@ class SerialPortChassis internal constructor(
                                     updateOdometry(t = t,
                                                    l = l.let(wheelsEncoder::toAngular),
                                                    r = r.let(wheelsEncoder::toAngular))
-                                    logger.log("left encoder received")
+                                    scope.launch { robotOnOdometry.send(odometry) }
                                 }
                                 // 右轮编码器
                                 ecuR.currentPositionRx -> {
@@ -253,13 +231,12 @@ class SerialPortChassis internal constructor(
                                     updateOdometry(t = t,
                                                    l = l.let(wheelsEncoder::toAngular),
                                                    r = r.let(wheelsEncoder::toAngular))
-                                    logger.log("right encoder received")
+                                    scope.launch { robotOnOdometry.send(odometry) }
                                 }
                                 // 舵轮编码器
                                 tcu.currentPositionRx  -> {
                                     val rudder = pack.getShort().let(rudderEncoder::toAngular)
                                     tcu.position = Stamped(now, rudder)
-                                    logger.log("rudder encoder received")
                                     if (enabled) {
                                         // 优化控制量
                                         val (speed, l, r, t) = optimizer(target, lastPhysical.copy(rudder = rudder))
@@ -273,13 +250,12 @@ class SerialPortChassis internal constructor(
                                         serial.addAll(ecuR.targetSpeed.pack(pr).asList())
                                         if (pt != null)
                                             serial.addAll(tcu.targetPosition.pack(pt).asList())
-                                        commandsLogger.log(l, r, t)
                                     }
                                 }
                             }
                     }
                 }
-                toDevice.send(serial.toByteArray())
+                toDevice.send(serial.toList())
             }
         }
     }
@@ -313,7 +289,6 @@ class SerialPortChassis internal constructor(
             (l.asRadian() - `ln-1`).toRad(),
             (r.asRadian() - `rn-1`).toRad())
         odometry = Stamped(t, odometry.data plusDelta delta)
-        launch { robotOnOdometry.send(odometry) }
     }
 
     private companion object {

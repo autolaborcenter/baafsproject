@@ -1,36 +1,44 @@
 package com.usarthmi
 
-import com.fazecast.jSerialComm.SerialPort
+import cn.autolabor.serialport.manager.Certificator
+import cn.autolabor.serialport.manager.OpenCondition.Certain
+import cn.autolabor.serialport.manager.SerialPortDevice
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
-import org.mechdancer.exceptions.device.DeviceNotExistException
 
 class UsartHmi(
-    scope: CoroutineScope,
     private val msgFromHmi: SendChannel<String>,
     portName: String
-) : CoroutineScope by scope {
+) : SerialPortDevice {
+    override val tag = "UsartHmi"
+    override val openCondition = Certain(portName)
+    override val baudRate = 9600
+    override val bufferSize = 64
+    override val retryInterval = 100L
+
     private val engine = engine()
-    private val port =
-        SerialPort.getCommPort(portName)
-            .apply { baudRate = 9600 }
-            .takeIf { it.openPort() }
-        ?: throw DeviceNotExistException("USART HMI")
+    private val output = Channel<String>()
 
-    fun write(msg: String) {
-        val bytes = "log.txt=$msg".toByteArray(Charsets.US_ASCII)
-        port.writeBytes(bytes, bytes.size.toLong())
-        port.writeBytes(byteArrayOf(end, end, end), 3)
-    }
-
-    init {
-        val buffer = ByteArray(64)
-        launch {
-            while (true) {
-                val actual = port.readBytes(buffer, buffer.size.toLong())
-                if (actual <= 0) continue
-                engine(buffer.take(actual)) {
+    override fun buildCertificator(): Certificator? = null
+    override fun setup(
+        scope: CoroutineScope,
+        toDevice: SendChannel<List<Byte>>,
+        fromDevice: ReceiveChannel<List<Byte>>
+    ) {
+        scope.launch {
+            val end = listOf(0xff.toByte(), 0xff.toByte(), 0xff.toByte())
+            for (text in output)
+                text.toByteArray(Charsets.US_ASCII)
+                    .toMutableList()
+                    .apply { addAll(end) }
+                    .let { toDevice.send(it) }
+        }
+        scope.launch {
+            for (bytes in fromDevice) {
+                engine(bytes) {
                     when (it) {
                         HMIPackage.Nothing,
                         HMIPackage.Failed  -> return@engine
@@ -43,7 +51,7 @@ class UsartHmi(
         }
     }
 
-    private companion object {
-        const val end = 0xff.toByte()
+    suspend fun write(msg: String) {
+        output.send("log.txt=$msg")
     }
 }

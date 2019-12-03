@@ -1,9 +1,10 @@
 package cn.autolabor.serialport.manager
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 
-internal interface SerialPortDevice {
+interface SerialPortDevice {
     /** 标签 */
     val tag: String
 
@@ -22,7 +23,8 @@ internal interface SerialPortDevice {
     /** 确认条件 */
     fun buildCertificator(): Certificator?
 
-    val toDevice: ReceiveChannel<ByteArray>
-
-    val toDriver: SendChannel<Iterable<Byte>>
+    /** 启动 */
+    fun setup(scope: CoroutineScope,
+              toDevice: SendChannel<List<Byte>>,
+              fromDevice: ReceiveChannel<List<Byte>>)
 }

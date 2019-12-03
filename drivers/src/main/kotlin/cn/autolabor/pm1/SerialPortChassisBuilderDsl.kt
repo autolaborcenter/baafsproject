@@ -1,6 +1,6 @@
 package cn.autolabor.pm1
 
-import kotlinx.coroutines.CoroutineScope
+import cn.autolabor.serialport.manager.SerialPortManager
 import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.annotations.BuilderDslMarker
 import org.mechdancer.common.Odometry
@@ -10,7 +10,7 @@ import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
 
 @BuilderDslMarker
-class ChassisBuilderDsl private constructor() {
+class SerialPortChassisBuilderDsl private constructor() {
     var wheelEncodersPulsesPerRound: Int = 4 * 400 * 20
     var rudderEncoderPulsesPerRound: Int = 16384
 
@@ -22,18 +22,18 @@ class ChassisBuilderDsl private constructor() {
     var odometryInterval: Long = 40L
     var maxWheelSpeed: Angle = 10.toRad()
     var maxV: Double = 1.1
-    var maxW: Angle = 90.toDegree()
+    var maxW: Angle = 45.toDegree()
     var optimizeWidth: Angle = 45.toDegree()
     var maxAccelerate: Double = 1.1
 
     var retryInterval: Long = 500L
 
     companion object {
-        fun CoroutineScope.startPM1Chassis(
+        fun SerialPortManager.registerPM1Chassis(
             robotOnOdometry: SendChannel<Stamped<Odometry>>,
-            block: ChassisBuilderDsl.() -> Unit = {}
+            block: SerialPortChassisBuilderDsl.() -> Unit = {}
         ) =
-            ChassisBuilderDsl()
+            SerialPortChassisBuilderDsl()
                 .apply(block)
                 .apply {
                     require(wheelEncodersPulsesPerRound > 0)
@@ -54,7 +54,7 @@ class ChassisBuilderDsl private constructor() {
                     require(retryInterval > 0)
                 }
                 .run {
-                    Chassis(scope = this@startPM1Chassis,
+                    SerialPortChassis(
                             robotOnOdometry = robotOnOdometry,
 
                             wheelEncodersPulsesPerRound = wheelEncodersPulsesPerRound,
@@ -70,9 +70,8 @@ class ChassisBuilderDsl private constructor() {
                             maxV = maxV,
                             maxW = maxW,
                             optimizeWidth = optimizeWidth,
-                            maxAccelerate = maxAccelerate,
-
-                            retryInterval = retryInterval)
+                            maxAccelerate = maxAccelerate)
                 }
+                .also(this::register)
     }
 }

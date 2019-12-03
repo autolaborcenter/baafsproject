@@ -3,18 +3,19 @@ package cn.autolabor.serialport.manager
 import cn.autolabor.serialport.manager.OpenCondition.Certain
 import com.fazecast.jSerialComm.SerialPort
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.SendChannel
+import org.mechdancer.channel
+import org.mechdancer.exceptions.ExceptionMessage
+import org.mechdancer.exceptions.device.DeviceOfflineException
 import java.util.concurrent.Executors
 
 /** 串口管理器 */
-class SerialPortManager {
+class SerialPortManager(
+    private val exceptions: SendChannel<ExceptionMessage>
+) {
     private val waitingListCertain = mutableSetOf<SerialPortDevice>()
     private val waitingListNormal = mutableSetOf<SerialPortDevice>()
     private val devices = mutableMapOf<SerialPort, Job>()
-
-    @Synchronized
-    fun waitingDevices(): List<String> {
-        return waitingListCertain.map { it.tag } + waitingListNormal.map { it.tag }
-    }
 
     @Synchronized
     internal fun register(device: SerialPortDevice) {
@@ -25,23 +26,22 @@ class SerialPortManager {
     }
 
     @Synchronized
-    fun sync() {
+    fun sync(): Boolean {
         // 处理确定名字的目标串口
         waitingListCertain
             .removeIf { device ->
                 val name = (device.openCondition as Certain).name
                 val port = SerialPort.getCommPort(name)
-                println("searching ${device.tag} on $name")
                 port.certificate(device)
             }
-        if (waitingListNormal.isEmpty()) return
+        if (waitingListNormal.isEmpty()) return waitingListCertain.isEmpty()
         // 找到所有串口
         val ports =
             SerialPort.getCommPorts()
                 .asSequence()
                 .filter { port ->
                     val name = port.systemPortName.toLowerCase()
-                    "com" in name || "/dev/usb" in name || "/dev/acm" in name
+                    "com" in name || "ttyusb" in name || "ttyacm" in name
                 }
                 .filter { port ->
                     val name = port.systemPortName
@@ -55,13 +55,15 @@ class SerialPortManager {
                 null != ports
                     .asSequence()
                     .filter { false != predicate?.invoke(it) }
-                    .onEach { println("searching ${device.tag} on ${it.systemPortName} -> ${it.descriptivePortName}") }
+                    .onEach { }
                     .firstOrNull { it.certificate(device) }
                     ?.also { ports.remove(it) }
             }
+        return waitingListCertain.isEmpty() && waitingListNormal.isEmpty()
     }
 
     private fun SerialPort.certificate(device: SerialPortDevice): Boolean {
+        println("searching ${device.tag} on $systemPortName -> $descriptivePortName")
         // 设置串口
         baudRate = device.baudRate
         setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 100, 100)
@@ -81,20 +83,34 @@ class SerialPortManager {
                         .let(certificator::invoke)
                     ?: continue
                 if (result) break
-                else return false
+                else {
+                    closePort()
+                    return false
+                }
             }
         }
         // 开协程
         devices[this] =
             launchSingleThreadJob {
-                GlobalScope.launch {
-                    for (bytes in device.toDevice)
-                        writeBytes(bytes, bytes.size.toLong())
+                val fromDriver = channel<List<Byte>>()
+                val toDriver = channel<List<Byte>>()
+                device.setup(CoroutineScope(Dispatchers.IO),
+                             toDevice = fromDriver,
+                             fromDevice = toDriver)
+                launch(Dispatchers.IO) {
+                    for (bytes in fromDriver)
+                        writeBytes(bytes.toByteArray(), bytes.size.toLong())
                 }
-                while (true)
+                val offline = DeviceOfflineException(device.tag).occurred()
+                val online = DeviceOfflineException(device.tag).occurred()
+                while (isActive)
                     readOrReboot(buffer, device.retryInterval)
+                    { exceptions.send(offline) }
                         .takeUnless(Collection<*>::isEmpty)
-                        ?.let { device.toDriver.send(it) }
+                        ?.let {
+                            exceptions.send(online)
+                            toDriver.send(it)
+                        }
             }
         return true
     }
