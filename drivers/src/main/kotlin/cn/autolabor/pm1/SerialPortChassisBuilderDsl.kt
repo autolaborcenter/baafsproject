@@ -22,7 +22,7 @@ class SerialPortChassisBuilderDsl private constructor() {
     var odometryInterval: Long = 40L
     var maxWheelSpeed: Angle = 10.toRad()
     var maxV: Double = 1.1
-    var maxW: Angle = 90.toDegree()
+    var maxW: Angle = 45.toDegree()
     var optimizeWidth: Angle = 45.toDegree()
     var maxAccelerate: Double = 1.1
 

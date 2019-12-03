@@ -3,11 +3,16 @@ package cn.autolabor.serialport.manager
 import cn.autolabor.serialport.manager.OpenCondition.Certain
 import com.fazecast.jSerialComm.SerialPort
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.channel
+import org.mechdancer.exceptions.ExceptionMessage
+import org.mechdancer.exceptions.device.DeviceOfflineException
 import java.util.concurrent.Executors
 
 /** 串口管理器 */
-class SerialPortManager {
+class SerialPortManager(
+    private val exceptions: SendChannel<ExceptionMessage>
+) {
     private val waitingListCertain = mutableSetOf<SerialPortDevice>()
     private val waitingListNormal = mutableSetOf<SerialPortDevice>()
     private val devices = mutableMapOf<SerialPort, Job>()
@@ -96,10 +101,16 @@ class SerialPortManager {
                     for (bytes in fromDriver)
                         writeBytes(bytes.toByteArray(), bytes.size.toLong())
                 }
+                val offline = DeviceOfflineException(device.tag).occurred()
+                val online = DeviceOfflineException(device.tag).occurred()
                 while (isActive)
                     readOrReboot(buffer, device.retryInterval)
+                    { exceptions.send(offline) }
                         .takeUnless(Collection<*>::isEmpty)
-                        ?.let { toDriver.send(it) }
+                        ?.let {
+                            exceptions.send(online)
+                            toDriver.send(it)
+                        }
             }
         return true
     }
