@@ -3,6 +3,7 @@ package cn.autolabor.serialport.manager
 import cn.autolabor.serialport.manager.OpenCondition.Certain
 import com.fazecast.jSerialComm.SerialPort
 import kotlinx.coroutines.*
+import org.mechdancer.channel
 import java.util.concurrent.Executors
 
 /** 串口管理器 */
@@ -12,9 +13,10 @@ class SerialPortManager {
     private val devices = mutableMapOf<SerialPort, Job>()
 
     @Synchronized
-    fun waitingDevices(): List<String> {
-        return waitingListCertain.map { it.tag } + waitingListNormal.map { it.tag }
-    }
+    fun waitingDevices() =
+        waitingListCertain.map { it.tag } + waitingListNormal.map { it.tag }
+
+    val isReady get() = waitingListCertain.isEmpty() && waitingListNormal.isEmpty()
 
     @Synchronized
     internal fun register(device: SerialPortDevice) {
@@ -87,14 +89,19 @@ class SerialPortManager {
         // 开协程
         devices[this] =
             launchSingleThreadJob {
-                GlobalScope.launch {
-                    for (bytes in device.toDevice)
-                        writeBytes(bytes, bytes.size.toLong())
+                val fromDriver = channel<List<Byte>>()
+                val toDriver = channel<List<Byte>>()
+                device.setup(CoroutineScope(Dispatchers.IO),
+                             toDevice = fromDriver,
+                             fromDevice = toDriver)
+                launch(Dispatchers.IO) {
+                    for (bytes in fromDriver)
+                        writeBytes(bytes.toByteArray(), bytes.size.toLong())
                 }
-                while (true)
+                while (isActive)
                     readOrReboot(buffer, device.retryInterval)
                         .takeUnless(Collection<*>::isEmpty)
-                        ?.let { device.toDriver.send(it) }
+                        ?.let { toDriver.send(it) }
             }
         return true
     }

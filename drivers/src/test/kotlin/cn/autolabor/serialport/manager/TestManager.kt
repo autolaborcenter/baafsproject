@@ -1,7 +1,6 @@
 package cn.autolabor.serialport.manager
 
 import cn.autolabor.pm1.SerialPortChassis
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
@@ -14,7 +13,6 @@ fun main() {
     val robotOnOdometry = channel<Stamped<Odometry>>()
     manager.register(
         SerialPortChassis(
-            GlobalScope,
             robotOnOdometry,
 
             4 * 400 * 20,

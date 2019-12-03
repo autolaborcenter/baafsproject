@@ -10,8 +10,9 @@ import cn.autolabor.business.FollowFailedException
 import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
-import cn.autolabor.pm1.ChassisBuilderDsl.Companion.startPM1Chassis
+import cn.autolabor.pm1.SerialPortChassisBuilderDsl.Companion.registerPM1Chassis
 import cn.autolabor.pm1.model.ControlVariable
+import cn.autolabor.serialport.manager.SerialPortManager
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
 import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
 import com.usarthmi.UsartHmi
@@ -26,6 +27,7 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.console.parser.buildParser
+import org.mechdancer.core.Chassis
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.startExceptionServer
@@ -56,6 +58,15 @@ fun main() {
     val beaconOnMap = channel<Stamped<Vector2D>>()
     val globalOnRobot = channel<Pair<Sequence<Odometry>, Double>>()
     val commandToSwitch = channel<ControlVariable>()
+
+    val chassis: Chassis<ControlVariable>
+    with(SerialPortManager()) {
+        chassis = registerPM1Chassis(robotOnOdometry.input) {
+            odometryInterval = 40L
+            maxW = 45.toDegree()
+        }
+        while (!isReady) sync()
+    }
     // 任务
     try {
         runBlocking(Dispatchers.Default) {
@@ -69,14 +80,6 @@ fun main() {
                 }
             println("done")
             // 连接外设
-            // 连接底盘
-            println("trying to connect to pm1 chassis...")
-            val chassis =
-                startPM1Chassis(robotOnOdometry.input) {
-                    odometryInterval = 40L
-                    maxW = 45.toDegree()
-                }
-            println("done")
             // 连接定位标签
             println("trying to connect to marvelmind mobile beacon...")
             startMobileBeacon(
