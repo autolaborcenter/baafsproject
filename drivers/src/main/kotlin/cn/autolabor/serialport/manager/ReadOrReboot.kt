@@ -1,4 +1,4 @@
-package cn.autolabor.serialport.parser
+package cn.autolabor.serialport.manager
 
 import com.fazecast.jSerialComm.SerialPort
 import kotlinx.coroutines.delay

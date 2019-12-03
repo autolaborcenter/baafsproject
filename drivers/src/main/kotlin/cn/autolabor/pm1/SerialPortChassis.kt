@@ -5,11 +5,11 @@ import cn.autolabor.autocan.PM1Pack
 import cn.autolabor.autocan.engine
 import cn.autolabor.pm1.model.*
 import cn.autolabor.pm1.model.ControlVariable.Physical
-import cn.autolabor.serialport.SerialPortFinder.Companion.findSerialPort
-import cn.autolabor.serialport.manager.readOrReboot
-import com.fazecast.jSerialComm.SerialPort
+import cn.autolabor.serialport.manager.Certificator
+import cn.autolabor.serialport.manager.OpenCondition
+import cn.autolabor.serialport.manager.SerialPortDevice
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -19,7 +19,6 @@ import org.mechdancer.WatchDog
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.core.Chassis
-import org.mechdancer.exceptions.device.DeviceNotExistException
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
@@ -27,13 +26,12 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
-import java.util.concurrent.Executors
 import kotlin.math.max
 
 /**
  * 机器人底盘
  */
-class Chassis internal constructor(
+class SerialPortChassis internal constructor(
     scope: CoroutineScope,
     private val robotOnOdometry: SendChannel<Stamped<Odometry>>,
 
@@ -50,11 +48,24 @@ class Chassis internal constructor(
     maxV: Double,
     maxW: Angle,
     optimizeWidth: Angle,
-    maxAccelerate: Double,
-
-    private val retryInterval: Long
+    maxAccelerate: Double
 ) : Chassis<ControlVariable>,
+    SerialPortDevice,
     CoroutineScope by scope {
+    override val tag = "PM1 Chassis"
+    override val openCondition = OpenCondition.None
+    override val baudRate = 115200
+    override val bufferSize = 64
+    override val retryInterval = 100L
+
+    private val _toDevice = Channel<Iterable<Byte>>()
+    private val _toDriver = Channel<Iterable<Byte>>()
+
+    override val toDevice get() = _toDevice
+    override val toDriver get() = _toDriver
+
+    // 解析引擎
+    private val engine = engine()
     // 无状态计算模型
     private val controlPeriod = odometryInterval / 2
     private val wheelsEncoder = IncrementalEncoder(wheelEncodersPulsesPerRound)
@@ -62,8 +73,7 @@ class Chassis internal constructor(
     private val structure = ChassisStructure(width, leftRadius, rightRadius, length)
     private val optimizer = Optimizer(structure, maxWheelSpeed, maxV, maxW, optimizeWidth, maxAccelerate, controlPeriod)
     private val predictor = Predictor(structure, optimizer, controlPeriod, 30.toDegree())
-    // 解析引擎
-    private val engine = engine()
+    // 里程计
     private val wheelsEncoderMatcher = ClampMatcher<Stamped<Int>, Stamped<Int>>(false)
     // 节点状态
     private val ecuL = CanNode.ECU(0)
@@ -100,30 +110,26 @@ class Chassis internal constructor(
     override fun predict(target: ControlVariable) =
         predictor.predict(target, lastPhysical)
 
-    init {
-        // 开串口
-        val candidates =
-            SerialPort.getCommPorts()
-                .filter {
-                    val name = it.systemPortName.toLowerCase()
-                    "com" in name || "usb" in name || "acm" in name
-                }
-        val port = try {
-            findSerialPort(
-                    candidates = candidates,
-                    engine = engine
-            ) {
-                bufferSize = BUFFER_SIZE
-                baudRate = 115200
-                timeoutMs = 500L
-                activate = activateBytes
+    override fun buildCertificator() =
+        object : Certificator {
+            override val activeBytes =
+                sequenceOf(CanNode.ECU().currentPositionTx,
+                           CanNode.TCU(0).currentPositionTx,
+                           CanNode.VCU(0).batteryPercentTx)
+                    .map(AutoCANPackageHead.WithoutData::pack)
+                    .map(ByteArray::asList)
+                    .flatten()
+                    .toList()
+                    .toByteArray()
 
-                var left = false
-                var right = false
-                var rudder = false
-                var battery = false
-                condition { pack ->
-                    if (pack !is PM1Pack.WithData) return@condition false
+            private val t0 = System.currentTimeMillis()
+            private var left = false
+            private var right = false
+            private var rudder = false
+            private var battery = false
+            override fun invoke(bytes: Iterable<Byte>): Boolean? {
+                engine(bytes) { pack ->
+                    if (pack !is PM1Pack.WithData) return@engine
                     val now = System.currentTimeMillis()
                     when (pack.head) {
                         ecuL.currentPositionRx -> {
@@ -148,14 +154,18 @@ class Chassis internal constructor(
                             battery = true
                         }
                     }
-                    left && right && rudder && battery
+                }
+                return when {
+                    System.currentTimeMillis() - t0 > 1000L -> false
+                    left && right && rudder && battery      -> true
+                    else                                    -> null
                 }
             }
-        } catch (e: RuntimeException) {
-            throw DeviceNotExistException("PM1 chassis", e.message)
         }
+
+    init {
         // 启动轮转发送线程
-        launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
+        scope.launch {
             val msg =
                 listOf(CanNode.EveryNode.stateTx to 1000L,
                        CanNode.ECU().currentPositionTx to odometryInterval,
@@ -176,112 +186,101 @@ class Chassis internal constructor(
                     }
                     .toByteArray()
                     .also {
-                        port.writeBytes(it, it.size.toLong())
+                        _toDevice.send(it.toList())
                         logger.log("${it.size} bytes sent")
                     }
                 delay(max(1, flags.min()!! - now + 1))
             }
         }
-        // 启动接收协程
-        launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
-            val buffer = ByteArray(BUFFER_SIZE)
-            while (true)
-                port.readOrReboot(buffer, retryInterval)
-                    .takeIf(Collection<*>::isNotEmpty)
-                    ?.let(::invoke)
-                    ?.let { port.writeBytes(it, it.size.toLong()) }
-        }.invokeOnCompletion {
-            robotOnOdometry.close(it)
-            port.closePort()
-        }
-    }
-
-    // 解析串口输入
-    private operator fun invoke(bytes: Iterable<Byte>): ByteArray? {
-        val serial = mutableListOf<Byte>()
-        engine(bytes) { pack ->
-            val now = System.currentTimeMillis()
-            when (pack) {
-                PM1Pack.Nothing,
-                PM1Pack.Failed,
-                is PM1Pack.WithoutData -> Unit
-                is PM1Pack.WithData    ->
-                    when (pack.head) {
-                        // 左轮状态
-                        ecuL.stateRx           -> {
-                            ecuL.state = Stamped(now, pack.getState())
-                            logger.log("left ecu state received")
-                        }
-                        // 右轮状态
-                        ecuR.stateRx           -> {
-                            ecuR.state = Stamped(now, pack.getState())
-                            logger.log("right ecu state received")
-                        }
-                        // 舵轮状态
-                        tcu.stateRx            -> {
-                            tcu.state = Stamped(now, pack.getState())
-                            logger.log("tcu state received")
-                        }
-                        // 整车控制器状态
-                        vcu.stateRx            -> {
-                            vcu.state = Stamped(now, pack.getState())
-                            logger.log("vcu state received")
-                        }
-                        // 左轮编码器
-                        ecuL.currentPositionRx -> {
-                            wheelsEncoderMatcher.add1(Stamped(now, pack.getInt()))
-                            val (t, data) =
-                                wheelsEncoderMatcher.match2()
-                                    ?.takeIf(::checkInterval)
-                                    ?.takeIf { (new, _, _) -> new > ecuR.position }
-                                    ?.let(::interpolateMatcher)
-                                ?: return@engine
-                            val (r, l) = data
-                            updateOdometry(t = t,
-                                           l = l.let(wheelsEncoder::toAngular),
-                                           r = r.let(wheelsEncoder::toAngular))
-                            logger.log("left encoder received")
-                        }
-                        // 右轮编码器
-                        ecuR.currentPositionRx -> {
-                            wheelsEncoderMatcher.add2(Stamped(now, pack.getInt()))
-                            val (t, data) =
-                                wheelsEncoderMatcher.match1()
-                                    ?.takeIf(::checkInterval)
-                                    ?.takeIf { (new, _, _) -> new > ecuL.position }
-                                    ?.let(::interpolateMatcher)
-                                ?: return@engine
-                            val (l, r) = data
-                            updateOdometry(t = t,
-                                           l = l.let(wheelsEncoder::toAngular),
-                                           r = r.let(wheelsEncoder::toAngular))
-                            logger.log("right encoder received")
-                        }
-                        // 舵轮编码器
-                        tcu.currentPositionRx  -> {
-                            val rudder = pack.getShort().let(rudderEncoder::toAngular)
-                            tcu.position = Stamped(now, rudder)
-                            logger.log("rudder encoder received")
-                            if (enabled) {
-                                // 优化控制量
-                                val (speed, l, r, t) = optimizer(target, lastPhysical.copy(rudder = rudder))
-                                lastPhysical = Physical(speed, rudder)
-                                // 生成脉冲数
-                                val pl = l.let(wheelsEncoder::toPulses)
-                                val pr = r.let(wheelsEncoder::toPulses)
-                                val pt = t?.let(rudderEncoder::toPulses)?.toShort()
-                                // 准备发送
-                                serial.addAll(ecuL.targetSpeed.pack(pl).asList())
-                                serial.addAll(ecuR.targetSpeed.pack(pr).asList())
-                                if (pt != null)
-                                    serial.addAll(tcu.targetPosition.pack(pt).asList())
-                                commandsLogger.log(l, r, t)
+        scope.launch {
+            val serial = mutableListOf<Byte>()
+            for (bytes in toDriver) {
+                serial.clear()
+                engine(bytes) { pack ->
+                    val now = System.currentTimeMillis()
+                    when (pack) {
+                        PM1Pack.Nothing,
+                        PM1Pack.Failed,
+                        is PM1Pack.WithoutData -> Unit
+                        is PM1Pack.WithData    ->
+                            when (pack.head) {
+                                // 左轮状态
+                                ecuL.stateRx           -> {
+                                    ecuL.state = Stamped(now, pack.getState())
+                                    logger.log("left ecu state received")
+                                }
+                                // 右轮状态
+                                ecuR.stateRx           -> {
+                                    ecuR.state = Stamped(now, pack.getState())
+                                    logger.log("right ecu state received")
+                                }
+                                // 舵轮状态
+                                tcu.stateRx            -> {
+                                    tcu.state = Stamped(now, pack.getState())
+                                    logger.log("tcu state received")
+                                }
+                                // 整车控制器状态
+                                vcu.stateRx            -> {
+                                    vcu.state = Stamped(now, pack.getState())
+                                    logger.log("vcu state received")
+                                }
+                                // 左轮编码器
+                                ecuL.currentPositionRx -> {
+                                    wheelsEncoderMatcher.add1(Stamped(now, pack.getInt()))
+                                    val (t, data) =
+                                        wheelsEncoderMatcher.match2()
+                                            ?.takeIf(::checkInterval)
+                                            ?.takeIf { (new, _, _) -> new > ecuR.position }
+                                            ?.let(::interpolateMatcher)
+                                        ?: return@engine
+                                    val (r, l) = data
+                                    updateOdometry(t = t,
+                                                   l = l.let(wheelsEncoder::toAngular),
+                                                   r = r.let(wheelsEncoder::toAngular))
+                                    logger.log("left encoder received")
+                                }
+                                // 右轮编码器
+                                ecuR.currentPositionRx -> {
+                                    wheelsEncoderMatcher.add2(Stamped(now, pack.getInt()))
+                                    val (t, data) =
+                                        wheelsEncoderMatcher.match1()
+                                            ?.takeIf(::checkInterval)
+                                            ?.takeIf { (new, _, _) -> new > ecuL.position }
+                                            ?.let(::interpolateMatcher)
+                                        ?: return@engine
+                                    val (l, r) = data
+                                    updateOdometry(t = t,
+                                                   l = l.let(wheelsEncoder::toAngular),
+                                                   r = r.let(wheelsEncoder::toAngular))
+                                    logger.log("right encoder received")
+                                }
+                                // 舵轮编码器
+                                tcu.currentPositionRx  -> {
+                                    val rudder = pack.getShort().let(rudderEncoder::toAngular)
+                                    tcu.position = Stamped(now, rudder)
+                                    logger.log("rudder encoder received")
+                                    if (enabled) {
+                                        // 优化控制量
+                                        val (speed, l, r, t) = optimizer(target, lastPhysical.copy(rudder = rudder))
+                                        lastPhysical = Physical(speed, rudder)
+                                        // 生成脉冲数
+                                        val pl = l.let(wheelsEncoder::toPulses)
+                                        val pr = r.let(wheelsEncoder::toPulses)
+                                        val pt = t?.let(rudderEncoder::toPulses)?.toShort()
+                                        // 准备发送
+                                        serial.addAll(ecuL.targetSpeed.pack(pl).asList())
+                                        serial.addAll(ecuR.targetSpeed.pack(pr).asList())
+                                        if (pt != null)
+                                            serial.addAll(tcu.targetPosition.pack(pt).asList())
+                                        commandsLogger.log(l, r, t)
+                                    }
+                                }
                             }
-                        }
                     }
+                }
+                toDevice.send(serial.toList())
             }
         }
-        return serial.toByteArray()
     }
 
     // 检查两轮数据时间差
@@ -317,18 +316,6 @@ class Chassis internal constructor(
     }
 
     private companion object {
-        const val BUFFER_SIZE = 64
-
-        val activateBytes =
-            sequenceOf(CanNode.ECU().currentPositionTx,
-                       CanNode.TCU(0).currentPositionTx,
-                       CanNode.VCU(0).batteryPercentTx)
-                .map(AutoCANPackageHead.WithoutData::pack)
-                .map(ByteArray::asList)
-                .flatten()
-                .toList()
-                .toByteArray()
-
         fun PM1Pack.WithData.getState() =
             when (data[0]) {
                 0x01.toByte() -> CanNode.State.Normal

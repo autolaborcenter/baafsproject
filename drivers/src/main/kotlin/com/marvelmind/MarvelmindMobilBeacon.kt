@@ -1,7 +1,7 @@
 package com.marvelmind
 
-import cn.autolabor.serialport.parser.SerialPortFinder
-import cn.autolabor.serialport.parser.readOrReboot
+import cn.autolabor.serialport.SerialPortFinder
+import cn.autolabor.serialport.manager.readOrReboot
 import com.fazecast.jSerialComm.SerialPort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher

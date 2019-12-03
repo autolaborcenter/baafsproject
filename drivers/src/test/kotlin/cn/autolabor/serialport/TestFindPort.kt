@@ -1,6 +1,5 @@
-package cn.autolabor
+package cn.autolabor.serialport
 
-import cn.autolabor.serialport.parser.SerialPortFinder.Companion.findSerialPort
 import com.faselase.LidarPack
 import com.fazecast.jSerialComm.SerialPort
 import com.marvelmind.BeaconPackage
@@ -8,9 +7,9 @@ import com.marvelmind.BeaconPackage
 object MarvelmindTest {
     @JvmStatic
     fun Array<String>.main() {
-        findSerialPort(
-            candidates = SerialPort.getCommPorts().toList(),
-            engine = com.marvelmind.engine()
+        SerialPortFinder.findSerialPort(
+                candidates = SerialPort.getCommPorts().toList(),
+                engine = com.marvelmind.engine()
         ) {
             baudRate = 115200
             timeoutMs = 1000
@@ -23,9 +22,9 @@ object MarvelmindTest {
 object FaselaseTest {
     @JvmStatic
     fun Array<String>.main() {
-        findSerialPort(
-            candidates = SerialPort.getCommPorts().toList(),
-            engine = com.faselase.engine()
+        SerialPortFinder.findSerialPort(
+                candidates = SerialPort.getCommPorts().toList(),
+                engine = com.faselase.engine()
         ) {
             baudRate = 460800
             timeoutMs = 5000

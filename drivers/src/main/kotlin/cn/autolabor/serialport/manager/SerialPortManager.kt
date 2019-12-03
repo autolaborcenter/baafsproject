@@ -1,6 +1,6 @@
-package cn.autolabor.serialport.parser.manager
+package cn.autolabor.serialport.manager
 
-import cn.autolabor.serialport.parser.manager.OpenCondition.Certain
+import cn.autolabor.serialport.manager.OpenCondition.Certain
 import com.fazecast.jSerialComm.SerialPort
 import kotlinx.coroutines.*
 import java.util.concurrent.Executors
@@ -24,9 +24,10 @@ class SerialPortManager {
         // 处理确定名字的目标串口
         waitingListCertain
             .removeIf { device ->
-                SerialPort
-                    .getCommPort((device.openCondition as Certain).name)
-                    .certificate(device)
+                val name = (device.openCondition as Certain).name
+                val port = SerialPort.getCommPort(name)
+                println("searching ${device.tag} on $name")
+                port.certificate(device)
             }
         if (waitingListNormal.isEmpty()) return
         // 找到所有串口
@@ -49,6 +50,7 @@ class SerialPortManager {
                 null != ports
                     .asSequence()
                     .filter { false != predicate?.invoke(it) }
+                    .onEach { println("searching ${device.tag} on ${it.systemPortName} -> ${it.descriptivePortName}") }
                     .firstOrNull { it.certificate(device) }
                     ?.also { ports.remove(it) }
             }
@@ -64,7 +66,9 @@ class SerialPortManager {
         val buffer = ByteArray(device.bufferSize)
         // 确认
         val certificator = device.buildCertificator()
-        if (certificator != null)
+        if (certificator != null) {
+            val activate = certificator.activeBytes
+            writeBytes(activate, activate.size.toLong())
             while (true) {
                 val result =
                     buffer
@@ -75,14 +79,14 @@ class SerialPortManager {
                 if (result) break
                 else return false
             }
+        }
         // 开协程
         devices[this] =
             launchSingleThreadJob {
                 while (true)
-                    buffer
-                        .take(readBytes(buffer, buffer.size.toLong()))
+                    readOrReboot(buffer, device.retryInterval)
                         .takeUnless(Collection<*>::isEmpty)
-                        ?.let(device::read)
+                        ?.let { device.toDriver.send(it) }
             }
         return true
     }

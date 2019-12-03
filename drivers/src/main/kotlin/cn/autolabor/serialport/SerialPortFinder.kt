@@ -1,5 +1,6 @@
-package cn.autolabor.serialport.parser
+package cn.autolabor.serialport
 
+import cn.autolabor.serialport.parser.ParseEngine
 import com.fazecast.jSerialComm.SerialPort
 import org.mechdancer.annotations.BuilderDslMarker
 
