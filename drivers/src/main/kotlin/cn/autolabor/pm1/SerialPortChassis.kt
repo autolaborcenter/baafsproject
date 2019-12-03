@@ -52,13 +52,14 @@ class SerialPortChassis internal constructor(
 ) : Chassis<ControlVariable>,
     SerialPortDevice,
     CoroutineScope by scope {
+
     override val tag = "PM1 Chassis"
     override val openCondition = OpenCondition.None
     override val baudRate = 115200
     override val bufferSize = 64
     override val retryInterval = 100L
 
-    private val _toDevice = Channel<Iterable<Byte>>()
+    private val _toDevice = Channel<ByteArray>()
     private val _toDriver = Channel<Iterable<Byte>>()
 
     override val toDevice get() = _toDevice
@@ -186,7 +187,7 @@ class SerialPortChassis internal constructor(
                     }
                     .toByteArray()
                     .also {
-                        _toDevice.send(it.toList())
+                        _toDevice.send(it)
                         logger.log("${it.size} bytes sent")
                     }
                 delay(max(1, flags.min()!! - now + 1))
@@ -278,7 +279,7 @@ class SerialPortChassis internal constructor(
                             }
                     }
                 }
-                toDevice.send(serial.toList())
+                toDevice.send(serial.toByteArray())
             }
         }
     }
@@ -309,8 +310,8 @@ class SerialPortChassis internal constructor(
         ecuL.position = Stamped(t, l)
         ecuR.position = Stamped(t, r)
         val delta = structure.toDeltaOdometry(
-                (l.asRadian() - `ln-1`).toRad(),
-                (r.asRadian() - `rn-1`).toRad())
+            (l.asRadian() - `ln-1`).toRad(),
+            (r.asRadian() - `rn-1`).toRad())
         odometry = Stamped(t, odometry.data plusDelta delta)
         launch { robotOnOdometry.send(odometry) }
     }
