@@ -12,6 +12,11 @@ class SerialPortManager {
     private val devices = mutableMapOf<SerialPort, Job>()
 
     @Synchronized
+    fun waitingDevices(): List<String> {
+        return waitingListCertain.map { it.tag } + waitingListNormal.map { it.tag }
+    }
+
+    @Synchronized
     internal fun register(device: SerialPortDevice) {
         if (device.openCondition is Certain)
             waitingListCertain.add(device)
@@ -73,8 +78,7 @@ class SerialPortManager {
                 val result =
                     buffer
                         .take(readBytes(buffer, buffer.size.toLong()))
-                        .takeUnless(Collection<*>::isEmpty)
-                        ?.let(certificator::invoke)
+                        .let(certificator::invoke)
                     ?: continue
                 if (result) break
                 else return false
@@ -83,6 +87,10 @@ class SerialPortManager {
         // 开协程
         devices[this] =
             launchSingleThreadJob {
+                GlobalScope.launch {
+                    for (bytes in device.toDevice)
+                        writeBytes(bytes, bytes.size.toLong())
+                }
                 while (true)
                     readOrReboot(buffer, device.retryInterval)
                         .takeUnless(Collection<*>::isEmpty)

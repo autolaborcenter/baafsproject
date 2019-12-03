@@ -22,7 +22,7 @@ internal interface SerialPortDevice {
     /** 确认条件 */
     fun buildCertificator(): Certificator?
 
-    val toDevice: ReceiveChannel<Iterable<Byte>>
+    val toDevice: ReceiveChannel<ByteArray>
 
     val toDriver: SendChannel<Iterable<Byte>>
 }
