@@ -33,3 +33,39 @@ internal suspend fun SerialPort.readOrReboot(
         delay(retryInterval)
     }
 }
+
+// 写重连阈值(超过此次数写失败则串口重连)
+internal const val WRITE_RECON_CNT = 5
+// 写计数
+internal var writeFailCnt = 0
+
+/**
+ * 从串口读取，并在超时时自动重启串口
+ * @param buffer 缓冲区
+ * @param retryInterval 重试间隔
+ * @param block 异常报告回调
+ */
+internal suspend fun SerialPort.writeOrReboot(
+    buffer: ByteArray,
+    retryInterval: Long,
+    block: suspend () -> Unit = {}
+): Boolean {
+    // 反复尝试写指令
+    while (true) {
+        // 在单线程上打开串口并写指令
+        when (val actual = takeIf { it.isOpen || it.openPort() }?.writeBytes(buffer, buffer.size.toLong())) {
+            buffer.size -> {
+                writeFailCnt = 0
+                return true
+            }
+            else     -> {
+                writeFailCnt++
+                if (writeFailCnt >= WRITE_RECON_CNT)
+                    block()
+            }
+        }
+        // 等待一段时间重试
+        delay(retryInterval)
+    }
+}
+
