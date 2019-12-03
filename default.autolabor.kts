@@ -14,7 +14,7 @@ import cn.autolabor.pm1.SerialPortChassisBuilderDsl.Companion.registerPM1Chassis
 import cn.autolabor.pm1.model.ControlVariable
 import cn.autolabor.serialport.manager.SerialPortManager
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
-import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
+import com.marvelmind.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
 import com.usarthmi.UsartHmi
 import kotlinx.coroutines.*
 import org.mechdancer.*
@@ -31,7 +31,6 @@ import org.mechdancer.core.Chassis
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.startExceptionServer
-import org.mechdancer.exceptions.device.DeviceNotExistException
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
@@ -55,43 +54,32 @@ val robotOnMap = channel<Stamped<Odometry>>()
 val beaconOnMap = channel<Stamped<Vector2D>>()
 val globalOnRobot = channel<Pair<Sequence<Odometry>, Double>>()
 val commandToSwitch = channel<ControlVariable>()
-
-val manager = SerialPortManager()
+// 连接串口外设
+val manager = SerialPortManager(exceptions)
+val hmi = UsartHmi(msgFromHmi, "COM3") // 暂时不加
+// 连接底盘
 val chassis: Chassis<ControlVariable> =
-    manager.registerPM1Chassis(robotOnOdometry.input) {
+    manager.registerPM1Chassis(
+            robotOnOdometry = robotOnOdometry.input
+    ) {
         odometryInterval = 40L
-        maxW = 45.toDegree()
+    }
+// 连接定位标签
+val beacon =
+    manager.registerMobileBeacon(
+            beaconOnMap = beaconOnMap,
+            exceptions = exceptions
+    ) {
+        port = "/dev/beacon"
+        dataTimeout = 5000L
+
+        delayLimit = 400L
+        heightRange = -3.0..0.0
     }
 while (!manager.sync());
 // 任务
 try {
     runBlocking(Dispatchers.Default) {
-        println("try to connect to usart hmi")
-        val hmi: UsartHmi? =
-            try {
-                UsartHmi(this, msgFromHmi, "COM3")
-            } catch (e: DeviceNotExistException) {
-                println("cannot find usart hmi")
-                null
-            }
-        println("done")
-        // 连接外设
-        // 连接定位标签
-        println("trying to connect to marvelmind mobile beacon...")
-        startMobileBeacon(
-            beaconOnMap = beaconOnMap,
-            exceptions = exceptions
-        ) {
-            port = "/dev/beacon"
-            retryInterval = 100L
-            connectionTimeout = 3000L
-            parseTimeout = 2500L
-            dataTimeout = 2000L
-
-            delayLimit = 400L
-            heightRange = -3.0..0.0
-        }
-        println("done")
         // 连接激光雷达
         println("trying to connect to faselase lidars...")
         val lidarSet =
@@ -126,9 +114,9 @@ try {
         // 启动定位融合模块（粒子滤波器）
         val particleFilter =
             startLocationFusion(
-                robotOnOdometry = robotOnOdometry.outputs[0],
-                beaconOnMap = beaconOnMap,
-                robotOnMap = robotOnMap
+                    robotOnOdometry = robotOnOdometry.outputs[0],
+                    beaconOnMap = beaconOnMap,
+                    robotOnMap = robotOnMap
             ) {
                 filter {
                     beaconOnRobot = vector2DOf(-.01, -.02)
@@ -141,8 +129,8 @@ try {
         // 启动业务交互后台
         val business =
             startBusiness(
-                robotOnMap = robotOnMap,
-                globalOnRobot = globalOnRobot
+                    robotOnMap = robotOnMap,
+                    globalOnRobot = globalOnRobot
             ) {
                 localRadius = .5
                 pathInterval = .05
@@ -231,7 +219,7 @@ try {
             registerBusinessParser(business, this)
         }
         launch { while (isActive) parser.parseFromConsole() }
-        hmi?.run {
+        hmi.run {
             launch {
                 for (msg in msgFromHmi) {
                     if (!particleFilter.isConvergent)

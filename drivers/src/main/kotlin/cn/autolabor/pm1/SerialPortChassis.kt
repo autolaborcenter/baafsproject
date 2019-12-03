@@ -52,7 +52,6 @@ class SerialPortChassis internal constructor(
     override val openCondition = OpenCondition.None
     override val baudRate = 115200
     override val bufferSize = 64
-    override val retryInterval = 100L
 
     // 解析引擎
     private val engine = engine()

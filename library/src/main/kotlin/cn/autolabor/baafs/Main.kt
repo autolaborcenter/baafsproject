@@ -14,7 +14,7 @@ import cn.autolabor.pm1.SerialPortChassisBuilderDsl.Companion.registerPM1Chassis
 import cn.autolabor.pm1.model.ControlVariable
 import cn.autolabor.serialport.manager.SerialPortManager
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
-import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
+import com.marvelmind.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
 import com.usarthmi.UsartHmi
 import kotlinx.coroutines.*
 import org.mechdancer.*
@@ -28,6 +28,7 @@ import org.mechdancer.common.Stamped
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.core.Chassis
+import org.mechdancer.core.MobileBeacon
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.startExceptionServer
@@ -62,30 +63,27 @@ fun main() {
     val hmi = UsartHmi(msgFromHmi, "COM3") // 暂时不加
     // 连接底盘
     val chassis: Chassis<ControlVariable> =
-        manager.registerPM1Chassis(robotOnOdometry.input) {
+        manager.registerPM1Chassis(
+                robotOnOdometry = robotOnOdometry.input
+        ) {
             odometryInterval = 40L
+        }
+    // 连接定位标签
+    val beacon: MobileBeacon =
+        manager.registerMobileBeacon(
+                beaconOnMap = beaconOnMap,
+                exceptions = exceptions
+        ) {
+            port = "/dev/beacon"
+            dataTimeout = 5000L
+
+            delayLimit = 400L
+            heightRange = -3.0..0.0
         }
     while (!manager.sync());
     // 任务
     try {
         runBlocking(Dispatchers.Default) {
-            // 连接外设
-            // 连接定位标签
-            println("trying to connect to marvelmind mobile beacon...")
-            startMobileBeacon(
-                    beaconOnMap = beaconOnMap,
-                    exceptions = exceptions
-            ) {
-                port = "/dev/beacon"
-                retryInterval = 100L
-                connectionTimeout = 3000L
-                parseTimeout = 2500L
-                dataTimeout = 2000L
-
-                delayLimit = 400L
-                heightRange = -3.0..0.0
-            }
-            println("done")
             // 连接激光雷达
             println("trying to connect to faselase lidars...")
             val lidarSet =

@@ -6,11 +6,13 @@ import kotlinx.coroutines.runBlocking
 import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
+import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.geometry.angle.toDegree
 
 fun main() {
     val robotOnOdometry = channel<Stamped<Odometry>>()
-    with(SerialPortManager()) {
+    val exceptions = channel<ExceptionMessage>()
+    with(SerialPortManager(exceptions)) {
         registerPM1Chassis(robotOnOdometry) {
             odometryInterval = 40L
             maxW = 45.toDegree()

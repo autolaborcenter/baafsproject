@@ -17,7 +17,6 @@ class UsartHmi(
     override val openCondition = Certain(portName)
     override val baudRate = 9600
     override val bufferSize = 64
-    override val retryInterval = 100L
 
     private val engine = engine()
     private val output = Channel<String>()

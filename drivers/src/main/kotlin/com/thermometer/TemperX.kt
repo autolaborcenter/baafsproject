@@ -1,6 +1,5 @@
 package com.thermometer
 
-import cn.autolabor.serialport.manager.writeOrReboot
 import com.fazecast.jSerialComm.SerialPort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -11,7 +10,6 @@ import org.mechdancer.SimpleLogger
 import org.mechdancer.WatchDog
 import org.mechdancer.common.Stamped
 import org.mechdancer.exceptions.ExceptionMessage
-import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.device.DataTimeoutException
 import org.mechdancer.exceptions.device.DeviceNotExistException
 import org.mechdancer.exceptions.device.DeviceOfflineException
@@ -74,14 +72,14 @@ internal class TemperX (
                 val buffer = ByteArray(BUFFER_SIZE)
                 while (true) {
                     val start = System.currentTimeMillis()
-                    if (port.writeOrReboot(CMD.toByteArray(Charsets.US_ASCII), retryInterval) {
-                            exceptions.send(Occurred(DeviceOfflineException(NAME)))
-                        }) {
-                        val len = port.readBytes(buffer, BUFFER_SIZE.toLong())
-                        if (len > 0) {
-                            write(buffer.take(len))
-                        }
-                    }
+//                    if (port.writeOrReboot(CMD.toByteArray(Charsets.US_ASCII), retryInterval) {
+//                            exceptions.send(Occurred(DeviceOfflineException(NAME)))
+//                        }) {
+//                        val len = port.readBytes(buffer, BUFFER_SIZE.toLong())
+//                        if (len > 0) {
+//                            write(buffer.take(len))
+//                        }
+//                    }
                     while ((System.currentTimeMillis() - start) < mainInterval)
                         delay(10)
                 }

@@ -17,9 +17,6 @@ interface SerialPortDevice {
     /** 缓冲区容量 */
     val bufferSize: Int
 
-    /** 重试间隔 */
-    val retryInterval: Long
-
     /** 确认条件 */
     fun buildCertificator(): Certificator?
 

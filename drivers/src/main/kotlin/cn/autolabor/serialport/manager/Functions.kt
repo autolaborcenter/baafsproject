@@ -3,6 +3,9 @@ package cn.autolabor.serialport.manager
 import com.fazecast.jSerialComm.SerialPort
 import kotlinx.coroutines.delay
 
+internal fun durationFrom(t0: Long) =
+    System.currentTimeMillis() - t0
+
 /**
  * 从串口读取，并在超时时自动重启串口
  * @param buffer 缓冲区

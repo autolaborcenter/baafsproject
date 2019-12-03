@@ -6,6 +6,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.channel
 import org.mechdancer.exceptions.ExceptionMessage
+import org.mechdancer.exceptions.ExceptionMessage.Occurred
+import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import org.mechdancer.exceptions.device.DeviceOfflineException
 import java.util.concurrent.Executors
 
@@ -101,14 +103,13 @@ class SerialPortManager(
                     for (bytes in fromDriver)
                         writeBytes(bytes.toByteArray(), bytes.size.toLong())
                 }
-                val offline = DeviceOfflineException(device.tag).occurred()
-                val online = DeviceOfflineException(device.tag).occurred()
+                val offlineException = DeviceOfflineException(device.tag)
                 while (isActive)
-                    readOrReboot(buffer, device.retryInterval)
-                    { exceptions.send(offline) }
+                    readOrReboot(buffer, 100L)
+                    { exceptions.send(Occurred(offlineException)) }
                         .takeUnless(Collection<*>::isEmpty)
                         ?.let {
-                            exceptions.send(online)
+                            exceptions.send(Recovered(offlineException))
                             toDriver.send(it)
                         }
             }

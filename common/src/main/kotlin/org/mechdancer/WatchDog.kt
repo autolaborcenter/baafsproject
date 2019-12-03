@@ -1,15 +1,12 @@
 package org.mechdancer
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 /** 协程看门狗 */
 class WatchDog(
-    scope: CoroutineScope,
+    scope: CoroutineScope = GlobalScope,
     private val timeout: Long,
     private val block: suspend () -> Unit
 ) : CoroutineScope by scope {
