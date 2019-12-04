@@ -65,15 +65,15 @@ fun main() {
     // 连接底盘
     val chassis: Chassis<ControlVariable> =
         manager.registerPM1Chassis(
-                robotOnOdometry = robotOnOdometry.input
+            robotOnOdometry = robotOnOdometry.input
         ) {
             odometryInterval = 40L
         }
     // 连接定位标签
     val beacon: MobileBeacon =
         manager.registerMobileBeacon(
-                beaconOnMap = beaconOnMap,
-                exceptions = exceptions
+            beaconOnMap = beaconOnMap,
+            exceptions = exceptions
         ) {
             port = "/dev/beacon"
             dataTimeout = 5000L
@@ -83,7 +83,7 @@ fun main() {
         }
     val lidarSet: LidarSet =
         manager.registerFaselaseLidarSet(
-                exceptions = exceptions
+            exceptions = exceptions
         ) {
             dataTimeout = 400L
             lidar(port = "/dev/pos3") {
@@ -125,9 +125,9 @@ fun main() {
             // 启动定位融合模块（粒子滤波器）
             val particleFilter =
                 startLocationFusion(
-                        robotOnOdometry = robotOnOdometry.outputs[0],
-                        beaconOnMap = beaconOnMap,
-                        robotOnMap = robotOnMap
+                    robotOnOdometry = robotOnOdometry.outputs[0],
+                    beaconOnMap = beaconOnMap,
+                    robotOnMap = robotOnMap
                 ) {
                     filter {
                         beaconOnRobot = vector2DOf(-.01, -.02)
@@ -140,8 +140,8 @@ fun main() {
             // 启动业务交互后台
             val business =
                 startBusiness(
-                        robotOnMap = robotOnMap,
-                        globalOnRobot = globalOnRobot
+                    robotOnMap = robotOnMap,
+                    globalOnRobot = globalOnRobot
                 ) {
                     localRadius = .5
                     pathInterval = .05
@@ -176,7 +176,7 @@ fun main() {
                     minTipAngle = 60.toDegree()
                     minTurnAngle = 15.toDegree()
                     turnThreshold = (-120).toDegree()
-                    maxSpeed = .2
+                    maxSpeed = .25
 
                     painter = remote
                 }
@@ -225,6 +225,7 @@ fun main() {
             val parser = buildParser {
                 this["coroutines"] = { coroutineContext[Job]?.children?.count() }
                 this["\'"] = { isEnabled = !isEnabled; if (isEnabled) "enabled" else "disabled" }
+                this["beacon"] = { beacon.location }
                 registerExceptionServerParser(exceptionServer, this)
                 registerParticleFilterParser(particleFilter, this)
                 registerBusinessParser(business, this)

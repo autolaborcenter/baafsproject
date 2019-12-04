@@ -173,7 +173,7 @@ try {
                 minTipAngle = 60.toDegree()
                 minTurnAngle = 15.toDegree()
                 turnThreshold = (-120).toDegree()
-                maxSpeed = .2
+                maxSpeed = .25
 
                 painter = remote
             }

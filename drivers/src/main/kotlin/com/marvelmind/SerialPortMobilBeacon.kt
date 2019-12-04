@@ -102,7 +102,6 @@ internal constructor(
                             parse(pack)?.let {
                                 launch {
                                     beaconOnMap.send(it)
-                                    dataWatchDog.feed()
                                     exceptions.send(Recovered(dataTimeoutException))
                                 }
                             }
@@ -129,7 +128,10 @@ internal constructor(
             // 过滤
             Unit.takeIf { delay in delayRange && z in zRange && notStatic(x, y, z) }
                 ?.let { Stamped(now - delay, vector2DOf(x, y) / 1000.0) }
-                ?.also { location = it }
+                ?.also {
+                    dataWatchDog.feed()
+                    location = it
+                }
         }
     }
 
