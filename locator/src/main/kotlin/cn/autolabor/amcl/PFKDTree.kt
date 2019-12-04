@@ -9,7 +9,7 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.floor
 
-data class KDTreeNode(
+class KDTreeNode(
     var leaf: Boolean,
     var depth: Int,
     var key: Vector3D,
@@ -20,31 +20,29 @@ data class KDTreeNode(
     var children: Pair<KDTreeNode, KDTreeNode>? = null
 )
 
-data class KdTree(
+class KdTree(
     var size: Vector3D = Vector3D(0.1, 0.1, 10 * PI / 180),
     var root: KDTreeNode? = null,
-    var nodeMaxCount: Int,
     var nodes: MutableList<KDTreeNode> = mutableListOf(),
     var leafCount: Int = 0
 ) {
     val maxYaw = floor(PI / size.z)
     val minYaw = floor(-PI / size.z)
-}
 
+    fun insert(pose: Vector3D, value: Double) {
+        val key: Vector3D = (pose / size).forEach(::floor)
+        root = kdTreeInsertNode(this, null, root, key, value)
+    }
 
-fun kdTreeClear(self: KdTree): Unit {
-    self.root = null
-    self.leafCount = 0
-    self.nodes.clear()
+    fun clear() {
+        root = null
+        leafCount = 0
+        nodes.clear()
+    }
 }
 
 fun Vector3D.forEach(block: (Double) -> Double) = Vector3D(block(x), block(y), block(z))
 fun Vector3D.maxIndex() = if (x > y) (if (x > z) 0 else 2) else (if (y > z) 1 else 2)
-
-fun kdTreeInsert(self: KdTree, pose: Vector3D, value: Double): Unit {
-    val key: Vector3D = (pose / self.size).forEach(::floor)
-    self.root = kdTreeInsertNode(self, null, self.root, key, value)
-}
 
 fun kdTreeInsertNode(self: KdTree, parent: KDTreeNode?, node: KDTreeNode?, key: Vector3D, value: Double): KDTreeNode =
     node?.apply {
@@ -56,21 +54,18 @@ fun kdTreeInsertNode(self: KdTree, parent: KDTreeNode?, node: KDTreeNode?, key: 
                 this.pivotValue = (key[this.pivotDim] + this.key[this.pivotDim]) / 2
                 this.children = if (key[this.pivotDim] < this.pivotValue) Pair(
                         first = kdTreeInsertNode(self, this, null, key, value),
-                        second = kdTreeInsertNode(self, this, null, this.key, this.value)
-                )
+                        second = kdTreeInsertNode(self, this, null, this.key, this.value))
                 else Pair(
                         first = kdTreeInsertNode(self, this, null, this.key, this.value),
-                        second = kdTreeInsertNode(self, this, null, key, value)
-                )
+                        second = kdTreeInsertNode(self, this, null, key, value))
                 this.leaf = false
-                self.leafCount--
+                --self.leafCount
             }
         } else {
-            if (key[this.pivotDim] < this.pivotValue) {
+            if (key[this.pivotDim] < this.pivotValue)
                 kdTreeInsertNode(self, this, this.children!!.first, key, value)
-            } else {
+            else
                 kdTreeInsertNode(self, this, this.children!!.second, key, value)
-            }
         }
     } ?: KDTreeNode(
             leaf = true,
@@ -79,7 +74,7 @@ fun kdTreeInsertNode(self: KdTree, parent: KDTreeNode?, node: KDTreeNode?, key: 
             value = value
     ).also {
         self.nodes.add(it)
-        self.leafCount++
+        ++self.leafCount
     }
 
 fun kdTreeCluster(self: KdTree): Unit {
@@ -97,7 +92,13 @@ fun kdTreeCluster(self: KdTree): Unit {
     }
 }
 
-val gridIndex = sequence { for (x in -1..1) for (y in -1..1) for (z in -1..1) yield(vector3DOf(x, y, z)) }.toList()
+private val gridIndex =
+    sequence {
+        for (x in -1..1)
+            for (y in -1..1)
+                for (z in -1..1)
+                    yield(vector3DOf(x, y, z))
+    }.toList()
 
 fun kdTreeClusterNode(self: KdTree, node: KDTreeNode, depth: Int) {
     for (item in gridIndex) {
@@ -111,13 +112,12 @@ fun kdTreeClusterNode(self: KdTree, node: KDTreeNode, depth: Int) {
     }
 }
 
-fun kdTreeFindNode(self: KdTree, node: KDTreeNode, key: Vector3D): KDTreeNode? {
-    return when {
+tailrec fun kdTreeFindNode(self: KdTree, node: KDTreeNode, key: Vector3D): KDTreeNode? =
+    when {
         node.leaf                            -> if (key == node.key) node else null
         key[node.pivotDim] < node.pivotValue -> kdTreeFindNode(self, node.children!!.first, key)
         else                                 -> kdTreeFindNode(self, node.children!!.second, key)
     }
-}
 
 fun kdTreeGetCluster(self: KdTree, pose: Vector3D) =
     kdTreeFindNode(self, self.root!!, (pose / self.size).forEach(::floor))?.cluster ?: -1

@@ -51,7 +51,7 @@ class AMCLFilter(
     override fun measureMaster(item: Stamped<Odometry>): Stamped<Odometry>? {
         val (t, pose) = item
         matcher.add1(item)
-        synchronized(this) {
+        synchronized(pf) {
             odom2baselinkTrans = Stamped(t, pose.toTransformation())
             if (initFlag && needUpdate(item.data)) {
                 updateAction(item.data) // 所有粒子按照里程计推演
@@ -63,10 +63,9 @@ class AMCLFilter(
 
     override fun measureHelper(item: Stamped<Vector2D>) {
         matcher.add2(item)
-        synchronized(this) {
-            if (!initFlag && initParticles(item.data)) {
+        synchronized(pf) {
+            if (!initFlag && initParticles(item.data))
                 initFlag = true
-            }
             if (initFlag) {
                 updateWeight(pf, item) // 更新权重
                 if (needResample()) {
@@ -88,7 +87,7 @@ class AMCLFilter(
                  z = Random.nextDouble(-PI, PI))
 
     private fun initSample(pf: PFInfo, positionMean: Vector2D, cov: Vector2D, tagPosition: Vector2D): Unit {
-        kdTreeClear(pf.set.kdTree)
+        pf.set.kdTree.clear()
         val std = Vector2D(sqrt(cov.x), sqrt(cov.y))
         val tagPositionInverse = Transformation.fromPose(-tagPosition, Angle(0.0))
         repeat(pf.maxSamples) {
@@ -96,7 +95,7 @@ class AMCLFilter(
                 (initRandSample(positionMean, std).toTrans() * tagPositionInverse)
                     .toPoseVec() to 1.0 / pf.maxSamples
             pf.set.samples.add(sample)
-            kdTreeInsert(pf.set.kdTree, sample.particle, sample.weight)
+            pf.set.kdTree.insert(sample.particle, sample.weight)
         }
         clusterStats(pf)
         pf.wSlow = 0.0
@@ -112,7 +111,7 @@ class AMCLFilter(
             else {
                 initPosition = (initPosition * initCount + item) / (initCount + 1)
                 initCov = (initCov * initCount + initPosition * initPosition - initPosition) / (initCount + 1)
-                initCount++
+                ++initCount
             }
         }
 
@@ -138,19 +137,19 @@ class AMCLFilter(
         pf.set.samples = pf.set.samples.map { (v, w) ->
             val deltaRot1Hat =
                 (deltaRot1 - randomGaussian(
-                    sqrt(alpha1 * deltaRot1Noise * deltaRot1Noise
-                         + alpha2 * deltaTrans * deltaTrans)
+                        sqrt(alpha1 * deltaRot1Noise * deltaRot1Noise
+                             + alpha2 * deltaTrans * deltaTrans)
                 )).adjust()
             val deltaTransHat =
                 deltaTrans - randomGaussian(
-                    sqrt(alpha3 * deltaTrans * deltaTrans
-                         + alpha4 * deltaRot1Noise * deltaRot1Noise
-                         + alpha4 * deltaRot2Noise * deltaRot2Noise)
+                        sqrt(alpha3 * deltaTrans * deltaTrans
+                             + alpha4 * deltaRot1Noise * deltaRot1Noise
+                             + alpha4 * deltaRot2Noise * deltaRot2Noise)
                 )
             val deltaRot2Hat =
                 (deltaRot2 - randomGaussian(
-                    sqrt(alpha1 * deltaRot2Noise * deltaRot2Noise
-                         + alpha2 * deltaTrans * deltaTrans)
+                        sqrt(alpha1 * deltaRot2Noise * deltaRot2Noise
+                             + alpha2 * deltaTrans * deltaTrans)
                 )).adjust()
 
             Vector3D(x = v.x + deltaTransHat * cos(v.z + deltaRot1Hat),
@@ -183,7 +182,7 @@ class AMCLFilter(
     // 对粒子进行重采样
     private fun updateResample(pf: PFInfo) {
         // println("updateResample")
-        pf.tmpSet = PFSampleSet(pf.maxSamples)
+        val tmpSet = PFSampleSet(pf.maxSamples)
         val c = mutableListOf(0.0).apply {
             pf.set.samples.forEach { this.add(this.last() + it.weight) }
         }
@@ -192,15 +191,15 @@ class AMCLFilter(
         var total = 0.0
         for (i in 0 until pf.maxSamples) {
             val pose =
-                Random.nextDouble()
-                    .takeIf { it > wDiff }
-                    ?.let { r -> c.indexOfLast { it <= r } }
-                    ?.let { pf.set.samples[it].particle }
-                ?: gaussianSample(pdf)
-            pf.tmpSet!!.samples.add(pose to 1.0)
-            kdTreeInsert(pf.tmpSet!!.kdTree, pose, 1.0)
+                if (Random.nextDouble() > wDiff)
+                    Random.nextDouble()
+                        .let { r -> c.indexOfLast { it <= r } }
+                        .let { pf.set.samples[it].particle }
+                else gaussianSample(pdf)
+            tmpSet.samples.add(pose to 1.0)
+            tmpSet.kdTree.insert(pose, 1.0)
             total += 1.0
-            if (pf.tmpSet!!.samples.size > resampleLimit(pf, pf.tmpSet!!.kdTree.leafCount))
+            if (tmpSet.samples.size > resampleLimit(pf, tmpSet.kdTree.leafCount))
                 break
         }
 
@@ -209,10 +208,10 @@ class AMCLFilter(
             pf.wFast = 0.0
         }
 
-        for (it in pf.tmpSet!!.samples)
+        for (it in tmpSet.samples)
             it.weight /= total
 
-        pf.set = pf.tmpSet!!
+        pf.set = tmpSet
         clusterStats(pf)
         updateConverged(pf)
     }
@@ -246,8 +245,8 @@ class AMCLFilter(
             ?.takeIf { it.value.weight > 0 }
             ?.apply {
                 map2odomTrans = Stamped(
-                    System.currentTimeMillis(),
-                    this.value.mean.toTrans() * lastUpdateOdom.toTransformation().inverse())
+                        System.currentTimeMillis(),
+                        this.value.mean.toTrans() * lastUpdateOdom.toTransformation().inverse())
             }
     }
 
