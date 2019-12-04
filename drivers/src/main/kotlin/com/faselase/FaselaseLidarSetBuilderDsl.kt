@@ -1,6 +1,6 @@
 package com.faselase
 
-import kotlinx.coroutines.CoroutineScope
+import cn.autolabor.serialport.manager.SerialPortManager
 import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.algebra.implement.matrix.builder.toDiagonalMatrix
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -15,10 +15,7 @@ import org.mechdancer.geometry.transformation.Transformation
  */
 @BuilderDslMarker
 class FaselaseLidarSetBuilderDsl private constructor() {
-    var launchTimeout: Long = 5000L
-    var connectionTimeout: Long = 800L
     var dataTimeout: Long = 400L
-    var retryInterval: Long = 100L
 
     private var autoDetect: FaselaseLidarConfig? = null
     private var configs = mutableMapOf<String?, FaselaseLidarConfig>()
@@ -47,37 +44,33 @@ class FaselaseLidarSetBuilderDsl private constructor() {
     }
 
     companion object {
-        fun CoroutineScope.faselaseLidarSet(
+        private val mirror = Transformation(listOf(+1, -1, +1).toDiagonalMatrix())
+
+        fun SerialPortManager.registerFaselaseLidarSet(
             exceptions: SendChannel<ExceptionMessage>,
             block: FaselaseLidarSetBuilderDsl.() -> Unit
         ) = FaselaseLidarSetBuilderDsl()
             .apply(block)
             .apply {
-                require(launchTimeout > 0)
-                require(connectionTimeout > 0)
                 require(dataTimeout > 0)
-                require(retryInterval > 0)
                 if (configs.isEmpty()) configs = mutableMapOf(null to autoDetect!!)
             }
             .run {
-                configs.map { (portName, config) ->
-                    FaselaseLidar(
-                            scope = this@faselaseLidarSet,
-                            exceptions = exceptions,
-                            portName = portName,
-                            tag = config.tag,
-                            launchTimeout = launchTimeout,
-                            connectionTimeout = connectionTimeout,
-                            dataTimeout = dataTimeout,
-                            retryInterval = retryInterval
-                    ) to config.pose.toTransformation().let {
-                        if (config.inverse)
-                            it * Transformation(listOf(+1, -1, +1).toDiagonalMatrix())
-                        else it
+                val manager = this@registerFaselaseLidarSet
+                var i = 0
+                configs
+                    .map { (portName, config) ->
+                        val lidar =
+                            FaselaseLidar(
+                                    exceptions = exceptions,
+                                    portName = portName,
+                                    tag = config.tag ?: "Lidar${i++}",
+                                    dataTimeout = dataTimeout
+                            ).also(manager::register)
+                        val tf = config.pose.toTransformation()
+                        lidar to if (config.inverse) tf * mirror else tf
                     }
-                }.let {
-                    LidarSet(it.associate { (lidar, tf) -> lidar::frame to tf }, filter)
-                }
+                    .let { LidarSet(it.associate { (lidar, tf) -> lidar::frame to tf }, filter) }
             }
     }
 }

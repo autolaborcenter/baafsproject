@@ -1,7 +1,8 @@
 package com.faselase
 
-import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
-import kotlinx.coroutines.Dispatchers
+import cn.autolabor.serialport.manager.SerialPortManager
+import com.faselase.FaselaseLidarSetBuilderDsl.Companion.registerFaselaseLidarSet
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -9,23 +10,24 @@ import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.channel
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.common.shape.Polygon
+import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.networksInfo
 import org.mechdancer.paint
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.remoteHub
 
-fun main() = runBlocking(Dispatchers.Default) {
+fun main() {
     val remote = remoteHub("测试雷达组").apply {
         openAllNetworks()
         println(networksInfo())
     }
     val blind = Polygon(listOf(
-        vector2DOf(+.0, +.0),
-        vector2DOf(+.0, +.3),
-        vector2DOf(+.3, +.3),
-        vector2DOf(+.2, -.3)
+            vector2DOf(+.0, +.0),
+            vector2DOf(+.0, +.3),
+            vector2DOf(+.3, +.3),
+            vector2DOf(+.2, -.3)
     ))
-    launch {
+    GlobalScope.launch {
         val `10cm` = Circle(.10).sample()
         val `15cm` = Circle(.15).sample()
         val `20cm` = Circle(.20).sample()
@@ -37,23 +39,25 @@ fun main() = runBlocking(Dispatchers.Default) {
             delay(2000L)
         }
     }
-    val lidarSet = faselaseLidarSet(exceptions = channel()) {
-        launchTimeout = 5000L
-        connectionTimeout = 800L
-        dataTimeout = 400L
-        retryInterval = 100L
-        lidar {
-            tag = "Lidar"
-            inverse = true
+    val exceptions = channel<ExceptionMessage>()
+    val manager = SerialPortManager(exceptions)
+    val lidarSet =
+        manager.registerFaselaseLidarSet(exceptions) {
+            dataTimeout = 400L
+            lidar {
+                inverse = true
+            }
+            filter { p ->
+                p !in blind
+            }
         }
-        filter { p ->
-            p !in blind
+    while (manager.sync() > 0);
+    runBlocking {
+        while (true) {
+            val points = lidarSet.frame
+            println("size = ${points.size}")
+            remote.paintVectors("雷达", points)
+            delay(100L)
         }
-    }
-    while (true) {
-        val points = lidarSet.frame
-        println("size = ${points.size}")
-        remote.paintVectors("雷达", points)
-        delay(100L)
     }
 }

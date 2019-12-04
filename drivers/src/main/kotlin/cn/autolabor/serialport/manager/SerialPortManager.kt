@@ -28,7 +28,8 @@ class SerialPortManager(
     }
 
     @Synchronized
-    fun sync(): Boolean {
+    fun sync(): Int {
+        println("---- sync serial ports ----")
         // 处理确定名字的目标串口
         waitingListCertain
             .removeIf { device ->
@@ -36,7 +37,7 @@ class SerialPortManager(
                 val port = SerialPort.getCommPort(name)
                 port.certificate(device)
             }
-        if (waitingListNormal.isEmpty()) return waitingListCertain.isEmpty()
+        if (waitingListNormal.isEmpty()) return waitingListCertain.size
         // 找到所有串口
         val ports =
             SerialPort.getCommPorts()
@@ -54,23 +55,28 @@ class SerialPortManager(
         waitingListNormal
             .removeIf { device ->
                 val predicate = (device.openCondition as? OpenCondition.Filter)?.predicate
-                null != ports
-                    .asSequence()
-                    .filter { false != predicate?.invoke(it) }
-                    .onEach { }
-                    .firstOrNull { it.certificate(device) }
-                    ?.also { ports.remove(it) }
+                val availablePorts = ports.filter { false != predicate?.invoke(it) }
+                if (availablePorts.isEmpty()) {
+                    println("searching ${device.tag} but no available port")
+                    false
+                } else
+                    null != availablePorts
+                        .firstOrNull { it.certificate(device) }
+                        ?.also { ports.remove(it) }
             }
-        return waitingListCertain.isEmpty() && waitingListNormal.isEmpty()
+        return waitingListCertain.size + waitingListNormal.size
     }
 
     private fun SerialPort.certificate(device: SerialPortDevice): Boolean {
-        println("searching ${device.tag} on $systemPortName -> $descriptivePortName")
+        print("searching ${device.tag} on $systemPortName -> $descriptivePortName")
         // 设置串口
         baudRate = device.baudRate
         setComPortTimeouts(SerialPort.TIMEOUT_READ_SEMI_BLOCKING, 100, 100)
         // 开串口
-        if (!openPort()) return false
+        if (!openPort()) {
+            println(": failed")
+            return false
+        }
         // 创建缓冲区
         val buffer = ByteArray(device.bufferSize)
         // 确认
@@ -87,6 +93,7 @@ class SerialPortManager(
                 if (result) break
                 else {
                     closePort()
+                    println(": failed")
                     return false
                 }
             }
@@ -104,7 +111,7 @@ class SerialPortManager(
                         writeBytes(bytes.toByteArray(), bytes.size.toLong())
                 }
                 val offlineException = DeviceOfflineException(device.tag)
-                while (isActive)
+                while (isActive) {
                     readOrReboot(buffer, 100L)
                     { exceptions.send(Occurred(offlineException)) }
                         .takeUnless(Collection<*>::isEmpty)
@@ -112,12 +119,45 @@ class SerialPortManager(
                             exceptions.send(Recovered(offlineException))
                             toDriver.send(it)
                         }
+                }
             }
+        println(": done")
         return true
     }
 
     private companion object {
-        private fun launchSingleThreadJob(block: suspend CoroutineScope.() -> Unit) =
+        fun launchSingleThreadJob(block: suspend CoroutineScope.() -> Unit) =
             GlobalScope.launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher(), block = block)
+
+        /**
+         * 从串口读取，并在超时时自动重启串口
+         * @param buffer 缓冲区
+         * @param retryInterval 重试间隔
+         * @param block 异常报告回调
+         */
+        suspend fun SerialPort.readOrReboot(
+            buffer: ByteArray,
+            retryInterval: Long,
+            block: suspend () -> Unit = {}
+        ): List<Byte> {
+            val size = buffer.size.toLong()
+            // 反复尝试读取
+            while (true) {
+                // 在单线程上打开串口并阻塞读取
+                when (val actual = takeIf { it.isOpen || it.openPort() }?.readBytes(buffer, size)) {
+                    null, -1 ->
+                        block()
+                    0        -> {
+                        // 如果长度是 0,的可能是假的,发送空包可更新串口对象状态
+                        writeBytes(byteArrayOf(), 0)
+                        if (!isOpen) block()
+                    }
+                    else     ->
+                        return buffer.take(actual)
+                }
+                // 等待一段时间重试
+                delay(retryInterval)
+            }
+        }
     }
 }

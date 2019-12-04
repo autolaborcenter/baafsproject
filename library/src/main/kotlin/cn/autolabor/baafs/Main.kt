@@ -13,7 +13,8 @@ import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import cn.autolabor.pm1.SerialPortChassisBuilderDsl.Companion.registerPM1Chassis
 import cn.autolabor.pm1.model.ControlVariable
 import cn.autolabor.serialport.manager.SerialPortManager
-import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
+import com.faselase.FaselaseLidarSetBuilderDsl.Companion.registerFaselaseLidarSet
+import com.faselase.LidarSet
 import com.marvelmind.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
 import com.usarthmi.UsartHmi
 import kotlinx.coroutines.*
@@ -80,34 +81,40 @@ fun main() {
             delayLimit = 400L
             heightRange = -3.0..0.0
         }
-    while (!manager.sync());
+    val lidarSet: LidarSet =
+        manager.registerFaselaseLidarSet(
+                exceptions = exceptions
+        ) {
+            dataTimeout = 400L
+            lidar(port = "/dev/pos3") {
+                tag = "front lidar"
+                pose = Odometry.pose(.113, 0, PI / 2)
+                inverse = false
+            }
+            lidar(port = "/dev/pos4") {
+                tag = "back lidar"
+                pose = Odometry.pose(-.138, 0, PI / 2)
+                inverse = false
+            }
+            val wonder = vector2DOf(+.12, -.14)
+            filter { p ->
+                p euclid wonder > .05 && p !in outlineFilter
+            }
+        }
+    sync@ while (true)
+        when (val remain = manager.sync()) {
+            0    -> {
+                println("Every devices are ready.")
+                break@sync
+            }
+            else -> {
+                println("There are still $remain devices offline, press ENTER to sync again.")
+                readLine()
+            }
+        }
     // 任务
     try {
         runBlocking(Dispatchers.Default) {
-            // 连接激光雷达
-            println("trying to connect to faselase lidars...")
-            val lidarSet =
-                faselaseLidarSet(exceptions = channel()) {
-                    launchTimeout = 5000L
-                    connectionTimeout = 800L
-                    dataTimeout = 400L
-                    retryInterval = 100L
-                    lidar(port = "/dev/pos3") {
-                        tag = "FrontLidar"
-                        pose = Odometry.pose(.113, 0, PI / 2)
-                        inverse = false
-                    }
-                    lidar(port = "/dev/pos4") {
-                        tag = "BackLidar"
-                        pose = Odometry.pose(-.138, 0, PI / 2)
-                        inverse = false
-                    }
-                    val wonder = vector2DOf(+.12, -.14)
-                    filter { p ->
-                        p euclid wonder > .05 && p !in outlineFilter
-                    }
-                }
-            println("done")
             // 启动服务
             println("staring data process modules...")
             // 启动异常服务器

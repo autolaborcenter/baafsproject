@@ -48,7 +48,7 @@ class SerialPortChassis internal constructor(
 ) : Chassis<ControlVariable>,
     SerialPortDevice {
 
-    override val tag = "PM1Chassis"
+    override val tag = "PM1 chassis"
     override val openCondition = OpenCondition.None
     override val baudRate = 115200
     override val bufferSize = 64

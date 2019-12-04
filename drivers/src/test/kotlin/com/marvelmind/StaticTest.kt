@@ -20,7 +20,7 @@ fun main() {
     val exceptions = channel<ExceptionMessage>()
     with(SerialPortManager(exceptions)) {
         registerMobileBeacon(beaconOnMap, exceptions)
-        while (!sync());
+        while (sync() > 0);
     }
     runBlocking {
         val list = mutableListOf<Vector2D>()
