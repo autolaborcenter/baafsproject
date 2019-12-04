@@ -51,24 +51,28 @@ class AMCLFilter(
     override fun measureMaster(item: Stamped<Odometry>): Stamped<Odometry>? {
         val (t, pose) = item
         matcher.add1(item)
-        odom2baselinkTrans = Stamped(t, pose.toTransformation())
-        if (initFlag && needUpdate(item.data)) {
-            updateAction(item.data) // 所有粒子按照里程计推演
-            lastUpdateOdom = item.data
+        synchronized(this) {
+            odom2baselinkTrans = Stamped(t, pose.toTransformation())
+            if (initFlag && needUpdate(item.data)) {
+                updateAction(item.data) // 所有粒子按照里程计推演
+                lastUpdateOdom = item.data
+            }
         }
         return get(item)
     }
 
     override fun measureHelper(item: Stamped<Vector2D>) {
         matcher.add2(item)
-        if (!initFlag && initParticles(item.data)) {
-            initFlag = true
-        }
-        if (initFlag) {
-            updateWeight(pf, item) // 更新权重
-            if (needResample()) {
-                updateResample(pf) // 对粒子进行重采样
-                updateTrans(pf)
+        synchronized(this) {
+            if (!initFlag && initParticles(item.data)) {
+                initFlag = true
+            }
+            if (initFlag) {
+                updateWeight(pf, item) // 更新权重
+                if (needResample()) {
+                    updateResample(pf) // 对粒子进行重采样
+                    updateTrans(pf)
+                }
             }
         }
     }
@@ -134,19 +138,19 @@ class AMCLFilter(
         pf.set.samples = pf.set.samples.map { (v, w) ->
             val deltaRot1Hat =
                 (deltaRot1 - randomGaussian(
-                        sqrt(alpha1 * deltaRot1Noise * deltaRot1Noise
-                             + alpha2 * deltaTrans * deltaTrans)
+                    sqrt(alpha1 * deltaRot1Noise * deltaRot1Noise
+                         + alpha2 * deltaTrans * deltaTrans)
                 )).adjust()
             val deltaTransHat =
                 deltaTrans - randomGaussian(
-                        sqrt(alpha3 * deltaTrans * deltaTrans
-                             + alpha4 * deltaRot1Noise * deltaRot1Noise
-                             + alpha4 * deltaRot2Noise * deltaRot2Noise)
+                    sqrt(alpha3 * deltaTrans * deltaTrans
+                         + alpha4 * deltaRot1Noise * deltaRot1Noise
+                         + alpha4 * deltaRot2Noise * deltaRot2Noise)
                 )
             val deltaRot2Hat =
                 (deltaRot2 - randomGaussian(
-                        sqrt(alpha1 * deltaRot2Noise * deltaRot2Noise
-                             + alpha2 * deltaTrans * deltaTrans)
+                    sqrt(alpha1 * deltaRot2Noise * deltaRot2Noise
+                         + alpha2 * deltaTrans * deltaTrans)
                 )).adjust()
 
             Vector3D(x = v.x + deltaTransHat * cos(v.z + deltaRot1Hat),
@@ -242,8 +246,8 @@ class AMCLFilter(
             ?.takeIf { it.value.weight > 0 }
             ?.apply {
                 map2odomTrans = Stamped(
-                        System.currentTimeMillis(),
-                        this.value.mean.toTrans() * lastUpdateOdom.toTransformation().inverse())
+                    System.currentTimeMillis(),
+                    this.value.mean.toTrans() * lastUpdateOdom.toTransformation().inverse())
             }
     }
 

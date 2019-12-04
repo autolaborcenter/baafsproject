@@ -132,7 +132,7 @@ try {
                     initWaitNumber = 2
                     minCount = 200
                     maxCount = 1000
-                    tagPosition = vector2DOf(0.0, 0.0)
+                    tagPosition = vector2DOf(-.01, -.02)
                     dThresh = 0.1
                     aThresh = 10 * PI / 180
                     alpha1 = 0.2
