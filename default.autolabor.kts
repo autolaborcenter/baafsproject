@@ -1,14 +1,13 @@
 package cn.autolabor.baafs
 
+import cn.autolabor.amcl.AMCLFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.baafs.CollisionPredictorBuilderDsl.Companion.collisionPredictor
 import cn.autolabor.baafs.parser.parseFromConsole
 import cn.autolabor.baafs.parser.registerBusinessParser
 import cn.autolabor.baafs.parser.registerExceptionServerParser
-import cn.autolabor.baafs.parser.registerParticleFilterParser
 import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.business.FollowFailedException
 import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
-import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import cn.autolabor.pm1.SerialPortChassisBuilderDsl.Companion.registerPM1Chassis
 import cn.autolabor.pm1.model.ControlVariable
@@ -130,10 +129,17 @@ try {
                     robotOnMap = robotOnMap
             ) {
                 filter {
-                    beaconOnRobot = vector2DOf(-.01, -.02)
-                    maxInconsistency = .1
-                    convergence { (age, _, d) -> age > .2 && d > .9 }
-                    divergence { (age, _, _) -> age < .1 }
+                    initWaitNumber = 2
+                    minCount = 200
+                    maxCount = 1000
+                    tagPosition = vector2DOf(0.0, 0.0)
+                    dThresh = 0.1
+                    aThresh = 10 * PI / 180
+                    alpha1 = 0.2
+                    alpha2 = 0.2
+                    alpha3 = 0.2
+                    alpha4 = 0.2
+                    weightSigma = 0.1
                 }
                 painter = remote
             }
@@ -227,20 +233,10 @@ try {
             this["\'"] = { isEnabled = !isEnabled; if (isEnabled) "enabled" else "disabled" }
             this["beacon"] = { beacon.location }
             registerExceptionServerParser(exceptionServer, this)
-            registerParticleFilterParser(particleFilter, this)
+//                registerParticleFilterParser(particleFilter, this)
             registerBusinessParser(business, this)
         }
         launch { while (isActive) parser.parseFromConsole() }
-        hmi.run {
-            launch {
-                for (msg in msgFromHmi) {
-                    if (!particleFilter.isConvergent)
-                        write("location system is not ready")
-                    else
-                        write(parser(msg).single().second.toString())
-                }
-            }
-        }
         // 刷新固定显示
         if (remote != null) {
             launch {
