@@ -28,6 +28,8 @@ import org.mechdancer.common.shape.Circle
 import org.mechdancer.common.toTransformation
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.exceptions.ExceptionMessage
+import org.mechdancer.exceptions.ExceptionMessage.Occurred
+import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.startExceptionServer
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toDegree
@@ -81,8 +83,8 @@ fun main() {
         // 启动业务交互后台
         val business =
             startBusiness(
-                robotOnMap = robotOnMap.outputs[0],
-                globalOnRobot = globalOnRobot
+                    robotOnMap = robotOnMap.outputs[0],
+                    globalOnRobot = globalOnRobot
             ) {
                 localRadius = .5
                 pathInterval = .05
@@ -140,25 +142,25 @@ fun main() {
                 // 生成控制量
                 val target =
                     if (progress == 1.0) {
-                        exceptions.send(FollowFailedException.recovered())
+                        exceptions.send(Recovered(FollowFailedException))
                         Velocity.velocity(.0, .0)
                     } else {
                         localPlanner
                             .modify(global, lidarSet.frame)
                             .let(pathFollower::invoke)
-                            ?.also { exceptions.send(FollowFailedException.recovered()) }
+                            ?.also { exceptions.send(Recovered(FollowFailedException)) }
                             ?.let(struct::toVelocity)
                             ?.let { (v, w) -> Velocity.velocity(v, w.asRadian()) }
                         ?: run {
-                            exceptions.send(FollowFailedException.occurred())
+                            exceptions.send(Occurred(FollowFailedException))
                             Velocity.velocity(.0, .0)
                         }
                     }
                 // 急停
                 if (predictor.predict { target.toDeltaOdometry(it / 1000.0) })
-                    exceptionServer.update(CollisionDetectedException.recovered())
+                    exceptionServer.update(Recovered(CollisionDetectedException))
                 else
-                    exceptionServer.update(CollisionDetectedException.occurred())
+                    exceptionServer.update(Occurred(CollisionDetectedException))
                 // 转发
                 if (isEnabled && exceptionServer.isEmpty()) {
                     watchDog.feed()

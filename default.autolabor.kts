@@ -17,7 +17,6 @@ import com.faselase.FaselaseLidarSetBuilderDsl.Companion.registerFaselaseLidarSe
 import com.faselase.LidarSet
 import com.marvelmind.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
 import com.usarthmi.UsartHmi
-import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -32,6 +31,8 @@ import org.mechdancer.core.Chassis
 import org.mechdancer.core.MobileBeacon
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
+import org.mechdancer.exceptions.ExceptionMessage.Occurred
+import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.startExceptionServer
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toDegree
@@ -59,14 +60,14 @@ val commandToSwitch = channel<ControlVariable>()
 // 连接串口外设
 val manager = SerialPortManager(exceptions)
 val hmi = UsartHmi(msgFromHmi, "COM3") // 暂时不加
-// 连接底盘
+// 配置底盘
 val chassis: Chassis<ControlVariable> =
     manager.registerPM1Chassis(
             robotOnOdometry = robotOnOdometry.input
     ) {
         odometryInterval = 40L
     }
-// 连接定位标签
+// 配置定位标签
 val beacon: MobileBeacon =
     manager.registerMobileBeacon(
             beaconOnMap = beaconOnMap,
@@ -78,6 +79,7 @@ val beacon: MobileBeacon =
         delayLimit = 400L
         heightRange = -3.0..0.0
     }
+// 配置雷达
 val lidarSet: LidarSet =
     manager.registerFaselaseLidarSet(
             exceptions = exceptions
@@ -98,6 +100,7 @@ val lidarSet: LidarSet =
             p euclid wonder > .05 && p !in outlineFilter
         }
     }
+// 连接串口设备
 sync@ while (true)
     when (val remain = manager.sync()) {
         0    -> {
@@ -195,23 +198,23 @@ try {
                 // 生成控制量
                 val target =
                     if (progress == 1.0) {
-                        exceptions.send(FollowFailedException.recovered())
+                        exceptions.send(Recovered(FollowFailedException))
                         ControlVariable.Physical.static
                     } else {
                         localPlanner
                             .modify(global, lidarSet.frame)
                             .let(pathFollower::invoke)
-                            ?.also { exceptions.send(FollowFailedException.recovered()) }
+                            ?.also { exceptions.send(Recovered(FollowFailedException)) }
                         ?: run {
-                            exceptions.send(FollowFailedException.occurred())
+                            exceptions.send(Occurred(FollowFailedException))
                             ControlVariable.Physical.static
                         }
                     }
                 // 急停
                 if (predictor.predict(chassis.predict(target)))
-                    exceptionServer.update(CollisionDetectedException.recovered())
+                    exceptionServer.update(Recovered(CollisionDetectedException))
                 else
-                    exceptionServer.update(CollisionDetectedException.occurred())
+                    exceptionServer.update(Occurred(CollisionDetectedException))
                 // 转发
                 if (isEnabled && exceptionServer.isEmpty())
                     chassis.target = target
@@ -222,6 +225,7 @@ try {
         val parser = buildParser {
             this["coroutines"] = { coroutineContext[Job]?.children?.count() }
             this["\'"] = { isEnabled = !isEnabled; if (isEnabled) "enabled" else "disabled" }
+            this["beacon"] = { beacon.location }
             registerExceptionServerParser(exceptionServer, this)
             registerParticleFilterParser(particleFilter, this)
             registerBusinessParser(business, this)
