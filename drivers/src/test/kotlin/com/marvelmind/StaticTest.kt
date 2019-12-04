@@ -1,8 +1,7 @@
 package com.marvelmind
 
-import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import cn.autolabor.serialport.manager.SerialPortManager
+import com.marvelmind.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
@@ -15,27 +14,22 @@ import kotlin.math.sqrt
 // 此测试用于计算静止状态下的定位标签位置方差
 // 也可用于测试数据是否出现中断
 
-fun main() = runBlocking<Unit>(Dispatchers.Default) {
+fun main() {
     // 话题
     val beaconOnMap = channel<Stamped<Vector2D>>()
     val exceptions = channel<ExceptionMessage>()
-    // 任务
-    startMobileBeacon(
-        beaconOnMap = beaconOnMap,
-        exceptions = exceptions)
-    val list = mutableListOf<Vector2D>()
-    launch {
+    with(SerialPortManager(exceptions)) {
+        registerMobileBeacon(beaconOnMap, exceptions)
+        while (sync() > 0);
+    }
+    runBlocking {
+        val list = mutableListOf<Vector2D>()
         for ((_, p) in beaconOnMap) {
             list += vector2DOf(p.x, p.y)
             val sigmaX = list.asSequence().map { it.x - list.first().x }.sigma()
             val sigmaY = list.asSequence().map { it.y - list.first().y }.sigma()
             println("$sigmaX $sigmaY")
         }
-    }
-    launch {
-        for (e in exceptions)
-            if (e is ExceptionMessage.Occurred)
-                println(e.what)
     }
 }
 

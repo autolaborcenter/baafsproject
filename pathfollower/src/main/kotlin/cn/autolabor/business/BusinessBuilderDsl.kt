@@ -3,8 +3,8 @@ package cn.autolabor.business
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
-import org.mechdancer.BuilderDslMarker
 import org.mechdancer.algebra.function.vector.norm
+import org.mechdancer.annotations.BuilderDslMarker
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.remote.presets.RemoteHub
@@ -34,14 +34,13 @@ class BusinessBuilderDsl private constructor() {
                 require(pathInterval > 0)
             }
             .run {
-                Business(
-                        scope = this@startBusiness,
-                        robotOnMap = robotOnMap,
-                        globalOnRobot = globalOnRobot,
+                Business(scope = this@startBusiness,
+                         robotOnMap = robotOnMap,
+                         globalOnRobot = globalOnRobot,
 
-                        pathInterval = pathInterval,
-                        localFirst = localFirst,
-                        painter = painter)
+                         pathInterval = pathInterval,
+                         localFirst = localFirst,
+                         painter = painter)
             }
     }
 }

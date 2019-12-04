@@ -1,9 +1,9 @@
 package cn.autolabor.locator
 
-import org.mechdancer.BuilderDslMarker
 import org.mechdancer.Schmitt
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
+import org.mechdancer.annotations.BuilderDslMarker
 import kotlin.math.PI
 
 /**

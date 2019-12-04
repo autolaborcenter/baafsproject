@@ -68,7 +68,7 @@ internal fun engine(): ParseEngine<Byte, BeaconPackage> =
             (begin + 7)
                 .takeIf { it < size }
                 ?.let { it + buffer[begin + 4].toIntUnsigned() }
-                ?.takeIf { it < size }
+                ?.takeIf { it <= size }
                 ?.let { buffer.subList(begin, it) }
             ?: return@ParseEngine ParseInfo(
                     nextHead = begin,

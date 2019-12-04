@@ -1,43 +1,45 @@
 package cn.autolabor.baafs
 
-import cn.autolabor.ChassisModuleBuilderDsl.Companion.startChassis
-import cn.autolabor.baafs.CollisionPredictingModuleBuilderDsl.Companion.startCollisionPredictingModule
-import cn.autolabor.business.Business.Functions.Following
+import cn.autolabor.baafs.CollisionPredictorBuilderDsl.Companion.collisionPredictor
+import cn.autolabor.baafs.parser.parseFromConsole
+import cn.autolabor.baafs.parser.registerBusinessParser
+import cn.autolabor.baafs.parser.registerExceptionServerParser
+import cn.autolabor.baafs.parser.registerParticleFilterParser
 import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
-import cn.autolabor.business.parseFromConsole
-import cn.autolabor.business.registerBusinessParser
+import cn.autolabor.business.FollowFailedException
 import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
-import cn.autolabor.pathfollower.Commander
-import cn.autolabor.pathfollower.FollowCommand
-import cn.autolabor.pathfollower.PIController
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
-import cn.autolabor.pathfollower.Proportion
-import com.faselase.FaselaseLidarSetBuilderDsl.Companion.faselaseLidarSet
-import com.marvelmind.MobileBeaconModuleBuilderDsl.Companion.startMobileBeacon
-import org.mechdancer.YChannel
+import cn.autolabor.pm1.SerialPortChassisBuilderDsl.Companion.registerPM1Chassis
+import cn.autolabor.pm1.model.ControlVariable
+import cn.autolabor.serialport.manager.SerialPortManager
+import com.faselase.FaselaseLidarSetBuilderDsl.Companion.registerFaselaseLidarSet
+import com.faselase.LidarSet
+import com.marvelmind.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
+import com.usarthmi.UsartHmi
+import org.mechdancer.*
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
-import org.mechdancer.channel
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
-import org.mechdancer.common.Velocity.Companion.velocity
-import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.console.parser.buildParser
+import org.mechdancer.core.Chassis
+import org.mechdancer.core.MobileBeacon
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
+import org.mechdancer.exceptions.ExceptionMessage.Occurred
+import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.startExceptionServer
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
-import org.mechdancer.networksInfo
-import org.mechdancer.paint
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.presets.remoteHub
+import kotlin.math.PI
 import kotlin.system.exitProcess
 
 // 画图
@@ -49,72 +51,76 @@ val remote: RemoteHub? =
         }
 // 话题
 val exceptions = channel<ExceptionMessage>()
+val msgFromHmi = channel<String>()
 val robotOnOdometry = YChannel<Stamped<Odometry>>()
 val robotOnMap = channel<Stamped<Odometry>>()
 val beaconOnMap = channel<Stamped<Vector2D>>()
 val globalOnRobot = channel<Pair<Sequence<Odometry>, Double>>()
-val commandToSwitch = YChannel<NonOmnidirectional>()
-val commandToRobot = channel<NonOmnidirectional>()
+val commandToSwitch = channel<ControlVariable>()
+// 连接串口外设
+val manager = SerialPortManager(exceptions)
+val hmi = UsartHmi(msgFromHmi, "COM3") // 暂时不加
+// 配置底盘
+val chassis: Chassis<ControlVariable> =
+    manager.registerPM1Chassis(
+            robotOnOdometry = robotOnOdometry.input
+    ) {
+        odometryInterval = 40L
+    }
+// 配置定位标签
+val beacon: MobileBeacon =
+    manager.registerMobileBeacon(
+            beaconOnMap = beaconOnMap,
+            exceptions = exceptions
+    ) {
+        port = "/dev/beacon"
+        dataTimeout = 5000L
+
+        delayLimit = 400L
+        heightRange = -3.0..0.0
+    }
+// 配置雷达
+val lidarSet: LidarSet =
+    manager.registerFaselaseLidarSet(
+            exceptions = exceptions
+    ) {
+        dataTimeout = 400L
+        lidar(port = "/dev/pos3") {
+            tag = "front lidar"
+            pose = Odometry.pose(.113, 0, PI / 2)
+            inverse = false
+        }
+        lidar(port = "/dev/pos4") {
+            tag = "back lidar"
+            pose = Odometry.pose(-.138, 0, PI / 2)
+            inverse = false
+        }
+        val wonder = vector2DOf(+.12, -.14)
+        filter { p ->
+            p euclid wonder > .05 && p !in outlineFilter
+        }
+    }
+// 连接串口设备
+sync@ while (true)
+    when (val remain = manager.sync()) {
+        0    -> {
+            println("Every devices are ready.")
+            break@sync
+        }
+        else -> {
+            println("There are still $remain devices offline, press ENTER to sync again.")
+            readLine()
+        }
+    }
 // 任务
 try {
     runBlocking(Dispatchers.Default) {
-        // 连接外设
-        // 连接底盘
-        println("trying to connect to pm1 chassis...")
-        startChassis(
-                odometry = robotOnOdometry.input,
-                command = commandToRobot
-        ) {
-            port = null
-            period = 40L
-            controlTimeout = 400L
-        }
-        println("done")
-        // 连接定位标签
-        println("trying to connect to marvelmind mobile beacon...")
-        startMobileBeacon(
-                beaconOnMap = beaconOnMap,
-                exceptions = exceptions
-        ) {
-            port = "/dev/beacon"
-            retryInterval = 100L
-            connectionTimeout = 3000L
-            parseTimeout = 2500L
-            dataTimeout = 2000L
-
-            delayLimit = 400L
-            heightRange = -3.0..0.0
-        }
-        println("done")
-        // 连接激光雷达
-        println("trying to connect to faselase lidars...")
-        val lidarSet = faselaseLidarSet(exceptions = channel()) {
-            launchTimeout = 5000L
-            connectionTimeout = 800L
-            dataTimeout = 400L
-            retryInterval = 100L
-            lidar(port = "/dev/pos3") {
-                tag = "FrontLidar"
-                pose = Odometry.pose(.113, 0, PI / 2)
-                inverse = false
-            }
-            lidar(port = "/dev/pos4") {
-                tag = "BackLidar"
-                pose = Odometry.pose(-.138, 0, PI / 2)
-                inverse = false
-            }
-            val wonder = vector2DOf(+.12, -.14)
-            filter { p ->
-                p euclid wonder > .05 && p !in outlineFilter
-            }
-        }
-        println("done")
         // 启动服务
         println("staring data process modules...")
         // 启动异常服务器
         val exceptionServer =
             startExceptionServer(exceptions) {
-                exceptionOccur { launch { commandToRobot.send(velocity(.0, .0)) } }
+                exceptionOccur { chassis.target = ControlVariable.Velocity(.0, 0.toRad()) }
             }
         // 启动定位融合模块（粒子滤波器）
         val particleFilter =
@@ -149,13 +155,13 @@ try {
         // 局部规划器（势场法）
         val localPlanner =
             potentialFieldLocalPlanner {
-                repelWeight = .5
+                repelWeight = .8
                 stepLength = .05
 
                 lookAhead = 8
                 minRepelPointsCount = 12
 
-                val radius = .5
+                val radius = .6
                 val r0 = 1 / (radius * radius)
                 repel {
                     if (it.length > radius) vector2DOfZero()
@@ -165,86 +171,94 @@ try {
         // 循径器（虚拟光感法）
         val pathFollower =
             pathFollower {
-                sensorPose = Odometry.pose(x = .2)
-                lightRange = Circle(.24, 32)
-                controller = PIController(.9, 2.0, .7)
+                sensorPose = Odometry.pose(x = .3)
+                lightRange = Circle(.3, 32)
                 minTipAngle = 60.toDegree()
                 minTurnAngle = 15.toDegree()
                 turnThreshold = (-120).toDegree()
-                maxLinearSpeed = .16
-                maxAngularSpeed = .5.toRad()
+                maxSpeed = .25
 
                 painter = remote
             }
-        // 指令器
-        val commander =
-            Commander(commandOut = commandToSwitch.input,
-                      exceptions = exceptions) {
-                (business.function as? Following)?.run {
-                    if (loop) global.progress = .0
-                    else business.cancel()
-                }
+        // 碰撞预警模块
+        val predictor =
+            collisionPredictor(lidarSet = lidarSet,
+                               robotOutline = robotOutline) {
+                countToContinue = 4
+                countToStop = 6
+                predictingTime = 1000L
+                painter = remote
             }
+        var isEnabled = false
+        var invokeTime = 0L
         // 启动循径模块
         launch {
-            for ((global, progress) in globalOnRobot)
-                commander(when (progress) {
-                              1.0  -> FollowCommand.Finish
-                              else -> pathFollower(Stamped.stamp(localPlanner.modify(global, lidarSet.frame)))
-                          })
-        }.invokeOnCompletion { commandToSwitch.input.close(it) }
-        // 启动碰撞预警模块
-        startCollisionPredictingModule(
-                commandIn = commandToSwitch.outputs[0],
-                exception = exceptions,
-                lidarSet = lidarSet,
-                robotOutline = robotOutline
-        ) {
-            countToContinue = 4
-            countToStop = 6
-            predictingTime = 1000L
-            painter = remote
-        }
-        // 启动指令转发
-        launch {
-            for (command in commandToSwitch.outputs[1])
-                if (exceptionServer.isEmpty())
-                    commandToRobot.send(command)
-        }.invokeOnCompletion { commandToRobot.close(it) }
+            for ((global, progress) in globalOnRobot) {
+                invokeTime = System.currentTimeMillis()
+                // 生成控制量
+                val target =
+                    if (progress == 1.0) {
+                        exceptions.send(Recovered(FollowFailedException))
+                        ControlVariable.Physical.static
+                    } else {
+                        localPlanner
+                            .modify(global, lidarSet.frame)
+                            .let(pathFollower::invoke)
+                            ?.also { exceptions.send(Recovered(FollowFailedException)) }
+                        ?: run {
+                            exceptions.send(Occurred(FollowFailedException))
+                            ControlVariable.Physical.static
+                        }
+                    }
+                // 急停
+                if (predictor.predict(chassis.predict(target)))
+                    exceptionServer.update(Recovered(CollisionDetectedException))
+                else
+                    exceptionServer.update(Occurred(CollisionDetectedException))
+                // 转发
+                if (isEnabled && exceptionServer.isEmpty())
+                    chassis.target = target
+            }
+        }.invokeOnCompletion { commandToSwitch.close(it) }
         println("done")
         // 指令解析器
         val parser = buildParser {
             this["coroutines"] = { coroutineContext[Job]?.children?.count() }
-            this["exceptions"] = { exceptionServer.get().joinToString("\n") }
-            this["fusion state"] = {
-                buildString {
-                    val now = System.currentTimeMillis()
-                    appendln(particleFilter.lastQuery
-                                 ?.let { (t, pose) -> "last locate at $pose ${now - t}ms ago" }
-                             ?: "never query pose before")
-                    val (t, quality) = particleFilter.quality
-                    appendln("particles last update ${now - t}ms ago")
-                    appendln("now system is ${if (particleFilter.isConvergent) "" else "not "}ready for work")
-                    append("quality = $quality")
-                }
-            }
-            this["\'"] = {
-                (business.function as? Following)?.let {
-                    commander.isEnabled = !commander.isEnabled
-                    if (commander.isEnabled) "continue" else "pause"
-                } ?: "cannot set enabled unless when following"
-            }
+            this["\'"] = { isEnabled = !isEnabled; if (isEnabled) "enabled" else "disabled" }
+            this["beacon"] = { beacon.location }
+            registerExceptionServerParser(exceptionServer, this)
+            registerParticleFilterParser(particleFilter, this)
             registerBusinessParser(business, this)
         }
         launch { while (isActive) parser.parseFromConsole() }
+        hmi.run {
+            launch {
+                for (msg in msgFromHmi) {
+                    if (!particleFilter.isConvergent)
+                        write("location system is not ready")
+                    else
+                        write(parser(msg).single().second.toString())
+                }
+            }
+        }
         // 刷新固定显示
-        if (remote != null)
+        if (remote != null) {
             launch {
                 while (isActive) {
                     remote.paint("R 机器人轮廓", robotOutline)
                     delay(5000L)
                 }
             }
+            launch {
+                while (isActive) {
+                    while (System.currentTimeMillis() - invokeTime > 2000L) {
+                        remote.paintVectors("R 雷达", lidarSet.frame)
+                        delay(100L)
+                    }
+                    delay(5000L)
+                }
+            }
+        }
     }
 } catch (e: CancellationException) {
 } catch (e: ApplicationException) {

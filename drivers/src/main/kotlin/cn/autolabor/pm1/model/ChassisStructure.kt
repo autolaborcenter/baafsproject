@@ -35,7 +35,7 @@ data class ChassisStructure(
         when {
             physical.speed == .0        -> {
                 // 对于舵轮来说是奇点，无法恢复
-                Wheels(.0, .0)
+                Wheels.static
             }
             physical.rudder.value == .0 -> {
                 // 直走

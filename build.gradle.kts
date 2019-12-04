@@ -12,21 +12,14 @@ buildscript {
 }
 
 plugins {
-    kotlin("jvm") version "1.3.50"
-    `build-scan`
-}
-
-buildScan {
-    termsOfServiceUrl = "https://gradle.com/terms-of-service"
-    termsOfServiceAgree = "yes"
-//  publishAlways()
+    kotlin("jvm") version "1.3.61"
 }
 
 // 包括主项目的构建脚本
 allprojects {
     apply(plugin = "kotlin")
     group = "cn.autolabor"
-    version = "v0.1.0"
+    version = "v0.1.1"
     repositories {
         mavenCentral()
         jcenter()
