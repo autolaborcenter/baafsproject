@@ -181,7 +181,6 @@ class AMCLFilter(
 
     // 对粒子进行重采样
     private fun updateResample(pf: PFInfo) {
-        // println("updateResample")
         val tmpSet = PFSampleSet(pf.maxSamples)
         val c = mutableListOf(0.0).apply {
             pf.set.samples.forEach { this.add(this.last() + it.weight) }

@@ -8,7 +8,9 @@ import org.mechdancer.algebra.function.matrix.toList
 import org.mechdancer.algebra.implement.matrix.ArrayMatrix
 import org.mechdancer.algebra.implement.matrix.builder.arrayMatrixOf
 import org.mechdancer.algebra.implement.matrix.builder.arrayMatrixOfZero
+import org.mechdancer.algebra.implement.matrix.builder.matrix
 import org.mechdancer.algebra.implement.vector.Vector3D
+import org.mechdancer.algebra.implement.vector.vector3DOfZero
 import kotlin.math.*
 
 class PFInfo(
@@ -33,18 +35,13 @@ data class PFSample(var particle: Vector3D, var weight: Double)
 
 infix fun Vector3D.to(that: Double) = PFSample(this, that)
 
-class PFSampleSet(
-    var samples: MutableList<PFSample> = mutableListOf(),
-    var kdTree: KdTree,
-    var maxClusterCount: Int,
-    var clusters: MutableMap<Int, PFCluster> = mutableMapOf(),
-    var mean: Vector3D = Vector3D(0.0, 0.0, 0.0),
-    var cov: ArrayMatrix = arrayMatrixOfZero(3),
+class PFSampleSet(var maxClusterCount: Int) {
+    val kdTree = KdTree()
+    var samples = mutableListOf<PFSample>()
+    var clusters = mutableMapOf<Int, PFCluster>()
+    var mean = vector3DOfZero()
+    var cov: ArrayMatrix = arrayMatrixOfZero(3)
     var converged: Boolean = false
-) {
-    constructor(count: Int) : this(
-            maxClusterCount = count,
-            kdTree = KdTree(nodeMaxCount = 3 * count))
 
     override fun toString() = buildString {
         appendln("MEAN : ${mean.format()}")
@@ -80,21 +77,11 @@ class PFCluster(
         "m: ${m.format()}" + ")"
 }
 
-fun pose2matrix(pose: Vector3D): Matrix =
-    arrayMatrixOf(1, 4) { _, i ->
-        when (i) {
-            0    -> pose.x
-            1    -> pose.y
-            2    -> cos(pose.z)
-            3    -> sin(pose.z)
-            else -> 0
-        }
-    }
+private fun pose2matrix(pose: Vector3D) =
+    matrix { row(pose.x, pose.y, cos(pose.z), sin(pose.z)) }
 
-fun matrix2pose(m: Matrix) =
-    Vector3D(x = m[0, 0],
-             y = m[0, 1],
-             z = atan2(m[0, 3], m[0, 2]))
+private fun matrix2pose(m: Matrix) =
+    Vector3D(m[0, 0], m[0, 1], atan2(m[0, 3], m[0, 2]))
 
 fun clusterStats(pf: PFInfo) {
     var count = 0
@@ -102,11 +89,12 @@ fun clusterStats(pf: PFInfo) {
     var m: Matrix = arrayMatrixOfZero(1, 4)
     var c: Matrix = arrayMatrixOfZero(2)
 
-    kdTreeCluster(pf.set.kdTree)
+    pf.set.kdTree.cluster()
     pf.set.clusters.clear()
 
     for (sample: PFSample in pf.set.samples)
-        kdTreeGetCluster(pf.set.kdTree, sample.particle)
+        pf.set.kdTree
+            .getCluster(sample.particle)
             .takeIf { it <= pf.set.maxClusterCount }
             ?.apply {
                 pf.set.clusters.getOrPut(this) { PFCluster() }
