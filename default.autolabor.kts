@@ -16,6 +16,7 @@ import com.faselase.FaselaseLidarSetBuilderDsl.Companion.registerFaselaseLidarSe
 import com.faselase.LidarSet
 import com.marvelmind.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
 import com.usarthmi.UsartHmi
+import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -130,8 +131,8 @@ try {
             ) {
                 filter {
                     initWaitNumber = 2
-                    minCount = 200
-                    maxCount = 1000
+                    minCount = 400
+                    maxCount = 2000
                     tagPosition = vector2DOf(-.01, -.02)
                     dThresh = 0.1
                     aThresh = 10 * PI / 180

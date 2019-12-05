@@ -1,11 +1,14 @@
 package cn.autolabor.amcl
 
+import cn.autolabor.amcl.KDTreeNode.Branch
+import cn.autolabor.amcl.KDTreeNode.Leaf
 import org.mechdancer.algebra.function.vector.div
 import org.mechdancer.algebra.function.vector.plus
 import org.mechdancer.algebra.implement.vector.Vector3D
 import org.mechdancer.algebra.implement.vector.vector3DOf
 import kotlin.math.PI
 import kotlin.math.abs
+
 
 data class Index3D(val x: Int, val y: Int, val z: Int) {
     constructor(vector: Vector3D)
@@ -30,43 +33,56 @@ data class Index3D(val x: Int, val y: Int, val z: Int) {
         vector3DOf(x, y, z)
 }
 
-class KDTreeNode(
-    var isLeaf: Boolean,
-    var depth: Int,
-    var key: Index3D,
-    var value: Double,
-    var pivotDim: Int = -1,
-    var pivotValue: Double = 0.0,
-    var cluster: Int = -1,
-    var children: Pair<KDTreeNode, KDTreeNode>? = null)
+sealed class KDTreeNode {
+    abstract val depth: Int
+    abstract val key: Index3D
+    abstract val value: Double
+
+    var cluster = -1
+
+    data class Leaf(
+        override val depth: Int,
+        override val key: Index3D,
+        override val value: Double
+    ) : KDTreeNode()
+
+    data class Branch(
+        override val depth: Int,
+        override val key: Index3D,
+        override val value: Double,
+        val pivotDim: Int = -1,
+        val pivotValue: Double = .0,
+        var left: KDTreeNode,
+        var right: KDTreeNode
+    ) : KDTreeNode()
+}
 
 /** k 维树 */
 class KdTree {
-    var size = Vector3D(.1, .1, 10 * PI / 180)
-    var nodes = mutableListOf<KDTreeNode>()
-    var leafCount = 0
-
+    private val leaves = hashSetOf<Leaf>()
+    private val blockSize = Vector3D(.1, .1, 10 * PI / 180)
     private var root: KDTreeNode? = null
+
+    val leavesCount get() = leaves.size
 
     /** 插入节点 */
     fun insert(pose: Vector3D, value: Double) {
-        root = insertNode(null, root, Index3D(pose / size), value)
+        val key = Index3D(pose / blockSize)
+        root = root?.let { insertNode(it, key, value) }
+               ?: leaf(0, key, value)
     }
 
     /** 清空 */
     fun clear() {
         root = null
-        leafCount = 0
-        nodes.clear()
+        leaves.clear()
     }
 
     /** 计算聚类 */
     fun cluster() {
         var clusterCount = 0
-        nodes
-            .filter { it.isLeaf }
+        leaves
             .onEach { it.cluster = -1 }
-            .asReversed()
             .asSequence()
             .filter { node -> node.cluster < 0 }
             .forEach { node ->
@@ -87,60 +103,56 @@ class KdTree {
         }
     }
 
-    /** 查找节点 */
-    private tailrec fun findNode(subRoot: KDTreeNode, key: Index3D): KDTreeNode? =
-        when {
-            subRoot.isLeaf                             -> subRoot.takeIf { it.key == key }
-            key[subRoot.pivotDim] < subRoot.pivotValue -> findNode(subRoot.children!!.first, key)
-            else                                       -> findNode(subRoot.children!!.second, key)
-        }
-
     /** 查找聚类 */
     fun getCluster(pose: Vector3D) =
-        findNode(root!!, Index3D(pose / size))?.cluster ?: -1
+        findNode(root!!, Index3D(pose / blockSize))?.cluster ?: -1
 
-    private fun insertNode(
-        parent: KDTreeNode?,
-        node: KDTreeNode?,
+    private fun leaf(depth: Int, key: Index3D, value: Double) =
+        Leaf(depth, key, value).also { assert(leaves.add(it)) }
+
+    private tailrec fun insertNode(
+        node: KDTreeNode,
         key: Index3D,
         value: Double
-    ): KDTreeNode {
-        if (node == null)
-            return KDTreeNode(
-                    isLeaf = true,
-                    depth = if (parent == null) 0 else (parent.depth + 1),
-                    key = key,
-                    value = value
-            ).also {
-                nodes.add(it)
-                ++leafCount
+    ): KDTreeNode = when (node) {
+        is Leaf   -> {
+            leaves.remove(node)
+            if (key == node.key)
+                leaf(node.depth, key, node.value + value)
+            else {
+                val pivotDim = key mostDifferentIndexWith node.key
+                val pivotValue = (key[pivotDim] + node.key[pivotDim]) / 2.0
+                val new = leaf(node.depth + 1, key, value)
+                val copy = leaf(node.depth + 1, node.key, node.value)
+                if (key[pivotDim] > pivotValue)
+                    Branch(node.depth, node.key, node.value,
+                           pivotDim, pivotValue,
+                           new, copy)
+                else
+                    Branch(node.depth, node.key, node.value,
+                           pivotDim, pivotValue,
+                           copy, new)
             }
-
-        if (node.isLeaf) {
-            if (key == node.key) {
-                node.value += value
-            } else {
-                node.pivotDim = key mostDifferentIndexWith node.key
-                node.pivotValue = (key[node.pivotDim] + node.key[node.pivotDim]) / 2.0
-                node.children =
-                    if (key[node.pivotDim] < node.pivotValue)
-                        Pair(first = insertNode(node, null, key, value),
-                             second = insertNode(node, null, node.key, node.value))
-                    else Pair(first = insertNode(node, null, node.key, node.value),
-                              second = insertNode(node, null, key, value))
-                node.isLeaf = false
-                --leafCount
-            }
-        } else {
-            if (key[node.pivotDim] < node.pivotValue)
-                insertNode(node, node.children!!.first, key, value)
-            else
-                insertNode(node, node.children!!.second, key, value)
         }
-        return node
+        is Branch ->
+            if (key[node.pivotDim] < node.pivotValue)
+                insertNode(node.left, key, value)
+            else
+                insertNode(node.right, key, value)
     }
 
     private companion object {
+        /** 查找节点 */
+        tailrec fun findNode(subRoot: KDTreeNode, key: Index3D): KDTreeNode? =
+            when (subRoot) {
+                is Leaf   -> subRoot.takeIf { it.key == key }
+                is Branch ->
+                    if (key[subRoot.pivotDim] < subRoot.pivotValue)
+                        findNode(subRoot.left, key)
+                    else
+                        findNode(subRoot.right, key)
+            }
+
         val gridIndex =
             sequence {
                 for (x in -1..1)

@@ -198,7 +198,7 @@ class AMCLFilter(
             tmpSet.samples.add(pose to 1.0)
             tmpSet.kdTree.insert(pose, 1.0)
             total += 1.0
-            if (tmpSet.samples.size > resampleLimit(pf, tmpSet.kdTree.leafCount))
+            if (tmpSet.samples.size > resampleLimit(pf, tmpSet.kdTree.leavesCount))
                 break
         }
 

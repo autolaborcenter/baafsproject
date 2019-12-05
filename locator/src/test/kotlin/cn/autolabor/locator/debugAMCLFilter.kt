@@ -51,8 +51,8 @@ fun main() = debugAMCLFilter {
     // 滤波器配置
     AMCLFilter {
         initWaitNumber = 2
-        minCount = 200
-        maxCount = 1000
+        minCount = 500
+        maxCount = 2000
         tagPosition = vector2DOf(0.0, 0.0)
         dThresh = 0.1
         aThresh = 10 * PI / 180
