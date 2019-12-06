@@ -15,7 +15,7 @@ import cn.autolabor.serialport.manager.SerialPortManager
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.registerFaselaseLidarSet
 import com.faselase.LidarSet
 import com.marvelmind.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
-import com.usarthmi.UsartHmi
+import com.usarthmi.usartHmi
 import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.algebra.function.vector.*
@@ -27,6 +27,7 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.console.parser.buildParser
+import org.mechdancer.console.parser.feedback
 import org.mechdancer.core.Chassis
 import org.mechdancer.core.MobileBeacon
 import org.mechdancer.exceptions.ApplicationException
@@ -62,7 +63,8 @@ fun main() {
     val commandToSwitch = channel<ControlVariable>()
     // 连接串口外设
     val manager = SerialPortManager(exceptions)
-    val hmi = UsartHmi(msgFromHmi, "COM3") // 暂时不加
+    // 配置屏幕
+    val hmi = manager.usartHmi("COM3", msgFromHmi)
     // 配置底盘
     val chassis: Chassis<ControlVariable> =
         manager.registerPM1Chassis(
@@ -104,17 +106,23 @@ fun main() {
             }
         }
     // 连接串口设备
-    sync@ while (true)
-        when (val remain = manager.sync()) {
-            0    -> {
+    sync@ while (true) {
+        val remain = manager.sync()
+        when {
+            remain.isEmpty()                 -> {
                 println("Every devices are ready.")
                 break@sync
             }
-            else -> {
+            remain.singleOrNull() == hmi.tag -> {
+                println("Screen offline.")
+                break@sync
+            }
+            else                             -> {
                 println("There are still $remain devices offline, press ENTER to sync again.")
                 readLine()
             }
         }
+    }
     // 任务
     try {
         runBlocking(Dispatchers.Default) {
@@ -241,6 +249,15 @@ fun main() {
                 registerBusinessParser(business, this)
             }
             launch { while (isActive) parser.parseFromConsole() }
+            launch {
+                for (msg in msgFromHmi)
+                    parser(msg)
+                        .first()
+                        .let(::feedback)
+                        .second
+                        .toString()
+                        .let { hmi.write(it) }
+            }
             // 刷新固定显示
             if (remote != null) {
                 launch {

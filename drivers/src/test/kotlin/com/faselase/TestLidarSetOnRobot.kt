@@ -76,7 +76,8 @@ fun main() {
                 p !in robotOutline
             }
         }
-    while (manager.sync() > 0);
+    while (manager.sync().isNotEmpty())
+        Thread.sleep(100L)
     runBlocking {
         while (true) {
             val points = lidarSet.frame

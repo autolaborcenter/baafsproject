@@ -10,8 +10,8 @@ import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
 
 class UsartHmi(
-    private val msgFromHmi: SendChannel<String>,
-    portName: String
+    portName: String,
+    private val msgFromHmi: SendChannel<String>
 ) : SerialPortDevice {
     override val tag = "UsartHmi"
     override val openCondition = Certain(portName)
@@ -51,6 +51,6 @@ class UsartHmi(
     }
 
     suspend fun write(msg: String) {
-        output.send("log.txt=$msg")
+        output.send("log.txt=\"$msg\"")
     }
 }

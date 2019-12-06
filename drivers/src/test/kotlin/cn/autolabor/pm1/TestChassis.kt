@@ -13,7 +13,8 @@ fun main() {
     val exceptions = channel<ExceptionMessage>()
     with(SerialPortManager(exceptions)) {
         registerPM1Chassis(robotOnOdometry)
-        while (sync() > 0);
+        while (sync().isNotEmpty())
+            Thread.sleep(100L)
     }
     runBlocking {
         for (pose in robotOnOdometry)

@@ -9,7 +9,6 @@ import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import org.mechdancer.exceptions.device.DeviceOfflineException
-import java.util.concurrent.Executors
 
 /** 串口管理器 */
 class SerialPortManager(
@@ -28,7 +27,7 @@ class SerialPortManager(
     }
 
     @Synchronized
-    fun sync(): Int {
+    fun sync(): Set<String> {
         println("---- sync serial ports ----")
         // 处理确定名字的目标串口
         waitingListCertain
@@ -37,7 +36,8 @@ class SerialPortManager(
                 val port = SerialPort.getCommPort(name)
                 port.certificate(device)
             }
-        if (waitingListNormal.isEmpty()) return waitingListCertain.size
+        if (waitingListNormal.isEmpty())
+            return waitingListCertain.map { it.tag }.toSet()
         // 找到所有串口
         val ports =
             SerialPort.getCommPorts()
@@ -64,7 +64,7 @@ class SerialPortManager(
                         .firstOrNull { it.certificate(device) }
                         ?.also { ports.remove(it) }
             }
-        return waitingListCertain.size + waitingListNormal.size
+        return (waitingListCertain + waitingListNormal).map { it.tag }.toSet()
     }
 
     private fun SerialPort.certificate(device: SerialPortDevice): Boolean {
@@ -126,8 +126,9 @@ class SerialPortManager(
     }
 
     private companion object {
+        @ObsoleteCoroutinesApi
         fun launchSingleThreadJob(block: suspend CoroutineScope.() -> Unit) =
-            GlobalScope.launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher(), block = block)
+            GlobalScope.launch(newSingleThreadContext("job"), block = block)
 
         /**
          * 从串口读取，并在超时时自动重启串口
