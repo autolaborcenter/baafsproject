@@ -1,6 +1,5 @@
 package cn.autolabor.baafs
 
-import cn.autolabor.amcl.AMCLFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.baafs.CollisionPredictorBuilderDsl.Companion.collisionPredictor
 import cn.autolabor.baafs.parser.parseFromConsole
 import cn.autolabor.baafs.parser.registerBusinessParser
@@ -8,6 +7,7 @@ import cn.autolabor.baafs.parser.registerExceptionServerParser
 import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.business.FollowFailedException
 import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
+import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import cn.autolabor.pm1.SerialPortChassisBuilderDsl.Companion.registerPM1Chassis
 import cn.autolabor.pm1.model.ControlVariable
@@ -68,15 +68,16 @@ fun main() {
     // 配置底盘
     val chassis: Chassis<ControlVariable> =
         manager.registerPM1Chassis(
-                robotOnOdometry = robotOnOdometry.input
+            robotOnOdometry = robotOnOdometry.input
         ) {
             odometryInterval = 40L
+            maxAccelerate = .75
         }
     // 配置定位标签
     val beacon: MobileBeacon =
         manager.registerMobileBeacon(
-                beaconOnMap = beaconOnMap,
-                exceptions = exceptions
+            beaconOnMap = beaconOnMap,
+            exceptions = exceptions
         ) {
             port = "/dev/beacon"
             dataTimeout = 5000L
@@ -87,7 +88,7 @@ fun main() {
     // 配置雷达
     val lidarSet: LidarSet =
         manager.registerFaselaseLidarSet(
-                exceptions = exceptions
+            exceptions = exceptions
         ) {
             dataTimeout = 400L
             lidar(port = "/dev/pos3") {
@@ -136,30 +137,23 @@ fun main() {
             // 启动定位融合模块（粒子滤波器）
             val particleFilter =
                 startLocationFusion(
-                        robotOnOdometry = robotOnOdometry.outputs[0],
-                        beaconOnMap = beaconOnMap,
-                        robotOnMap = robotOnMap
+                    robotOnOdometry = robotOnOdometry.outputs[0],
+                    beaconOnMap = beaconOnMap,
+                    robotOnMap = robotOnMap
                 ) {
                     filter {
-                        initWaitNumber = 2
-                        minCount = 400
-                        maxCount = 2000
-                        tagPosition = vector2DOf(-.01, -.02)
-                        dThresh = 0.1
-                        aThresh = 10 * PI / 180
-                        alpha1 = 0.2
-                        alpha2 = 0.2
-                        alpha3 = 0.2
-                        alpha4 = 0.2
-                        weightSigma = 0.1
+                        beaconOnRobot = vector2DOf(-.01, -.02)
+                        maxInconsistency = .1
+                        convergence { (age, _, d) -> age > .2 && d > .9 }
+                        divergence { (age, _, _) -> age < .1 }
                     }
                     painter = remote
                 }
             // 启动业务交互后台
             val business =
                 startBusiness(
-                        robotOnMap = robotOnMap,
-                        globalOnRobot = globalOnRobot
+                    robotOnMap = robotOnMap,
+                    globalOnRobot = globalOnRobot
                 ) {
                     localRadius = .5
                     pathInterval = .05
