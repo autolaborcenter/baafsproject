@@ -1,5 +1,6 @@
 package cn.autolabor.amcl.kdtree
 
+import cn.autolabor.amcl.kdtree.KdIndex.Companion.indexOf
 import cn.autolabor.amcl.kdtree.KdTreeNode.Branch
 import cn.autolabor.amcl.kdtree.KdTreeNode.Companion.findNode
 import cn.autolabor.amcl.kdtree.KdTreeNode.Leaf
@@ -50,13 +51,13 @@ class KdTree {
     }
 
     // 构造叶子
-    private fun leaf(key: Index3D, value: Double) =
+    private fun leaf(key: KdIndex, value: Double) =
         Leaf(key, value).also { leaves[it] = -1 }
 
     // 采样
-    private fun Vector3D.sample(): Index3D {
+    private fun Vector3D.sample(): KdIndex {
         val (x, y, theta) = this
-        return Index3D((x / blockSize).roundToInt(),
+        return indexOf((x / blockSize).roundToInt(),
                        (y / blockSize).roundToInt(),
                        (theta / angleBlockSize).roundToInt() % angleBlockCount)
     }
@@ -64,7 +65,7 @@ class KdTree {
     // 插入节点
     private tailrec fun insertNode(
         node: KdTreeNode,
-        key: Index3D,
+        key: KdIndex,
         value: Double
     ): KdTreeNode = when (node) {
         is Leaf   -> {
@@ -97,7 +98,7 @@ class KdTree {
     // 计算聚类
     private fun clusterNode(node: KdTreeNode) {
         for ((x, y, z) in node.key.neighbors())
-            findNode(root!!, Index3D(x, y, z % angleBlockCount))
+            findNode(root!!, indexOf(x, y, z % angleBlockCount))
                 ?.takeIf { leaves[it]!! < 0 }
                 ?.let {
                     leaves[it] = leaves[node]!!
