@@ -1,5 +1,6 @@
 package cn.autolabor.amcl
 
+import cn.autolabor.amcl.kdtree.KdTree
 import org.mechdancer.algebra.core.Matrix
 import org.mechdancer.algebra.function.matrix.div
 import org.mechdancer.algebra.function.matrix.plus
