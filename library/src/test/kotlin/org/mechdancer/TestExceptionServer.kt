@@ -1,10 +1,11 @@
-package org.mechdancer.exceptions
+package org.mechdancer
 
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.console.parser.feedback
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.exceptionServer
+import org.mechdancer.exceptions.RecoverableException
 import org.mechdancer.remote.modules.tcpconnection.dialogListener
 import org.mechdancer.remote.modules.tcpconnection.listen
 import org.mechdancer.remote.modules.tcpconnection.say
