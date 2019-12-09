@@ -44,16 +44,7 @@ fun CoroutineScope.registerBusinessParser(
             }
         ?: "no path named $name"
     }
-    parser["load @name"] = {
-        runBlocking(coroutineContext) { business.cancel() }
-        val name = get(1).toString()
-        business.globals.load(name, .0)
-            ?.let {
-                launch { business.startFollowing(it) }
-                "${it.size} nodes loaded from $name"
-            }
-        ?: "no path named $name"
-    }
+
     parser["load @name @num%"] = {
         runBlocking(coroutineContext) { business.cancel() }
         val name = get(1).toString()

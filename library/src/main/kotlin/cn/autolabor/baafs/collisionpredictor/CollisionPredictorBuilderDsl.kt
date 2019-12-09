@@ -1,4 +1,4 @@
-package cn.autolabor.baafs
+package cn.autolabor.baafs.collisionpredictor
 
 import com.faselase.LidarSet
 import org.mechdancer.SimpleLogger

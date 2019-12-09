@@ -8,7 +8,6 @@ import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.annotations.DebugTemporary
 import org.mechdancer.annotations.DebugTemporary.Operation.DELETE
-import org.mechdancer.annotations.DebugTemporary.Operation.REDUCE
 import org.mechdancer.average
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
@@ -49,19 +48,21 @@ class ParticleFilter(
     private val gauss = Gauss(.0, maxInconsistency / 3)
     // 匹配器
     private val matcher = ClampMatcher<Stamped<Odometry>, Stamped<Vector2D>>(true)
+    // 匹配步进状态
+    private var stepMemory: Pair<Vector2D, Odometry>? = null
+    // 融合步进状态
+    private lateinit var updatingMemory: Odometry
+    // 粒子群：位姿 - 寿命
+    private var particles = emptyList<Pair<Odometry, Int>>()
+    // 预测器
+    private var visionary = Visionary(Odometry.pose(), Odometry.pose(), .0)
+
     // 过程记录器
     @DebugTemporary(DELETE)
     val stepFeedbacks = mutableListOf<(Stamped<StepState>) -> Unit>()
-
-    // 粒子：位姿 - 寿命
-    @DebugTemporary(REDUCE)
-    var particles = emptyList<Pair<Odometry, Int>>()
-        private set
-
     // 质量状态
     var quality = Stamped(0L, FusionQuality.zero)
         private set
-
     // 是否收敛
     val isConvergent get() = predicate.state
     // 最后一次查询结果
@@ -91,9 +92,23 @@ class ParticleFilter(
         return Stamped(t, visionary.infer(p)).also { lastQuery = it }
     }
 
-    private var stepMemory: Pair<Vector2D, Odometry>? = null
-    private lateinit var updatingMemory: Odometry
-    private var visionary = Visionary(Odometry.pose(), Odometry.pose(), .0)
+    fun getOrSet(item: Stamped<Odometry>, target: Odometry): Stamped<Odometry> {
+        val (_, p) = item
+        if (!isConvergent) updateVisionary(p, target)
+        return get(item)
+    }
+
+    // 更新预测器
+    private fun updateVisionary(
+        newMarkOnOdometry: Odometry,
+        newExpectation: Odometry
+    ) {
+        visionary = visionary.fusion(
+                newMarkOnOdometry,
+                newExpectation,
+                2.0,
+                maxInconsistency)
+    }
 
     @Synchronized
     private fun update() {
@@ -135,10 +150,10 @@ class ParticleFilter(
             .forEach { (stamped, measureWeight) ->
                 val (t, pair) = stamped
                 val (measure, state) = pair
-                val last = updatingMemory
+                val delta = state minusState updatingMemory
                 updatingMemory = state
                 // 更新粒子群
-                particles = particles.map { (p, age) -> (p plusDelta (state minusState last)) to age }
+                particles = particles.map { (p, age) -> (p plusDelta delta) to age }
                 // 计算每个粒子对应的信标坐标
                 val limitedMaxAge =
                     max(3, (maxAge * particles.qualityBy(maxAge, maxInconsistency).direction).roundToInt())
@@ -185,11 +200,7 @@ class ParticleFilter(
                 quality = Stamped(t, particles.qualityBy(maxAge, maxInconsistency))
                 // 猜测真实位姿
                 if (predicate.update(quality.data))
-                    visionary = visionary.fusion(
-                            state,
-                            robotPoseBy(eP, eAngle),
-                            2.0,
-                            maxInconsistency)
+                    updateVisionary(state, robotPoseBy(eP, eAngle))
                 @DebugTemporary(DELETE)
                 synchronized(stepFeedbacks) {
                     val msg = Stamped(

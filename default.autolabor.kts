@@ -1,9 +1,11 @@
 package cn.autolabor.baafs
 
-import cn.autolabor.baafs.CollisionPredictorBuilderDsl.Companion.collisionPredictor
+import cn.autolabor.baafs.collisionpredictor.CollisionDetectedException
+import cn.autolabor.baafs.collisionpredictor.CollisionPredictorBuilderDsl.Companion.collisionPredictor
 import cn.autolabor.baafs.parser.parseFromConsole
 import cn.autolabor.baafs.parser.registerBusinessParser
 import cn.autolabor.baafs.parser.registerExceptionServerParser
+import cn.autolabor.baafs.parser.registerParticleFilterParser
 import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.business.FollowFailedException
 import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
@@ -16,7 +18,6 @@ import com.faselase.FaselaseLidarSetBuilderDsl.Companion.registerFaselaseLidarSe
 import com.faselase.LidarSet
 import com.marvelmind.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
 import com.usarthmi.usartHmi
-import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -56,7 +57,7 @@ val msgFromHmi = channel<String>()
 val robotOnOdometry = YChannel<Stamped<Odometry>>()
 val robotOnMap = channel<Stamped<Odometry>>()
 val beaconOnMap = channel<Stamped<Vector2D>>()
-val globalOnRobot = channel<Pair<Sequence<Odometry>, Double>>()
+val globalOnRobot = channel<Pair<Sequence<Odometry>, Boolean>>()
 val commandToSwitch = channel<ControlVariable>()
 // 连接串口外设
 val manager = SerialPortManager(exceptions)
@@ -65,7 +66,7 @@ val hmi = manager.usartHmi("COM3", msgFromHmi)
 // 配置底盘
 val chassis: Chassis<ControlVariable> =
     manager.registerPM1Chassis(
-        robotOnOdometry = robotOnOdometry.input
+            robotOnOdometry = robotOnOdometry.input
     ) {
         odometryInterval = 40L
         maxAccelerate = .75
@@ -73,8 +74,8 @@ val chassis: Chassis<ControlVariable> =
 // 配置定位标签
 val beacon: MobileBeacon =
     manager.registerMobileBeacon(
-        beaconOnMap = beaconOnMap,
-        exceptions = exceptions
+            beaconOnMap = beaconOnMap,
+            exceptions = exceptions
     ) {
         port = "/dev/beacon"
         dataTimeout = 5000L
@@ -85,7 +86,7 @@ val beacon: MobileBeacon =
 // 配置雷达
 val lidarSet: LidarSet =
     manager.registerFaselaseLidarSet(
-        exceptions = exceptions
+            exceptions = exceptions
     ) {
         dataTimeout = 400L
         lidar(port = "/dev/pos3") {
@@ -134,9 +135,9 @@ try {
         // 启动定位融合模块（粒子滤波器）
         val particleFilter =
             startLocationFusion(
-                robotOnOdometry = robotOnOdometry.outputs[0],
-                beaconOnMap = beaconOnMap,
-                robotOnMap = robotOnMap
+                    robotOnOdometry = robotOnOdometry.outputs[0],
+                    beaconOnMap = beaconOnMap,
+                    robotOnMap = robotOnMap
             ) {
                 filter {
                     beaconOnRobot = vector2DOf(-.01, -.02)
@@ -149,8 +150,8 @@ try {
         // 启动业务交互后台
         val business =
             startBusiness(
-                robotOnMap = robotOnMap,
-                globalOnRobot = globalOnRobot
+                    robotOnMap = robotOnMap,
+                    globalOnRobot = globalOnRobot
             ) {
                 localRadius = .5
                 pathInterval = .05
@@ -202,16 +203,16 @@ try {
         var invokeTime = 0L
         // 启动循径模块
         launch {
-            for ((global, progress) in globalOnRobot) {
+            for ((local, completed) in globalOnRobot) {
                 invokeTime = System.currentTimeMillis()
                 // 生成控制量
                 val target =
-                    if (progress == 1.0) {
+                    if (completed) {
                         exceptions.send(Recovered(FollowFailedException))
                         ControlVariable.Physical.static
                     } else {
                         localPlanner
-                            .modify(global, lidarSet.frame)
+                            .modify(local, lidarSet.frame)
                             .let(pathFollower::invoke)
                             ?.also { exceptions.send(Recovered(FollowFailedException)) }
                         ?: run {
@@ -236,7 +237,7 @@ try {
             this["\'"] = { isEnabled = !isEnabled; if (isEnabled) "enabled" else "disabled" }
             this["beacon"] = { beacon.location }
             registerExceptionServerParser(exceptionServer, this)
-//                registerParticleFilterParser(particleFilter, this)
+            registerParticleFilterParser(particleFilter, this)
             registerBusinessParser(business, this)
         }
         launch { while (isActive) parser.parseFromConsole() }

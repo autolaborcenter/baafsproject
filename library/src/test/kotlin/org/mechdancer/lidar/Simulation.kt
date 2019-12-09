@@ -1,7 +1,7 @@
 package org.mechdancer.lidar
 
-import cn.autolabor.baafs.CollisionDetectedException
-import cn.autolabor.baafs.CollisionPredictorBuilderDsl.Companion.collisionPredictor
+import cn.autolabor.baafs.collisionpredictor.CollisionDetectedException
+import cn.autolabor.baafs.collisionpredictor.CollisionPredictorBuilderDsl.Companion.collisionPredictor
 import cn.autolabor.baafs.outlineFilter
 import cn.autolabor.baafs.parser.parseFromConsole
 import cn.autolabor.baafs.parser.registerBusinessParser
@@ -72,7 +72,7 @@ fun main() {
 
     // 话题
     val robotOnMap = YChannel<Stamped<Odometry>>()
-    val globalOnRobot = channel<Pair<Sequence<Odometry>, Double>>()
+    val globalOnRobot = channel<Pair<Sequence<Odometry>, Boolean>>()
     val exceptions = channel<ExceptionMessage>()
     val command = AtomicReference(Velocity.velocity(.0, .0))
     runBlocking(Dispatchers.Default) {
@@ -137,16 +137,16 @@ fun main() {
         // 启动循径模块
         launch {
             val struct = ChassisStructure(.465, .105, .105, .355)
-            for ((global, progress) in globalOnRobot) {
+            for ((local, completed) in globalOnRobot) {
                 invokeTime = System.currentTimeMillis()
                 // 生成控制量
                 val target =
-                    if (progress == 1.0) {
+                    if (completed) {
                         exceptions.send(Recovered(FollowFailedException))
                         Velocity.velocity(.0, .0)
                     } else {
                         localPlanner
-                            .modify(global, lidarSet.frame)
+                            .modify(local, lidarSet.frame)
                             .let(pathFollower::invoke)
                             ?.also { exceptions.send(Recovered(FollowFailedException)) }
                             ?.let(struct::toVelocity)

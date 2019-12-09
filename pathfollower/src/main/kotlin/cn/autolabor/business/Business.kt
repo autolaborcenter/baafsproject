@@ -17,7 +17,7 @@ import org.mechdancer.remote.presets.RemoteHub
 class Business internal constructor(
     private val scope: CoroutineScope,
     private val robotOnMap: ReceiveChannel<Stamped<Odometry>>,
-    private val globalOnRobot: SendChannel<Pair<Sequence<Odometry>, Double>>,
+    private val globalOnRobot: SendChannel<Pair<Sequence<Odometry>, Boolean>>,
 
     private val pathInterval: Double,
     localFirst: (Odometry) -> Boolean,
@@ -54,6 +54,7 @@ class Business internal constructor(
         internal abstract val job: Job
         override fun toString(): String = javaClass.simpleName
 
+        /** 录制路径 */
         class Recording internal constructor(
             scope: CoroutineScope,
             robotOnMap: ReceiveChannel<Stamped<Odometry>>,
@@ -81,17 +82,20 @@ class Business internal constructor(
             }
         }
 
+        /** 循径 */
         class Following internal constructor(
             scope: CoroutineScope,
             private val robotOnMap: ReceiveChannel<Stamped<Odometry>>,
-            private val globalOnRobot: SendChannel<Pair<Sequence<Odometry>, Double>>,
+            private val globalOnRobot: SendChannel<Pair<Sequence<Odometry>, Boolean>>,
             val global: GlobalPath
         ) : Functions() {
             var loop = false
             override val job = scope.launch {
                 for ((_, pose) in robotOnMap) {
-                    globalOnRobot.send(global[pose] to global.progress)
-                    if (global.progress == 1.0)
+                    val local = global[pose]
+                    val completed = global.progress == 1.0
+                    globalOnRobot.send(local to completed)
+                    if (completed)
                         if (loop) global.progress = .0
                         else break
                 }

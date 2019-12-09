@@ -25,7 +25,7 @@ class BusinessBuilderDsl private constructor() {
     companion object {
         fun CoroutineScope.startBusiness(
             robotOnMap: ReceiveChannel<Stamped<Odometry>>,
-            globalOnRobot: SendChannel<Pair<Sequence<Odometry>, Double>>,
+            globalOnRobot: SendChannel<Pair<Sequence<Odometry>, Boolean>>,
             block: BusinessBuilderDsl.() -> Unit
         ) = BusinessBuilderDsl()
             .apply(block)

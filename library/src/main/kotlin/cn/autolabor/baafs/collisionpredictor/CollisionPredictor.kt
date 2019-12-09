@@ -1,8 +1,10 @@
-package cn.autolabor.baafs
+package cn.autolabor.baafs.collisionpredictor
 
 import com.faselase.LidarSet
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.runBlocking
 import org.mechdancer.SimpleLogger
 import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.implement.vector.to2D
@@ -30,16 +32,16 @@ internal constructor(
     private var count = 0
     private val origin = robotOutline.vertex
 
-    suspend fun predict(path: (Long) -> Odometry): Boolean {
+    fun predict(path: (Long) -> Odometry): Boolean {
         val delta = path(predictingTime).toTransformation()
-        val getting = coroutineScope { async { lidarSet.frame } }
+        val getting = GlobalScope.async { lidarSet.frame }
         val outline = origin
             .asSequence()
             .map(delta::invoke)
             .map(Vector::to2D)
             .toList()
             .let(::Polygon)
-        val points = getting.await()
+        val points = runBlocking(Dispatchers.Default) { getting.await() }
         count =
             if (points.none { it in outline })
                 min(count + 1, +countToStop)
