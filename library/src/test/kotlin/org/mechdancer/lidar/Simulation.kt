@@ -7,11 +7,12 @@ import cn.autolabor.baafs.parser.parseFromConsole
 import cn.autolabor.baafs.parser.registerBusinessParser
 import cn.autolabor.baafs.parser.registerExceptionServerParser
 import cn.autolabor.baafs.robotOutline
+import cn.autolabor.business.Business
 import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.business.FollowFailedException
-import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import cn.autolabor.pm1.model.ChassisStructure
+import cn.autolabor.pm1.model.ControlVariable
 import com.faselase.LidarSet
 import kotlinx.coroutines.*
 import org.mechdancer.*
@@ -27,6 +28,7 @@ import org.mechdancer.common.Velocity
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.common.toTransformation
 import org.mechdancer.console.parser.buildParser
+import org.mechdancer.core.LocalPath
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
@@ -36,6 +38,7 @@ import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.lidar.Default.commands
 import org.mechdancer.lidar.Default.remote
 import org.mechdancer.lidar.Default.simulationLidar
+import org.mechdancer.local.LocalPotentialFieldPlannerBuilderDsl.Companion.potentialFieldPlanner
 import org.mechdancer.simulation.Chassis
 import org.mechdancer.simulation.speedSimulation
 import java.util.concurrent.atomic.AtomicReference
@@ -72,7 +75,7 @@ fun main() {
 
     // 话题
     val robotOnMap = YChannel<Stamped<Odometry>>()
-    val globalOnRobot = channel<Pair<Sequence<Odometry>, Boolean>>()
+    val globalOnRobot = channel<LocalPath>()
     val exceptions = channel<ExceptionMessage>()
     val command = AtomicReference(Velocity.velocity(.0, .0))
     runBlocking(Dispatchers.Default) {
@@ -93,11 +96,10 @@ fun main() {
                     && it.p.toAngle().asRadian() in -PI / 3..+PI / 3
                     && it.d.asRadian() in -PI / 3..+PI / 3
                 }
-                painter = remote
             }
         // 局部规划器（势场法）
         val localPlanner =
-            potentialFieldLocalPlanner {
+            potentialFieldPlanner {
                 repelWeight = .5
                 stepLength = .05
 
@@ -110,6 +112,8 @@ fun main() {
                     if (it.length > radius) vector2DOfZero()
                     else -it.normalize().to2D() * (it.length.pow(-2) - r0)
                 }
+
+                obstacles { lidarSet.frame }
             }
         // 循径器（虚拟光感法）
         val pathFollower =
@@ -137,24 +141,26 @@ fun main() {
         // 启动循径模块
         launch {
             val struct = ChassisStructure(.465, .105, .105, .355)
-            for ((local, completed) in globalOnRobot) {
+            for (local in globalOnRobot) {
                 invokeTime = System.currentTimeMillis()
                 // 生成控制量
                 val target =
-                    if (completed) {
-                        exceptions.send(Recovered(FollowFailedException))
-                        Velocity.velocity(.0, .0)
-                    } else {
-                        localPlanner
-                            .modify(local, lidarSet.frame)
-                            .let(pathFollower::invoke)
-                            ?.also { exceptions.send(Recovered(FollowFailedException)) }
-                            ?.let(struct::toVelocity)
-                            ?.let { (v, w) -> Velocity.velocity(v, w.asRadian()) }
-                        ?: run {
-                            exceptions.send(Occurred(FollowFailedException))
-                            Velocity.velocity(.0, .0)
+                    localPlanner
+                        .plan(local)
+                        .let {
+                            when (it) {
+                                is LocalPath.Path    -> pathFollower(it.path)
+                                is LocalPath.KeyPose -> pathFollower(sequenceOf(it.pose))
+                                LocalPath.Finish     -> ControlVariable.Physical.static
+                                LocalPath.Failure    -> null
+                            }
                         }
+                        ?.also { exceptions.send(Recovered(FollowFailedException)) }
+                        ?.let(struct::toVelocity)
+                        ?.let { (v, w) -> Velocity.velocity(v, w.asRadian()) }
+                    ?: run {
+                        exceptions.send(Occurred(FollowFailedException))
+                        Velocity.velocity(.0, .0)
                     }
                 // 急停
                 if (predictor.predict { target.toDeltaOdometry(it / 1000.0) })
@@ -176,6 +182,17 @@ fun main() {
         val parser = buildParser {
             this["coroutines"] = { coroutineContext[Job]?.children?.count() }
             this["\'"] = { isEnabled = !isEnabled; if (isEnabled) "enabled" else "disabled" }
+            this["load @name"] = {
+                val name = get(1).toString()
+                try {
+                    runBlocking(coroutineContext) { business.startFollowing(name) }
+                    val path = (business.function as Business.Functions.Following).planner
+                    path.painter = remote
+                    "${path.size} poses loaded from $name"
+                } catch (e: Exception) {
+                    e.message
+                }
+            }
             registerExceptionServerParser(exceptionServer, this)
             registerBusinessParser(business, this)
         }

@@ -1,17 +1,15 @@
 package cn.autolabor.business
 
 import org.mechdancer.common.Odometry
-import org.mechdancer.remote.presets.RemoteHub
+import org.mechdancer.global.GlobalPathPlanner
+import org.mechdancer.global.GlobalPlannerBuilderDsl.Companion.pathPlanner
 import java.io.File
 
 /**
  * 全局路径管理
  */
-class PathManager(
-    private val localFirst: (Odometry) -> Boolean,
-    private val painter: RemoteHub?
-) {
-    private val globals = mutableMapOf<String, GlobalPath>()
+class PathManager(private val localFirst: (Odometry) -> Boolean) {
+    private val globals = mutableMapOf<String, GlobalPathPlanner>()
 
     /** 强制从文件中读取路径，并设置进度 */
     fun refresh(pathName: String, progress: Double = .0) =
@@ -23,7 +21,9 @@ class PathManager(
                 Odometry.pose(numbers[0], numbers[1], numbers[2])
             }
             ?.toList()
-            ?.let { GlobalPath(it, 4, localFirst, painter) }
+            ?.let {
+                pathPlanner(it) { localFirst(localFirst) }
+            }
             ?.also { global ->
                 global.progress = progress
                 globals[pathName] = global

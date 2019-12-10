@@ -4,6 +4,7 @@ dependencies {
     api(project(":common"))       // 日志器和临时成员注解
     api(project(":drivers"))      // 传感器驱动
     api(project(":locator"))      // 定位融合
+    api(project(":planner"))      // 规划器
     api(project(":pathfollower")) // 循线控制算法
     api(project(":painter"))      // 调试与绘图功能
     // 导出外部依赖

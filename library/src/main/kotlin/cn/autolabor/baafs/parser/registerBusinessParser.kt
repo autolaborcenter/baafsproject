@@ -3,9 +3,11 @@ package cn.autolabor.baafs.parser
 import cn.autolabor.business.Business
 import cn.autolabor.business.Business.Functions.Following
 import cn.autolabor.business.Business.Functions.Recording
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.runBlocking
 import org.mechdancer.console.parser.Parser
-import org.mechdancer.console.parser.numbers
 
 @ExperimentalCoroutinesApi
 fun CoroutineScope.registerBusinessParser(
@@ -34,54 +36,23 @@ fun CoroutineScope.registerBusinessParser(
             ?.let { "$it nodes were saved in $name" }
         ?: "cannot save recorded path unless when recording"
     }
-    parser["refresh @name"] = {
-        runBlocking(coroutineContext) { business.cancel() }
-        val name = get(1).toString()
-        business.globals.refresh(name, .0)
-            ?.let {
-                launch { business.startFollowing(it) }
-                "${it.size} nodes loaded from $name"
-            }
-        ?: "no path named $name"
-    }
-
-    parser["load @name @num%"] = {
-        runBlocking(coroutineContext) { business.cancel() }
-        val name = get(1).toString()
-        business.globals.load(name, numbers.single() / 100)
-            ?.let {
-                launch { business.startFollowing(it) }
-                "${it.size} nodes loaded from $name"
-            }
-        ?: "no path named $name"
-    }
-    parser["resume @name"] = {
-        runBlocking(coroutineContext) { business.cancel() }
-        val name = get(1).toString()
-        business.globals.resume(name)
-            ?.let {
-                launch { business.startFollowing(it) }
-                "${it.size} nodes loaded from $name"
-            }
-        ?: "no path named $name"
-    }
 
     parser["loop on"] = {
         (business.function as? Following)
-            ?.run { loop = true; "loop on" }
+            ?.run { planner.isLoopOn = true; "loop on" }
         ?: "cannot set loop on unless when following"
     }
     parser["loop off"] = {
         (business.function as? Following)
-            ?.run { loop = false; "loop off" }
+            ?.run { planner.isLoopOn = false; "loop off" }
         ?: "cannot set loop on unless when following"
     }
 
     val formatter = java.text.DecimalFormat("0.00")
     parser["progress"] = {
         (business.function as? Following)
-            ?.let { "progress = ${formatter.format(it.global.progress * 100)}%" }
-        ?: business.globals.toString()
+            ?.let { "progress = ${formatter.format(it.planner.progress * 100)}%" }
+        ?: "it's not following now"
     }
 
     parser["function"] = { business.function?.toString() ?: "Idle" }

@@ -6,9 +6,9 @@ import cn.autolabor.baafs.parser.parseFromConsole
 import cn.autolabor.baafs.parser.registerBusinessParser
 import cn.autolabor.baafs.parser.registerExceptionServerParser
 import cn.autolabor.baafs.parser.registerParticleFilterParser
+import cn.autolabor.business.Business
 import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.business.FollowFailedException
-import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import cn.autolabor.pm1.SerialPortChassisBuilderDsl.Companion.registerPM1Chassis
@@ -31,6 +31,7 @@ import org.mechdancer.common.shape.Circle
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.console.parser.feedback
 import org.mechdancer.core.Chassis
+import org.mechdancer.core.LocalPath
 import org.mechdancer.core.MobileBeacon
 import org.mechdancer.exceptions.ApplicationException
 import org.mechdancer.exceptions.ExceptionMessage
@@ -40,6 +41,7 @@ import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.startExcept
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
+import org.mechdancer.local.LocalPotentialFieldPlannerBuilderDsl.Companion.potentialFieldPlanner
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.presets.remoteHub
 import kotlin.math.PI
@@ -61,7 +63,7 @@ fun main() {
     val robotOnOdometry = YChannel<Stamped<Odometry>>()
     val robotOnMap = channel<Stamped<Odometry>>()
     val beaconOnMap = channel<Stamped<Vector2D>>()
-    val globalOnRobot = channel<Pair<Sequence<Odometry>, Boolean>>()
+    val globalOnRobot = channel<LocalPath>()
     val commandToSwitch = channel<ControlVariable>()
     // 连接串口外设
     val manager = SerialPortManager(exceptions)
@@ -164,11 +166,10 @@ fun main() {
                         && it.p.toAngle().asRadian() in -PI / 3..+PI / 3
                         && it.d.asRadian() in -PI / 3..+PI / 3
                     }
-                    painter = remote
                 }
             // 局部规划器（势场法）
             val localPlanner =
-                potentialFieldLocalPlanner {
+                potentialFieldPlanner {
                     repelWeight = .8
                     stepLength = .05
 
@@ -181,6 +182,8 @@ fun main() {
                         if (it.length > radius) vector2DOfZero()
                         else -it.normalize().to2D() * (it.length.pow(-2) - r0)
                     }
+
+                    obstacles { lidarSet.frame }
                 }
             // 循径器（虚拟光感法）
             val pathFollower =
@@ -196,8 +199,10 @@ fun main() {
                 }
             // 碰撞预警模块
             val predictor =
-                collisionPredictor(lidarSet = lidarSet,
-                                   robotOutline = robotOutline) {
+                collisionPredictor(
+                        lidarSet = lidarSet,
+                        robotOutline = robotOutline
+                ) {
                     countToContinue = 4
                     countToStop = 6
                     predictingTime = 1000L
@@ -207,22 +212,24 @@ fun main() {
             var invokeTime = 0L
             // 启动循径模块
             launch {
-                for ((local, completed) in globalOnRobot) {
+                for (local in globalOnRobot) {
                     invokeTime = System.currentTimeMillis()
                     // 生成控制量
                     val target =
-                        if (completed) {
-                            exceptions.send(Recovered(FollowFailedException))
-                            ControlVariable.Physical.static
-                        } else {
-                            localPlanner
-                                .modify(local, lidarSet.frame)
-                                .let(pathFollower::invoke)
-                                ?.also { exceptions.send(Recovered(FollowFailedException)) }
-                            ?: run {
-                                exceptions.send(Occurred(FollowFailedException))
-                                ControlVariable.Physical.static
+                        localPlanner
+                            .plan(local)
+                            .let {
+                                when (it) {
+                                    is LocalPath.Path    -> pathFollower(it.path)
+                                    is LocalPath.KeyPose -> pathFollower(sequenceOf(it.pose))
+                                    LocalPath.Finish     -> ControlVariable.Physical.static
+                                    LocalPath.Failure    -> null
+                                }
                             }
+                            ?.also { exceptions.send(Recovered(FollowFailedException)) }
+                        ?: run {
+                            exceptions.send(Occurred(FollowFailedException))
+                            ControlVariable.Physical.static
                         }
                     // 急停
                     if (predictor.predict(chassis.predict(target)))
@@ -244,15 +251,15 @@ fun main() {
                 registerParticleFilterParser(particleFilter, this)
                 registerBusinessParser(business, this)
                 this["load @name"] = {
-                    runBlocking(coroutineContext) { business.cancel() }
                     val name = get(1).toString()
-                    business.globals.load(name, .0)
-                        ?.also { particleFilter.getOrSet(chassis.odometry, it.first()) }
-                        ?.let {
-                            launch { business.startFollowing(it) }
-                            "${it.size} nodes loaded from $name"
-                        }
-                    ?: "no path named $name"
+                    try {
+                        runBlocking(coroutineContext) { business.startFollowing(name) }
+                        val path = (business.function as Business.Functions.Following).planner
+                        particleFilter.getOrSet(chassis.odometry, path.firstTarget)
+                        "${path.size} poses loaded from $name"
+                    } catch (e: Exception) {
+                        e.message
+                    }
                 }
             }
             launch { while (isActive) parser.parseFromConsole() }

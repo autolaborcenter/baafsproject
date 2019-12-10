@@ -7,7 +7,7 @@ import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.annotations.BuilderDslMarker
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
-import org.mechdancer.remote.presets.RemoteHub
+import org.mechdancer.core.LocalPath
 
 @BuilderDslMarker
 class BusinessBuilderDsl private constructor() {
@@ -20,12 +20,10 @@ class BusinessBuilderDsl private constructor() {
         localFirst = block
     }
 
-    var painter: RemoteHub? = null
-
     companion object {
         fun CoroutineScope.startBusiness(
             robotOnMap: ReceiveChannel<Stamped<Odometry>>,
-            globalOnRobot: SendChannel<Pair<Sequence<Odometry>, Boolean>>,
+            globalOnRobot: SendChannel<LocalPath>,
             block: BusinessBuilderDsl.() -> Unit
         ) = BusinessBuilderDsl()
             .apply(block)
@@ -39,8 +37,7 @@ class BusinessBuilderDsl private constructor() {
                          globalOnRobot = globalOnRobot,
 
                          pathInterval = pathInterval,
-                         localFirst = localFirst,
-                         painter = painter)
+                         localFirst = localFirst)
             }
     }
 }
