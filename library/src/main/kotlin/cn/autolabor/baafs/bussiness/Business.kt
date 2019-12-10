@@ -1,7 +1,7 @@
-package cn.autolabor.business
+package cn.autolabor.baafs.bussiness
 
-import cn.autolabor.business.Business.Functions.Following
-import cn.autolabor.business.Business.Functions.Recording
+import cn.autolabor.baafs.bussiness.Business.Functions.Following
+import cn.autolabor.baafs.bussiness.Business.Functions.Recording
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -106,11 +106,11 @@ class Business internal constructor(
             val planner: GlobalPathPlanner
         ) : Functions() {
             override val job = scope.launch {
-                loop@ for ((_, pose) in robotOnMap)
-                    when (val local = planner.plan(pose)) {
-                        LocalPath.Finish -> break@loop
-                        else             -> globalOnRobot.send(local)
-                    }
+                for ((_, pose) in robotOnMap) {
+                    val local = planner.plan(pose)
+                    globalOnRobot.send(local)
+                    if (local == LocalPath.Finish) break
+                }
             }
         }
     }

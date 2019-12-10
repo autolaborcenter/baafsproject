@@ -1,4 +1,4 @@
-package cn.autolabor.pathfollower
+package org.mechdancer.action
 
 import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.minus

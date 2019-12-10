@@ -1,4 +1,4 @@
-package cn.autolabor.pathfollower
+package org.mechdancer.action
 
 import cn.autolabor.pm1.model.ControlVariable.Physical
 import org.mechdancer.algebra.function.vector.dot

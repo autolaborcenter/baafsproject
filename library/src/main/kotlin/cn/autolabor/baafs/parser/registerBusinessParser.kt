@@ -1,8 +1,8 @@
 package cn.autolabor.baafs.parser
 
-import cn.autolabor.business.Business
-import cn.autolabor.business.Business.Functions.Following
-import cn.autolabor.business.Business.Functions.Recording
+import cn.autolabor.baafs.bussiness.Business
+import cn.autolabor.baafs.bussiness.Business.Functions.Following
+import cn.autolabor.baafs.bussiness.Business.Functions.Recording
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancel

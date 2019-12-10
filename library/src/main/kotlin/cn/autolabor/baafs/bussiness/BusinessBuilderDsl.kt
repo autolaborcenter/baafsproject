@@ -1,4 +1,4 @@
-package cn.autolabor.business
+package cn.autolabor.baafs.bussiness
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel

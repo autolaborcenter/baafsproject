@@ -1,4 +1,4 @@
-package cn.autolabor.business
+package cn.autolabor.baafs.bussiness
 
 import org.mechdancer.common.Odometry
 import org.mechdancer.global.GlobalPathPlanner

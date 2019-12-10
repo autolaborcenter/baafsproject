@@ -1,4 +1,4 @@
-package cn.autolabor.pathfollower
+package org.mechdancer.action
 
 import org.mechdancer.annotations.BuilderDslMarker
 import org.mechdancer.common.Odometry
@@ -31,14 +31,14 @@ class PathFollowerBuilderDsl private constructor() {
                 }
                 .run {
                     VirtualLightSensorPathFollower(
-                        sensor = VirtualLightSensor(
-                            onRobot = sensorPose,
-                            lightRange = lightRange),
-                        minTipAngle = minTipAngle,
-                        minTurnAngle = minTurnAngle,
-                        turnThreshold = turnThreshold,
-                        maxSpeed = maxSpeed,
-                        painter = painter)
+                            sensor = VirtualLightSensor(
+                                    onRobot = sensorPose,
+                                    lightRange = lightRange),
+                            minTipAngle = minTipAngle,
+                            minTurnAngle = minTurnAngle,
+                            turnThreshold = turnThreshold,
+                            maxSpeed = maxSpeed,
+                            painter = painter)
                 }
     }
 }

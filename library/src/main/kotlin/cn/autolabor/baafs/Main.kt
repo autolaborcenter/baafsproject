@@ -1,16 +1,15 @@
 package cn.autolabor.baafs
 
+import cn.autolabor.baafs.bussiness.Business
+import cn.autolabor.baafs.bussiness.BusinessBuilderDsl.Companion.startBusiness
+import cn.autolabor.baafs.bussiness.FollowFailedException
 import cn.autolabor.baafs.collisionpredictor.CollisionDetectedException
 import cn.autolabor.baafs.collisionpredictor.CollisionPredictorBuilderDsl.Companion.collisionPredictor
 import cn.autolabor.baafs.parser.parseFromConsole
 import cn.autolabor.baafs.parser.registerBusinessParser
 import cn.autolabor.baafs.parser.registerExceptionServerParser
 import cn.autolabor.baafs.parser.registerParticleFilterParser
-import cn.autolabor.business.Business
-import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
-import cn.autolabor.business.FollowFailedException
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
-import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import cn.autolabor.pm1.SerialPortChassisBuilderDsl.Companion.registerPM1Chassis
 import cn.autolabor.pm1.model.ControlVariable
 import cn.autolabor.serialport.manager.SerialPortManager
@@ -20,6 +19,7 @@ import com.marvelmind.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileB
 import com.usarthmi.usartHmi
 import kotlinx.coroutines.*
 import org.mechdancer.*
+import org.mechdancer.action.PathFollowerBuilderDsl.Companion.pathFollower
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
@@ -68,7 +68,7 @@ fun main() {
     // 连接串口外设
     val manager = SerialPortManager(exceptions)
     // 配置屏幕
-    val hmi = manager.usartHmi("COM3", msgFromHmi)
+    val hmi = manager.usartHmi("/dev/ttyUSB4", msgFromHmi)
     // 配置底盘
     val chassis: Chassis<ControlVariable> =
         manager.registerPM1Chassis(
@@ -249,6 +249,7 @@ fun main() {
                         runBlocking(coroutineContext) { business.startFollowing(name) }
                         val path = (business.function as Business.Functions.Following).planner
                         particleFilter.getOrSet(chassis.odometry, path.firstTarget)
+                        path.painter = remote
                         "${path.size} poses loaded from $name"
                     } catch (e: Exception) {
                         e.message
