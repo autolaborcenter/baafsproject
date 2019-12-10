@@ -1,6 +1,6 @@
 package com.thermometer
 
-import com.thermometer.TemperXDsl.Companion.startTemperX
+import com.thermometer.TemperXBuilderDsl.Companion.startTemperX
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -12,20 +12,20 @@ import org.mechdancer.exceptions.ExceptionMessage
 fun main() = runBlocking<Unit>(Dispatchers.Default) {
     // 话题
     val exceptions = channel<ExceptionMessage>()
-    val therm = channel<Stamped<Pair<Double, Double>>>()
+    val thermometer = channel<Stamped<Pair<Double, Double>>>()
     // 任务
     startTemperX(
-        therm = therm,
+        thermometer = thermometer,
         exceptions = exceptions
     ) {
         port = "COM14"
     }
     var start = System.currentTimeMillis()
     launch {
-        for ((stamp, p) in therm) {
-            println("dt = ${stamp - start}, temp = ${String.format("%.2f", p.first)} [C], humi = ${String.format("%.2f", p.second)} [%]")
-            start = stamp
-        }
+        for ((stamp, p) in thermometer) {
+        println("dt = ${stamp - start}, temp = ${String.format("%.2f", p.first)} [C], humi = ${String.format("%.2f", p.second)} [%]")
+        start = stamp
+    }
     }
     launch {
         for (e in exceptions) {
