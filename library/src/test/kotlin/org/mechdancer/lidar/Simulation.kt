@@ -12,7 +12,6 @@ import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.business.FollowFailedException
 import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import cn.autolabor.pm1.model.ChassisStructure
-import cn.autolabor.pm1.model.ControlVariable
 import com.faselase.LidarSet
 import kotlinx.coroutines.*
 import org.mechdancer.*
@@ -147,14 +146,7 @@ fun main() {
                 val target =
                     localPlanner
                         .plan(local)
-                        .let {
-                            when (it) {
-                                is LocalPath.Path    -> pathFollower(it.path)
-                                is LocalPath.KeyPose -> pathFollower(sequenceOf(it.pose))
-                                LocalPath.Finish     -> ControlVariable.Physical.static
-                                LocalPath.Failure    -> null
-                            }
-                        }
+                        .let { pathFollower.plan(it) }
                         ?.also { exceptions.send(Recovered(FollowFailedException)) }
                         ?.let(struct::toVelocity)
                         ?.let { (v, w) -> Velocity.velocity(v, w.asRadian()) }

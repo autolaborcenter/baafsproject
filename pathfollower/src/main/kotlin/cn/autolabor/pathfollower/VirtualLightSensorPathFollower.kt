@@ -5,7 +5,8 @@ import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.plus
 import org.mechdancer.algebra.function.vector.times
 import org.mechdancer.common.Odometry
-import org.mechdancer.core.LocalFollower
+import org.mechdancer.core.ActionPlanner
+import org.mechdancer.core.LocalPath
 import org.mechdancer.geometry.angle.*
 import org.mechdancer.paint
 import org.mechdancer.paintPoses
@@ -33,7 +34,7 @@ class VirtualLightSensorPathFollower(
     private val maxSpeed: Double,
 
     private val painter: RemoteHub?
-) : LocalFollower<Physical> {
+) : ActionPlanner<Physical> {
     private var dir = 0
     private var turning = false
 
@@ -60,10 +61,9 @@ class VirtualLightSensorPathFollower(
 
     private val turnCount = 4
 
-    /** 计算控制量 */
-    override operator fun invoke(local: Sequence<Odometry>): Physical? {
+    private fun invoke(path: Sequence<Odometry>): Physical? {
         // 光感采样
-        val bright = sensor.shine(local)
+        val bright = sensor.shine(path)
         if (turning && bright.size < turnCount) return turn()
         // 处理异常
         var pn =
@@ -99,4 +99,20 @@ class VirtualLightSensorPathFollower(
         // 计算控制量
         return Physical(maxSpeed, (-PI / 2 * light).toRad())
     }
+
+    override suspend fun plan(path: LocalPath) =
+        when (path) {
+            LocalPath.Finish     -> Physical.static
+            LocalPath.Failure    -> null
+            is LocalPath.KeyPose -> {
+                val d = path.pose.d
+                if (abs(d.asDegree()) < 10)
+                    Physical.static
+                else {
+                    dir = d.asRadian().sign.toInt()
+                    turn()
+                }
+            }
+            is LocalPath.Path    -> invoke(path.path)
+        }
 }

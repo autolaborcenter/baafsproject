@@ -218,14 +218,7 @@ fun main() {
                     val target =
                         localPlanner
                             .plan(local)
-                            .let {
-                                when (it) {
-                                    is LocalPath.Path    -> pathFollower(it.path)
-                                    is LocalPath.KeyPose -> pathFollower(sequenceOf(it.pose))
-                                    LocalPath.Finish     -> ControlVariable.Physical.static
-                                    LocalPath.Failure    -> null
-                                }
-                            }
+                            .let { pathFollower.plan(it) }
                             ?.also { exceptions.send(Recovered(FollowFailedException)) }
                         ?: run {
                             exceptions.send(Occurred(FollowFailedException))
