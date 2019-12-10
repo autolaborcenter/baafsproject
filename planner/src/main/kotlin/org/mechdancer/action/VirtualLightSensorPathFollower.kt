@@ -31,9 +31,7 @@ class VirtualLightSensorPathFollower(
     minTipAngle: Angle,
     minTurnAngle: Angle,
     turnThreshold: Angle,
-    private val maxSpeed: Double,
-
-    private val painter: RemoteHub?
+    private val maxSpeed: Double
 ) : ActionPlanner<Physical> {
     private var dir = 0
     private var turning = false
@@ -41,6 +39,28 @@ class VirtualLightSensorPathFollower(
     private val cosMinTip = cos(minTipAngle.asRadian())
     private val minTurnRad = minTurnAngle.asRadian()
     private val turnThresholdRad = turnThreshold.asRadian()
+
+    private companion object {
+        const val PRE_TURN_COUNT = 4
+    }
+
+    var painter: RemoteHub? = null
+
+    override suspend fun plan(path: LocalPath) =
+        when (path) {
+            LocalPath.Finish     -> Physical.static
+            LocalPath.Failure    -> null
+            is LocalPath.KeyPose -> {
+                val d = path.pose.d
+                if (abs(d.asDegree()) < 10)
+                    Physical.static
+                else {
+                    dir = d.asRadian().sign.toInt()
+                    turn()
+                }
+            }
+            is LocalPath.Path    -> invoke(path.path)
+        }
 
     private fun calculateDir(tip: Odometry): Boolean {
         val target = (tip.p + tip.d.toVector() * 0.2).toAngle().adjust().asRadian()
@@ -59,12 +79,10 @@ class VirtualLightSensorPathFollower(
         return Physical(maxSpeed, (-dir * PI / 2).toRad())
     }
 
-    private val turnCount = 4
-
     private fun invoke(path: Sequence<Odometry>): Physical? {
         // 光感采样
         val bright = sensor.shine(path)
-        if (turning && bright.size < turnCount) return turn()
+        if (turning && bright.size < PRE_TURN_COUNT) return turn()
         // 处理异常
         var pn =
             bright.firstOrNull()
@@ -86,9 +104,9 @@ class VirtualLightSensorPathFollower(
             ?: (bright.last() to bright.lastIndex)
         // 处理尖点
         when {
-            i > turnCount     -> dir = 0
-            i in 1..turnCount -> calculateDir(tip)
-            else              -> if (calculateDir(tip)) return turn()
+            i > PRE_TURN_COUNT     -> dir = 0
+            i in 1..PRE_TURN_COUNT -> calculateDir(tip)
+            else                   -> if (calculateDir(tip)) return turn()
         }
         turning = false
         val light = sensor(bright.take(i + 1))
@@ -99,20 +117,4 @@ class VirtualLightSensorPathFollower(
         // 计算控制量
         return Physical(maxSpeed, (-PI / 2 * light).toRad())
     }
-
-    override suspend fun plan(path: LocalPath) =
-        when (path) {
-            LocalPath.Finish     -> Physical.static
-            LocalPath.Failure    -> null
-            is LocalPath.KeyPose -> {
-                val d = path.pose.d
-                if (abs(d.asDegree()) < 10)
-                    Physical.static
-                else {
-                    dir = d.asRadian().sign.toInt()
-                    turn()
-                }
-            }
-            is LocalPath.Path    -> invoke(path.path)
-        }
 }

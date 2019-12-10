@@ -10,13 +10,14 @@ import org.mechdancer.remote.presets.RemoteHub
 import kotlin.math.PI
 
 @BuilderDslMarker
-class PathFollowerBuilderDsl private constructor() {
-    var sensorPose: Odometry = Odometry.pose(0.275, 0)
-    var lightRange: Shape = Circle(0.3)
+class PathFollowerBuilderDsl
+private constructor() {
+    var sensorPose: Odometry = Odometry.pose(.275, 0)
+    var lightRange: Shape = Circle(.3)
     var minTipAngle: Angle = 60.toDegree()
     var minTurnAngle: Angle = 15.toDegree()
     var turnThreshold: Angle = 180.toDegree()
-    var maxSpeed: Double = 0.2
+    var maxSpeed: Double = .2
 
     var painter: RemoteHub? = null
 
@@ -37,8 +38,8 @@ class PathFollowerBuilderDsl private constructor() {
                             minTipAngle = minTipAngle,
                             minTurnAngle = minTurnAngle,
                             turnThreshold = turnThreshold,
-                            maxSpeed = maxSpeed,
-                            painter = painter)
+                            maxSpeed = maxSpeed
+                    ).also { it.painter = painter }
                 }
     }
 }

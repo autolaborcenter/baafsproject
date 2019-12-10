@@ -6,6 +6,7 @@ import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toVector
 import org.mechdancer.remote.presets.RemoteHub
+import kotlin.math.PI
 
 @BuilderDslMarker
 class GlobalPlannerBuilderDsl
@@ -30,7 +31,7 @@ private constructor() {
             GlobalPlannerBuilderDsl()
                 .apply(block)
                 .apply {
-                    require(minTip.value > 0)
+                    require(minTip.asRadian() in .0..PI)
                     require(searchCount > 0)
                     require(localFirst(Odometry.pose()))
                 }

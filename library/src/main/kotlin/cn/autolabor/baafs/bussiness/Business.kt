@@ -44,7 +44,7 @@ class Business internal constructor(
         }
         current?.job?.cancelAndJoin()
         val global = globals.get()
-                     ?: throw IllegalArgumentException("no path named $name")
+                     ?: throw IllegalArgumentException("no path named \"$name\"")
         function = Following(scope, robotOnMap, globalOnRobot, name, global)
             .apply { job.invokeOnCompletion { function = null } }
     }

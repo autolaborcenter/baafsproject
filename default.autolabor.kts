@@ -39,7 +39,6 @@ import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.startExceptionServer
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toDegree
-import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.local.LocalPotentialFieldPlannerBuilderDsl.Companion.potentialFieldPlanner
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.presets.remoteHub
@@ -132,7 +131,7 @@ try {
         // 启动异常服务器
         val exceptionServer =
             startExceptionServer(exceptions) {
-                exceptionOccur { chassis.target = ControlVariable.Velocity(.0, 0.toRad()) }
+                exceptionOccur { chassis.target = ControlVariable.Physical.static }
             }
         // 启动定位融合模块（粒子滤波器）
         val particleFilter =

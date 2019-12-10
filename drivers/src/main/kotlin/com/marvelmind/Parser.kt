@@ -3,53 +3,41 @@ package com.marvelmind
 import cn.autolabor.serialport.parser.ParseEngine
 import cn.autolabor.serialport.parser.ParseEngine.ParseInfo
 import java.io.ByteArrayInputStream
-import java.io.DataInputStream
-import kotlin.experimental.xor
 
 private const val DestinationAddress = 0xff.toByte()
 private const val PacketType = 0x47.toByte()
 
-private fun Byte.toIntUnsigned(): Int =
-    if (this < 0) this + 256 else this.toInt()
+internal class ResolutionCoordinate(list: ByteArray) {
+    val timeStamp: Int
+    val x: Int
+    val y: Int
+    val z: Int
+    val flags: Byte
+    val address: Byte
+    val pair: Short
+    val delay: Short
 
-private fun crc16Check(list: List<Byte>): Boolean {
-    var byteL: Byte = 0xff.toByte()
-    var byteH: Byte = 0xff.toByte()
-    for (it in list) {
-        byteL = byteL xor it
-        var short = (byteH.toIntUnsigned() shl 8) or byteL.toIntUnsigned()
-        for (i in 0 until 8) {
-            val odd = (short % 2) > 0
-            short = short ushr 1
-            if (odd) short = short xor 0xa001
-        }
-        byteH = (short ushr 8).toByte()
-        byteL = short.toByte()
+    init {
+        val stream = ByteArrayInputStream(list)
+
+        timeStamp = stream.readIntLE()
+        x = stream.readIntLE()
+        y = stream.readIntLE()
+        z = stream.readIntLE()
+        flags = stream.read().toByte()
+        address = stream.read().toByte()
+        pair = stream.readShortLE()
+        delay = stream.readShortLE()
     }
-    return byteH == 0.toByte() && byteL == 0.toByte()
-}
-
-internal class ResolutionCoordinate(private val list: ByteArray) {
-    val timeStamp get() = build(0, 4)
-    val x get() = build(4, 4).readInt()
-    val y get() = build(8, 4).readInt()
-    val z get() = build(12, 4).readInt()
-    val flags get() = build(16, 1)
-    val address get() = build(17, 1)
-    val pair get() = build(18, 2)
-    val delay get() = build(20, 2).readUnsignedShort()
-
-    private fun build(offset: Int, length: Int) =
-        list.copyOfRange(offset, offset + length)
-            .reversedArray()
-            .let(::ByteArrayInputStream)
-            .let(::DataInputStream)
 }
 
 internal sealed class BeaconPackage {
     object Nothing : BeaconPackage()
     object Failed : BeaconPackage()
-    data class Data(val code: Int, val payload: ByteArray) : BeaconPackage()
+    class Data(val code: Int, val payload: ByteArray) : BeaconPackage() {
+        operator fun component1() = code
+        operator fun component2() = payload
+    }
 }
 
 /** MarvelMind 移动节点网络层解析器 */

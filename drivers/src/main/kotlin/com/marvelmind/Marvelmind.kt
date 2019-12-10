@@ -18,7 +18,6 @@ import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import org.mechdancer.exceptions.device.DataTimeoutException
-import java.lang.StringBuilder
 import java.util.concurrent.Executors
 import kotlin.math.roundToInt
 
@@ -93,22 +92,24 @@ internal class Marvelmind(
             val hedgePort = createPort(hedgePortName)
             val modemPort = createPort(modemPortName)
             // 检查地图
-            while(!map.filled) {
+            while (!map.filled) {
                 log(logger, "reload mervelmind.map after 5s")
                 delay(5000)
                 map = Map("marvelmind.map")
             }
             beaconIdList = ByteArray(map.beacons.size) { map.beacons[it].first }
-            devices = Array(map.beacons.size) { Device(map.beacons[it].first)}
+            devices = Array(map.beacons.size) { Device(map.beacons[it].first) }
             engines = Array(map.beacons.size) { Parse(map.beacons[it].first, 0x03.toByte()).engine() }
             for (i in map.submaps.indices)
-                request(modemPort, Command(0xFF.toByte(), 0x03.toByte(), (0x6000 + i).toShort(), 0x0000.toShort()), buffer)
+                request(modemPort,
+                        Command(0xFF.toByte(), 0x03.toByte(), (0x6000 + i).toShort(), 0x0000.toShort()),
+                        buffer)
             for (item in map.beacons) {
                 modemPort.writeOrReboot(CommandWP(item.first, item.second).data)
             }
             // 初始化和标签数相关的量
-            rawDistances = IntArray(beaconIdList.size){-1}
-            dataLoggers = Array(hedgeIdList.size) { SimpleLogger("data_log_${hedgeIdList[it]}")}
+            rawDistances = IntArray(beaconIdList.size) { -1 }
+            dataLoggers = Array(hedgeIdList.size) { SimpleLogger("data_log_${hedgeIdList[it]}") }
 
             var tempClock = 0L
             var stateClock = 0L
@@ -128,8 +129,7 @@ internal class Marvelmind(
                         parseHedge(buffer.take(len))
                         if ((position.positionCnt > 0 && /*position.distanceCnt > 0 &&*/ position.qualityCnt > 0) || position.positionCnt > 1)
                             break
-                    }
-                    else if (len < 0) {
+                    } else if (len < 0) {
                         hedgePort.writeBytes(buffer, 0)
                         if (!hedgePort.isOpen)
                             hedgePort.openPort()
@@ -144,7 +144,7 @@ internal class Marvelmind(
                     if (hedgeIdList.contains(position.address)) {
                         val logIndex = hedgeIdList.indexOf(position.address)
                         val rec = StringBuilder(
-                            "${tempModem}\t${temperature}\t${humidity}\t${position.x}\t${position.y}\t${position.z}\t${position.quality}\t")
+                                "${tempModem}\t${temperature}\t${humidity}\t${position.x}\t${position.y}\t${position.z}\t${position.quality}\t")
                         for (item in position.distances) {
                             rec.append("${item.first}\t${item.second}\t")
                         }
@@ -152,8 +152,7 @@ internal class Marvelmind(
                             rec.append("${item}\t")
                         }
                         log(dataLoggers[logIndex], rec.toString(), LogType.WritePrint)
-                    }
-                    else
+                    } else
                         log(logger, "unknown hedgehog ${position.address}", LogType.WritePrint)
                 }
                 // 读取电压
@@ -203,7 +202,8 @@ internal class Marvelmind(
     }
 
     // 判重
-    private val memory = Array(hedgeIdList.size){ Position(hedgeIdList[it]) }
+    private val memory = Array(hedgeIdList.size) { Position(hedgeIdList[it]) }
+
     private fun notStatic(pos: Position): Boolean {
         val index = hedgeIdList.indexOf(pos.address)
         val equal = pos.x == memory[index].x && pos.y == memory[index].y && pos.z == memory[index].z
@@ -227,17 +227,17 @@ internal class Marvelmind(
         list.add(0x30.toByte())
         data[20] = temp_data.toByte()
         list.addAll(data.toList())
-        list.addAll(crc16(list))
+        list.addAll(crc16(list.toByteArray()).toList())
         return list.toByteArray()
     }
 
     // 设置submap指令
     private fun makeSubmapCommand(data: ByteArray, address: Byte): ByteArray? {
-        val index = address.toIntUnsigned111()
+        val index = address.toIntUnsigned()
         if (index < map.submaps.size && data.size == map.submaps[index].size) {
             var equal = true
             for (i in data.indices) {
-                if (data[i] != map.submaps[index][i]){
+                if (data[i] != map.submaps[index][i]) {
                     equal = false
                     break
                 }
@@ -249,7 +249,7 @@ internal class Marvelmind(
     }
 
     // 解析路由原始距离数据
-    private fun resolveRawDistances(data: ByteArray){
+    private fun resolveRawDistances(data: ByteArray) {
         for (i in rawDistances.indices) {
             rawDistances[i] = -1
         }
@@ -257,7 +257,7 @@ internal class Marvelmind(
             val idRecv = data[4 * i]
             val idSend = data[4 * i + 1]
             if (beaconIdList.contains(idRecv) && idSend == position.address)
-                rawDistances[beaconIdList.indexOf(idRecv)] = data.copyOfRange(4 * i + 2, 4 * i + 4).toInt()
+                rawDistances[beaconIdList.indexOf(idRecv)] = shortLEOf(data[4 * i + 2], data[4 * i + 3]).toInt()
             else if (idRecv == 0.toByte() && idSend == 0.toByte())
                 break
         }
@@ -282,7 +282,7 @@ internal class Marvelmind(
                     else if (cmd.code == 0x0003.toShort())      // device
                         if (beaconIdList.contains(cmd.address))
                             devices[beaconIdList.indexOf(cmd.address)].parse(pack.payload)
-                    else if ((cmd.code.toInt() shr 8) == 0x60)  // submap
+                        else if ((cmd.code.toInt() shr 8) == 0x60)  // submap
                             makeSubmapCommand(pack.payload, (cmd.code.toInt() and 0xFF).toByte())
                                 ?.let { launch { port.writeOrReboot(it) } }
                 }
@@ -305,12 +305,18 @@ internal class Marvelmind(
                     if (position.positionCnt > 0 && position.qualityCnt > 0)
                         log(logger, position.toString(), LogType.WritePrint)
                     // 发送定位
-                    if (position.positionCnt > 0 && hedgeIdList.contains(position.address) && position.usable && position.qualityCnt > 0 &&
-                            position.delay in delayRange && position.z in zRange && notStatic(position)) { // TODO 定位质量 多移动标签
+                    if (position.positionCnt > 0
+                        && hedgeIdList.contains(position.address)
+                        && position.usable
+                        && position.qualityCnt > 0
+                        && position.delay in delayRange
+                        && position.z in zRange
+                        && notStatic(position)
+                    ) { // TODO 定位质量 多移动标签
                         launch {
                             beaconOnMap.send(Stamped(
-                                System.currentTimeMillis() - position.delay,
-                                vector2DOf(position.x, position.y) / 1000.0))
+                                    System.currentTimeMillis() - position.delay,
+                                    vector2DOf(position.x, position.y) / 1000.0))
                             dataWatchDog.feed()
                             launch { exceptions.send(Recovered(dataTimeoutException)) }
                         }
@@ -330,7 +336,7 @@ internal class Marvelmind(
                 return port
             } catch (e: Exception) {
             }
-            log(logger, "failed to create serial port, retry after ${retryInterval/1000}s", LogType.WritePrint)
+            log(logger, "failed to create serial port, retry after ${retryInterval / 1000}s", LogType.WritePrint)
             // 等待一段时间重试
             delay(retryInterval)
         }
@@ -338,6 +344,7 @@ internal class Marvelmind(
 
     // 写计数
     private var writeFailCnt = 0
+
     // 写串口（失败重连机制）
     private suspend fun SerialPort.writeOrReboot(buffer: ByteArray) {
         while (true) {
@@ -345,11 +352,10 @@ internal class Marvelmind(
             if (takeIf { this.isOpen || this.openPort() }?.writeBytes(buffer, buffer.size.toLong()) == buffer.size) {
                 writeFailCnt = 0
                 return
-            }
-            else {
+            } else {
                 writeFailCnt++
                 if (writeFailCnt >= WRITE_RECON_CNT)
-                    log(logger, "failed to open or write, retry after ${retryInterval/1000}s", LogType.WritePrint)
+                    log(logger, "failed to open or write, retry after ${retryInterval / 1000}s", LogType.WritePrint)
             }
             // 等待一段时间重试
             delay(retryInterval)
@@ -362,6 +368,7 @@ internal class Marvelmind(
         PrintOnly,
         WritePrint
     }
+
     // 日志
     private fun log(logger: SimpleLogger?, text: String, type: LogType = LogType.WritePrint) {
         if (type == LogType.WriteOnly || type == LogType.WritePrint) {

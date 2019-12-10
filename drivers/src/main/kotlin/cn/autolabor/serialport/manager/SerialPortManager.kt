@@ -26,8 +26,9 @@ class SerialPortManager(
             waitingListNormal.add(device)
     }
 
+    @ObsoleteCoroutinesApi
     @Synchronized
-    fun sync(): Set<String> {
+    fun sync(): Collection<String> {
         println("---- sync serial ports ----")
         // 处理确定名字的目标串口
         waitingListCertain
@@ -37,7 +38,7 @@ class SerialPortManager(
                 port.certificate(device)
             }
         if (waitingListNormal.isEmpty())
-            return waitingListCertain.map { it.tag }.toSet()
+            return waitingListCertain.map { it.tag }
         // 找到所有串口
         val ports =
             SerialPort.getCommPorts()
@@ -64,9 +65,10 @@ class SerialPortManager(
                         .firstOrNull { it.certificate(device) }
                         ?.also { ports.remove(it) }
             }
-        return (waitingListCertain + waitingListNormal).map { it.tag }.toSet()
+        return (waitingListCertain + waitingListNormal).map { it.tag }
     }
 
+    @ObsoleteCoroutinesApi
     private fun SerialPort.certificate(device: SerialPortDevice): Boolean {
         print("searching ${device.tag} on $systemPortName -> $descriptivePortName")
         // 设置串口
@@ -100,7 +102,7 @@ class SerialPortManager(
         }
         // 开协程
         devices[this] =
-            launchSingleThreadJob {
+            launchSingleThreadJob(device.tag) {
                 val fromDriver = channel<List<Byte>>()
                 val toDriver = channel<List<Byte>>()
                 device.setup(CoroutineScope(Dispatchers.IO),
@@ -127,8 +129,8 @@ class SerialPortManager(
 
     private companion object {
         @ObsoleteCoroutinesApi
-        fun launchSingleThreadJob(block: suspend CoroutineScope.() -> Unit) =
-            GlobalScope.launch(newSingleThreadContext("job"), block = block)
+        fun launchSingleThreadJob(tag: String, block: suspend CoroutineScope.() -> Unit) =
+            GlobalScope.launch(newSingleThreadContext(tag), block = block)
 
         /**
          * 从串口读取，并在超时时自动重启串口
