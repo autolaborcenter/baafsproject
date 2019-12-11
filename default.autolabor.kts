@@ -17,6 +17,7 @@ import com.faselase.FaselaseLidarSetBuilderDsl.Companion.registerFaselaseLidarSe
 import com.faselase.LidarSet
 import com.marvelmind.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
 import com.usarthmi.usartHmi
+import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.action.PathFollowerBuilderDsl.Companion.pathFollower
 import org.mechdancer.algebra.function.vector.*
@@ -42,6 +43,7 @@ import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.local.LocalPotentialFieldPlannerBuilderDsl.Companion.potentialFieldPlanner
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.presets.remoteHub
+import org.mechdancer.vectorgrid.VectorGird
 import kotlin.math.PI
 import kotlin.system.exitProcess
 
@@ -162,6 +164,7 @@ try {
                     && it.d.asRadian() in -PI / 3..+PI / 3
                 }
             }
+        var obstacleFrame = emptyList<Vector2D>()
         // 局部规划器（势场法）
         val localPlanner =
             potentialFieldPlanner {
@@ -178,7 +181,17 @@ try {
                     else -it.normalize().to2D() * (it.length.pow(-2) - r0)
                 }
 
-                obstacles { lidarSet.frame }
+                obstacles {
+                    obstacleFrame =
+                        lidarSet.frame
+                            .takeUnless(Collection<*>::isEmpty)
+                            ?.let { VectorGird(vector2DOf(.05, .05), it) }
+                            ?.getPoints { it.size > 2 }
+                            ?.flatten()
+                        ?: emptyList()
+                    remote?.paintVectors("R 聚类", obstacleFrame)
+                    obstacleFrame
+                }
             }
         // 循径器（虚拟光感法）
         val pathFollower =
@@ -194,14 +207,13 @@ try {
             }
         // 碰撞预警模块
         val predictor =
-            collisionPredictor(
-                    lidarSet = lidarSet,
-                    robotOutline = robotOutline
-            ) {
+            collisionPredictor(robotOutline = robotOutline) {
                 countToContinue = 4
                 countToStop = 6
                 predictingTime = 1000L
                 painter = remote
+
+                obstacles { obstacleFrame }
             }
         var isEnabled = false
         var invokeTime = 0L

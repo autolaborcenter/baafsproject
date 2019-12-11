@@ -19,7 +19,9 @@ import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.function.vector.normalize
 import org.mechdancer.algebra.function.vector.times
 import org.mechdancer.algebra.function.vector.unaryMinus
+import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
+import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
@@ -40,6 +42,7 @@ import org.mechdancer.lidar.Default.simulationLidar
 import org.mechdancer.local.LocalPotentialFieldPlannerBuilderDsl.Companion.potentialFieldPlanner
 import org.mechdancer.simulation.Chassis
 import org.mechdancer.simulation.speedSimulation
+import org.mechdancer.vectorgrid.VectorGird
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.PI
 import kotlin.math.pow
@@ -96,6 +99,7 @@ fun main() {
                     && it.d.asRadian() in -PI / 3..+PI / 3
                 }
             }
+        var obstacleFrame = emptyList<Vector2D>()
         // 局部规划器（势场法）
         val localPlanner =
             potentialFieldPlanner {
@@ -112,7 +116,17 @@ fun main() {
                     else -it.normalize().to2D() * (it.length.pow(-2) - r0)
                 }
 
-                obstacles { lidarSet.frame }
+                obstacles {
+                    obstacleFrame =
+                        lidarSet.frame
+                            .takeUnless(Collection<*>::isEmpty)
+                            ?.let { VectorGird(vector2DOf(.05, .05), it) }
+                            ?.getPoints { it.size > 2 }
+                            ?.flatten()
+                        ?: emptyList()
+                    remote.paintVectors("R 聚类", obstacleFrame)
+                    obstacleFrame
+                }
             }
         // 循径器（虚拟光感法）
         val pathFollower =
@@ -127,12 +141,13 @@ fun main() {
             }
         // 碰撞预警模块
         val predictor =
-            collisionPredictor(lidarSet = lidarSet,
-                               robotOutline = robotOutline) {
+            collisionPredictor(robotOutline = robotOutline) {
                 countToContinue = 4
                 countToStop = 6
                 predictingTime = 1000L
                 painter = remote
+
+                obstacles { obstacleFrame }
             }
         var isEnabled = false
         var invokeTime = 0L
@@ -192,17 +207,20 @@ fun main() {
         launch { while (isActive) parser.parseFromConsole() }
         // 刷新固定显示
         launch {
-            val o = obstacles.flatMap { it.vertex }
             while (isActive) {
                 remote.paint("R 机器人轮廓", robotOutline)
-                remote.paintVectors("障碍物", o)
                 delay(5000L)
             }
         }
         launch {
             while (isActive) {
                 while (System.currentTimeMillis() - invokeTime > 2000L) {
-                    remote.paintVectors("R 雷达", lidarSet.frame)
+                    val frame = lidarSet.frame
+                    remote.paintVectors("R 雷达", frame)
+                    if (frame.isNotEmpty()) {
+                        val valid = VectorGird(vector2DOf(.05, .05), frame).getPoints { it.size > 2 }
+                        remote.paintVectors("R 聚类", valid.flatten())
+                    }
                     delay(100L)
                 }
                 delay(5000L)

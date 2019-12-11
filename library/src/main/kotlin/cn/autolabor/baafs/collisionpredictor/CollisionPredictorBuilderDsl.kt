@@ -1,7 +1,7 @@
 package cn.autolabor.baafs.collisionpredictor
 
-import com.faselase.LidarSet
 import org.mechdancer.SimpleLogger
+import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.annotations.BuilderDslMarker
 import org.mechdancer.common.shape.Polygon
 import org.mechdancer.remote.presets.RemoteHub
@@ -15,9 +15,15 @@ private constructor() {
     var logger: SimpleLogger? = SimpleLogger("CollisionPredictingModule")
     var painter: RemoteHub? = null
 
+    private var obstacleSource: suspend () -> Collection<Vector2D> =
+        { emptyList() }
+
+    fun obstacles(block: suspend () -> Collection<Vector2D>) {
+        obstacleSource = block
+    }
+
     companion object {
         fun collisionPredictor(
-            lidarSet: LidarSet,
             robotOutline: Polygon,
             block: CollisionPredictorBuilderDsl.() -> Unit
         ) =
@@ -30,13 +36,15 @@ private constructor() {
                 }
                 .run {
                     CollisionPredictor(
-                            lidarSet = lidarSet,
                             robotOutline = robotOutline,
                             predictingTime = predictingTime,
                             countToContinue = countToContinue,
                             countToStop = countToStop,
-                            logger = logger,
-                            painter = painter)
+                            obstacleSource = obstacleSource)
+                        .also {
+                            it.logger = logger
+                            it.painter = painter
+                        }
                 }
     }
 }

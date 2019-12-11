@@ -13,13 +13,11 @@ private constructor() {
     var lookAhead: Int = 8
     var minRepelPointsCount: Int = 16
 
-    private var repelField: (Vector2D) -> Vector2D = {
-        -it / it.length.pow(3)
-    }
+    private var repelField: (Vector2D) -> Vector2D =
+        { -it / it.length.pow(3) }
 
-    private var obstacleSource: suspend () -> Collection<Vector2D> = {
-        emptyList()
-    }
+    private var obstacleSource: suspend () -> Collection<Vector2D> =
+        { emptyList() }
 
     fun repel(block: (Vector2D) -> Vector2D) {
         repelField = block
