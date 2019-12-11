@@ -2,10 +2,7 @@ package com.faselase
 
 import cn.autolabor.serialport.manager.SerialPortManager
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.registerFaselaseLidarSet
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.channel
 import org.mechdancer.common.shape.Circle
@@ -16,6 +13,7 @@ import org.mechdancer.paint
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.remoteHub
 
+@ObsoleteCoroutinesApi
 fun main() {
     val remote = remoteHub("测试雷达组").apply {
         openAllNetworks()
