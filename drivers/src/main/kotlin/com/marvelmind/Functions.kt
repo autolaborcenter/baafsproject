@@ -9,7 +9,10 @@ internal fun Byte.toIntUnsigned(): Int =
     if (this < 0) this + 256 else this.toInt()
 
 internal fun shortLEOf(b0: Byte, b1: Byte) =
-    (b1.toInt() shl 8 or b0.toInt()).toShort()
+    (b1.toInt() shl 8 or (b0.toInt() and 0xff)).toShort()
+
+internal fun shortLEOfU(b0: Byte, b1: Byte) =
+    shortLEOf(b0, b1).let { if (it >= 0) it.toInt() else it + 65536 }
 
 // 读取一个小端短整型
 internal fun InputStream.readShortLE(): Short {

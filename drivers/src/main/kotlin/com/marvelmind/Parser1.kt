@@ -24,8 +24,25 @@ internal class Command(
         .toByteArray()
 }
 
+internal class CommandWake(
+    val address: Byte
+) {
+    val data = ByteArrayOutputStream()
+        .apply {
+            write(address.toInt())
+            write(0x10)
+            writeLE(0xb006.toShort())
+            writeLE(0x0002.toShort())
+            write(0x08)
+            writeLE(0x815e942d.toInt())
+            writeLE(0x00000002)
+            write(crc16(toByteArray()))
+        }
+        .toByteArray()
+}
+
 // 指令(写Submap)
-internal class CommandWS(
+internal class CommandSubmap(
     address: Byte,
     submap: ByteArray
 ) {
@@ -44,7 +61,7 @@ internal class CommandWS(
 }
 
 // 指令(写坐标)
-internal class CommandWP(
+internal class CommandCoordinate(
     address: Byte,
     position: ByteArray
 ) {
@@ -119,7 +136,7 @@ internal class Position(
         distanceCnt++
         distances.clear()
         ByteArrayInputStream(data).use { stream ->
-            repeat(3) {
+            repeat(4) {
                 stream.read()
                 distances += stream.read().toByte() to stream.readIntLE()
             }
@@ -142,21 +159,36 @@ internal class Position(
 internal class Device(
     val id: Byte
 ) {
-    var voltage = -1.0
+    var voltage = -1
+    var sleep = false
     val cmd = Command(id, 0x03.toByte(), 0x0003.toShort(), 0x0002.toShort())
     // 解析
     fun parse(data: ByteArray) {
-        // voltage = (data.copyOfRange(7, 9).toInt() and 0x1FFF) / 1000.0 // TODO 协议为0x0FFF但最大只能表示到4.096V
+        ByteArrayInputStream(data.copyOfRange(7, 9))
+            .use { stream ->
+                voltage = (stream.readShortLE().toInt() and 0x1FFF) // TODO 协议为0x0FFF但这样最大只能表示到4.096V
+            }
+        ByteArrayInputStream(data.copyOfRange(4, 9))
+            .use { stream ->
+                val rssi = stream.read().toByte().toIntUnsigned()
+                val unk = stream.read().toByte().toIntUnsigned()
+                val temp = stream.read().toByte().toIntUnsigned()
+                val volL = stream.read().toByte().toIntUnsigned()
+                val volH = stream.read().toByte().toIntUnsigned()
+                sleep = (rssi + 1 == unk && unk + 1 == temp && temp + 1 == volL && volL + 1 == volH) ||
+                        (rssi == 0 && unk == 0 && temp == 0 && volL == 0 && volH == 0)
+            }
     }
 
     // 设置默认
     fun setDefault() {
-        voltage = -1.0
+        voltage = -1
+        sleep = false
     }
 
     // 打印
     override fun toString(): String {
-        return "beacon${id}: ${voltage}V"
+        return "beacon${id}: ${voltage/1000.0}V"
     }
 }
 

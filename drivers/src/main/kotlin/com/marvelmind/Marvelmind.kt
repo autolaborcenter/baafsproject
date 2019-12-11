@@ -38,7 +38,8 @@ internal class Marvelmind(
     private val retryInterval: Long,    // 串口重试周期
     delayLimit: Long,                   // 定位延时上限
     heightRange: ClosedFloatingPointRange<Double>,  // z值允许的范围
-    private val hedgeIdList: List<Byte>,            // 移动标签id列表
+    private val hedgeIdList: ByteArray,             // 移动标签id列表
+    private var beaconIdList: ByteArray,            // 固定标签列表
     private val logger: SimpleLogger?,              // 运行日志
     needModem: Boolean,     // 路由是否必需
     needMap: Boolean        // 地图是否必需
@@ -46,7 +47,7 @@ internal class Marvelmind(
     // 协议解析引擎
     private val engineModem = Parse(0xFF.toByte(), 0x03.toByte()).engine()
     private val engineHedge = Parse(0xFF.toByte(), 0x47.toByte()).engine()
-    private var engines = emptyArray<ParseEngine<Byte, DataPackage>>()
+    private var engines = HashMap<Byte, ParseEngine<Byte, DataPackage>>()
     // 定位位置
     private var position = Position()
     // 温度
@@ -56,11 +57,11 @@ internal class Marvelmind(
     // 路由设置温度
     private var tempModem = DEFAULT_VAL.toInt()
     // 设备状态列表
-    private var devices = emptyArray<Device>()
+    private var devices = HashMap<Byte, Device>()
     // 设备状态日志
     private val deviceLogger = SimpleLogger("device_state_log").apply { period = 1 }
     // 固定标签列表
-    private var beaconIdList = ByteArray(0)
+//    private var beaconIdList = ByteArray(0)
     // 地图
     private var map = Map("marvelmind.map")
     // 数据记录
@@ -80,45 +81,71 @@ internal class Marvelmind(
         const val BUFFER_SIZE = 1024
         const val DEFAULT_VAL = -300.0
         const val WRITE_RECON_CNT = 1 // 写重连阈值(超过此次数写失败则串口重连)
+        const val WRITE_DELAY = 100L
         val CMD_CONFIG = Command(0xFF.toByte(), 0x03.toByte(), 0x5000.toShort(), 0x0000.toShort())
         val CMD_RAW_DIS = Command(0xFF.toByte(), 0x03.toByte(), 0x4000.toShort(), 0x0000.toShort())
     }
 
-    init {// TODO 路由/地图不必需的情况
+    init {
         // 单开线程以执行阻塞读写
         launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher()) {
             val buffer = ByteArray(BUFFER_SIZE)
             // 串口初始化
             val hedgePort = createPort(hedgePortName)
-            val modemPort = createPort(modemPortName)
+            var modemPort: SerialPort? = null
+            if (needModem)
+                modemPort = createPort(modemPortName)
             // 检查地图
-            while (!map.filled) {
-                log(logger, "reload mervelmind.map after 5s")
-                delay(5000)
-                map = Map("marvelmind.map")
-            }
-            beaconIdList = ByteArray(map.beacons.size) { map.beacons[it].first }
-            devices = Array(map.beacons.size) { Device(map.beacons[it].first) }
-            engines = Array(map.beacons.size) { Parse(map.beacons[it].first, 0x03.toByte()).engine() }
-            for (i in map.submaps.indices)
-                request(modemPort,
+            if (needMap && needModem) {
+                while (!map.filled) {
+                    log(logger, "reload mervelmind.map after 5s")
+                    delay(5000)
+                    map = Map("marvelmind.map")
+                }
+                beaconIdList = ByteArray(map.beacons.size) { map.beacons[it].first }
+                // 检查submap
+                for (i in map.submaps.indices) {
+                    request(
+                        modemPort!!,
                         Command(0xFF.toByte(), 0x03.toByte(), (0x6000 + i).toShort(), 0x0000.toShort()),
-                        buffer)
-            for (item in map.beacons) {
-                modemPort.writeOrReboot(CommandWP(item.first, item.second).data)
+                        buffer
+                    )
+                    //modemPort.writeOrReboot(CommandSubmap(i.toByte(), map.submaps[i]).data)
+                    log(logger, "check submap${i}")
+                    delay(WRITE_DELAY)
+                }
+                // 写固定标签坐标
+                for (item in map.beacons) {
+                    modemPort!!.writeOrReboot(CommandCoordinate(item.first, item.second).data)
+                    log(logger, "write beacon${item.first} coordinate")
+                    delay(WRITE_DELAY)
+                }
             }
-            // 初始化和标签数相关的量
+            // 初始化和固定标签相关的量
+            for(id in beaconIdList) {
+                devices[id] = Device(id)
+                engines[id] = Parse(id, 0x03.toByte()).engine()
+            }
+            // 初始化和移动标签数相关的量
             rawDistances = IntArray(beaconIdList.size) { -1 }
             dataLoggers = Array(hedgeIdList.size) { SimpleLogger("data_log_${hedgeIdList[it]}") }
+            for(id in hedgeIdList) {
+                devices[id] = Device(id)
+                engines[id] = Parse(id, 0x03.toByte()).engine()
+            }
 
             var tempClock = 0L
             var stateClock = 0L
-            var stateCnt = beaconIdList.size
+            val beaconNum = devices.size
+            var stateCnt = beaconNum
+            val idList = beaconIdList + hedgeIdList
             while (true) {
                 // 设置温度
-                if (temperature > DEFAULT_VAL && (System.currentTimeMillis() - tempClock) >= tempInterval) {
-                    tempClock = System.currentTimeMillis()
-                    request(modemPort, CMD_CONFIG, buffer)
+                if (needModem) {
+                    if (temperature > DEFAULT_VAL && (System.currentTimeMillis() - tempClock) >= tempInterval) {
+                        tempClock = System.currentTimeMillis()
+                        request(modemPort!!, CMD_CONFIG, buffer)
+                    }
                 }
                 // 读取定位/质量/原始距离
                 position.setDefault()
@@ -136,8 +163,9 @@ internal class Marvelmind(
                     }
                 }
                 // 读取原始距离
-                if (position.positionCnt > 0) {
-                    request(modemPort, CMD_RAW_DIS, buffer)
+                if (needModem) {
+                    if (position.positionCnt > 0)
+                        request(modemPort!!, CMD_RAW_DIS, buffer)
                 }
                 // 数据记录
                 if (position.positionCnt > 0) {
@@ -155,25 +183,36 @@ internal class Marvelmind(
                     } else
                         log(logger, "unknown hedgehog ${position.address}", LogType.WritePrint)
                 }
-                // 读取电压
-                if (stateCnt < beaconIdList.size || (System.currentTimeMillis() - stateClock) >= stateInterval) {
-                    if (stateCnt >= beaconIdList.size) {
-                        stateCnt = 0
-                        stateClock = System.currentTimeMillis()
-                        for (dev in devices)
-                            dev.setDefault()
+                // 读取标签状态(电压/sleep)
+                if (needModem) {
+                    if (stateCnt < beaconNum || (System.currentTimeMillis() - stateClock) >= stateInterval) {
+                        if (stateCnt >= beaconNum) {
+                            stateCnt = 0
+                            stateClock = System.currentTimeMillis()
+                            for ((_, dev) in devices)
+                                dev.setDefault()
+                        }
+                        request(modemPort!!, devices[idList[stateCnt]]!!.cmd, buffer)
+                        if (devices[idList[stateCnt]]!!.voltage > -1)
+                            stateCnt++
                     }
-                    request(modemPort, devices[stateCnt].cmd, buffer)
-                    stateCnt++
-                }
-                if (stateCnt == beaconIdList.size) {
-                    val text = StringBuilder()
-                    for (dev in devices) {
-                        text.append(dev).append(", ")
+                    if (stateCnt == beaconNum) {
+                        val text = StringBuilder()
+                        for ((_, dev) in devices) {
+                            text.append(dev).append(", ")
+                        }
+                        text.trim { ch -> ch == ' ' || ch == ',' }
+                        log(deviceLogger, text.toString(), LogType.WritePrint)
+                        stateCnt++
+                        // 唤醒标签
+                        for ((_, dev) in devices) {
+                            if (dev.sleep) {
+                                modemPort!!.writeOrReboot(CommandWake(dev.id).data)
+                                log(logger, "wake beacon${dev.id}")
+                                delay(WRITE_DELAY)
+                            }
+                        }
                     }
-                    text.trim { ch -> ch == ' ' || ch == ',' }
-                    log(deviceLogger, text.toString(), LogType.WritePrint)
-                    stateCnt++
                 }
             }
         }.invokeOnCompletion {
@@ -243,7 +282,7 @@ internal class Marvelmind(
                 }
             }
             if (!equal)
-                return CommandWS(address, map.submaps[index]).data
+                return CommandSubmap(address, map.submaps[index]).data
         }
         return null
     }
@@ -257,7 +296,7 @@ internal class Marvelmind(
             val idRecv = data[4 * i]
             val idSend = data[4 * i + 1]
             if (beaconIdList.contains(idRecv) && idSend == position.address)
-                rawDistances[beaconIdList.indexOf(idRecv)] = shortLEOf(data[4 * i + 2], data[4 * i + 3]).toInt()
+                rawDistances[beaconIdList.indexOf(idRecv)] = shortLEOfU(data[4 * i + 2], data[4 * i + 3]).toInt()
             else if (idRecv == 0.toByte() && idSend == 0.toByte())
                 break
         }
@@ -267,7 +306,7 @@ internal class Marvelmind(
     private fun parseModem(port: SerialPort, cmd: Command, array: List<Byte>) {
         var engine = engineModem
         if (cmd.address != 0xFF.toByte())
-            engine = engines[beaconIdList.indexOf(cmd.address)]
+            engine = engines[cmd.address]!!
         engine(array) { pack ->
             when (pack) {
                 is DataPackage.Nothing -> logger?.log("nothing")
@@ -279,12 +318,13 @@ internal class Marvelmind(
                             ?.let { launch { port.writeOrReboot(it) } } // 写温度
                     else if (cmd.code == 0x4000.toShort())      // 原始距离
                         resolveRawDistances(pack.payload)
-                    else if (cmd.code == 0x0003.toShort())      // device
-                        if (beaconIdList.contains(cmd.address))
-                            devices[beaconIdList.indexOf(cmd.address)].parse(pack.payload)
-                        else if ((cmd.code.toInt() shr 8) == 0x60)  // submap
-                            makeSubmapCommand(pack.payload, (cmd.code.toInt() and 0xFF).toByte())
-                                ?.let { launch { port.writeOrReboot(it) } }
+                    else if (cmd.code == 0x0003.toShort()) {    // device
+                        if (beaconIdList.contains(cmd.address) || hedgeIdList.contains(cmd.address))
+                            devices[cmd.address]!!.parse(pack.payload)
+                    }
+                    else if ((cmd.code.toInt() shr 8) == 0x60)  // submap
+                        makeSubmapCommand(pack.payload, (cmd.code.toInt() and 0xFF).toByte())
+                            ?.let { launch { port.writeOrReboot(it) } }
                 }
             }
         }
@@ -347,6 +387,7 @@ internal class Marvelmind(
 
     // 写串口（失败重连机制）
     private suspend fun SerialPort.writeOrReboot(buffer: ByteArray) {
+        //println(buffer.joinToString(" "){Integer.toHexString(it.toInt()).takeLast(2)})
         while (true) {
             // 打开串口并写指令
             if (takeIf { this.isOpen || this.openPort() }?.writeBytes(buffer, buffer.size.toLong()) == buffer.size) {

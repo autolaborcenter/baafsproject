@@ -28,7 +28,8 @@ class MarvelmindBuilderDsl private constructor() {
     var delayLimit: Long = 400L     // 定位延时上限
     var heightRange: ClosedFloatingPointRange<Double> =
         Double.NEGATIVE_INFINITY..Double.POSITIVE_INFINITY  // z值允许的范围
-    var hedgeIdList: List<Byte> = arrayListOf(24)           // 移动标签id列表
+    var hedgeIdList: ByteArray = ByteArray(0)         // 移动标签id列表
+    var beaconIdList: ByteArray = ByteArray(0)        // 固定标签id列表
     var logger: SimpleLogger? = SimpleLogger("Marvelmind")  // 运行日志
     var needModem: Boolean = true   // 路由是否必需
     var needMap: Boolean = true     // 地图是否必需
@@ -55,23 +56,24 @@ class MarvelmindBuilderDsl private constructor() {
                 }
                 .run {
                     Marvelmind(
-                            scope = this@startMarvelmind,
-                            beaconOnMap = location,
-                            thermometer = thermometer,
-                            exceptions = exceptions,
-                            hedgePortName = hedgePortName,
-                            modemPortName = modemPortName,
-                            tempInterval = tempInterval,
-                            locationTimeout = locationTimeout,
-                            stateInterval = stateInterval,
-                            dataTimeout = dataTimeout,
-                            retryInterval = retryInterval,
-                            delayLimit = delayLimit,
-                            heightRange = heightRange,
-                            hedgeIdList = hedgeIdList,
-                            logger = logger,
-                            needModem = needModem,
-                            needMap = needMap)
+                        scope = this@startMarvelmind,
+                        beaconOnMap = location,
+                        thermometer = thermometer,
+                        exceptions = exceptions,
+                        hedgePortName = hedgePortName,
+                        modemPortName = modemPortName,
+                        tempInterval = tempInterval,
+                        locationTimeout = locationTimeout,
+                        stateInterval = stateInterval,
+                        dataTimeout = dataTimeout,
+                        retryInterval = retryInterval,
+                        delayLimit = delayLimit,
+                        heightRange = heightRange,
+                        hedgeIdList = hedgeIdList,
+                        beaconIdList = beaconIdList,
+                        logger = logger,
+                        needModem = needModem,
+                        needMap = needMap)
                 }
         }
     }
@@ -86,9 +88,11 @@ fun main() = runBlocking(Dispatchers.Default) {
     // val exceptionServer = startExceptionServer(exceptions) { }
     // startTemperX(thermometer, exceptions) { port = "COM28" }
     startMarvelmind(beaconOnMap, thermometer, exceptions) {
-        hedgePortName = "COM3"
-        modemPortName = "COM5"
-        hedgeIdList = arrayListOf(16)
+        hedgePortName = "COM25"
+        modemPortName = "COM3"
+        hedgeIdList = arrayListOf(16.toByte()).toByteArray()
+//        beaconIdList = arrayListOf(14.toByte(), 15.toByte()).toByteArray()
+//        needMap = false
     }
 }
 
