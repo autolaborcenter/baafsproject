@@ -14,7 +14,7 @@ import org.mechdancer.exceptions.ExceptionMessage
 @BuilderDslMarker
 class SerialPortMobileBeaconBuilderDsl private constructor() {
     // 指定串口名字
-    var port: String? = null
+    var portName: String? = null
     // 数据接收参数
     var dataTimeout: Long = 2000L
     // 数据过滤参数
@@ -44,7 +44,7 @@ class SerialPortMobileBeaconBuilderDsl private constructor() {
                 SerialPortMobilBeacon(
                         beaconOnMap = beaconOnMap,
                         exceptions = exceptions,
-                        portName = port,
+                        portName = portName,
                         dataTimeout = dataTimeout,
                         delayLimit = delayLimit,
                         heightRange = heightRange,

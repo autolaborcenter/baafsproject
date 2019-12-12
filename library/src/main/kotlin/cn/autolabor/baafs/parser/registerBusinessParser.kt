@@ -14,10 +14,7 @@ fun CoroutineScope.registerBusinessParser(
     business: Business,
     parser: Parser
 ) {
-    parser["cancel"] = {
-        runBlocking(coroutineContext) { business.cancel() }
-        "current mode: ${business.function?.toString() ?: "Idle"}"
-    }
+
     parser["record"] = {
         runBlocking(coroutineContext) { business.startRecording() }
         "current mode: ${business.function?.toString() ?: "Idle"}"

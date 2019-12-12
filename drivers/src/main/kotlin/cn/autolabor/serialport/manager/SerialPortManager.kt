@@ -87,11 +87,16 @@ class SerialPortManager(
             val activate = certificator.activeBytes
             writeBytes(activate, activate.size.toLong())
             while (true) {
-                val result =
-                    buffer
-                        .take(readBytes(buffer, buffer.size.toLong()))
-                        .let(certificator::invoke)
-                    ?: continue
+                val actual = readBytes(buffer, buffer.size.toLong())
+                if (actual < 0) {
+                    closePort()
+                    println(": failed")
+                    return false
+                }
+                val result = actual.takeIf { it > 0 }
+                                 ?.let(buffer::take)
+                                 ?.let(certificator::invoke)
+                             ?: continue
                 if (result) break
                 else {
                     closePort()

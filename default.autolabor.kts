@@ -19,7 +19,7 @@ import com.faselase.LidarSet
 import com.marvelmind.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
 import com.thermometer.SerialPortTemperXBuilderDsl.Companion.registerTemperX
 import com.thermometer.Temperature
-import com.usarthmi.usartHmi
+import com.usarthmi.UsartHmiBuilderDsl.Companion.registerUsartHmi
 import org.mechdancer.*
 import org.mechdancer.action.PathFollowerBuilderDsl.Companion.pathFollower
 import org.mechdancer.algebra.function.vector.*
@@ -70,7 +70,7 @@ val commandToSwitch = channel<ControlVariable>()
 // 连接串口外设
 val manager = SerialPortManager(exceptions)
 // 配置屏幕
-val hmi = manager.usartHmi("/dev/ttyUSB4", msgFromHmi)
+val hmi = manager.registerUsartHmi(msgFromHmi)
 // 配置温度计
 val temperX =
     manager.registerTemperX(
@@ -93,7 +93,7 @@ val beacon: MobileBeacon =
             beaconOnMap = beaconOnMap,
             exceptions = exceptions
     ) {
-        port = "/dev/beacon"
+        portName = "/dev/beacon"
         dataTimeout = 5000L
 
         delayLimit = 400L
@@ -142,6 +142,7 @@ sync@ while (true) {
 // 任务
 try {
     runBlocking(Dispatchers.Default) {
+        hmi.write("page main")
         (chassis as? SerialPortChassis)?.unLock()
         // 启动服务
         println("staring data process modules...")
@@ -286,7 +287,7 @@ try {
                     .let(::feedback)
                     .second
                     .toString()
-                    .let { hmi.write(it) }
+                    .let { hmi.write("log.txt=\"$it\"") }
         }
         // 刷新固定显示
         if (remote != null) {
