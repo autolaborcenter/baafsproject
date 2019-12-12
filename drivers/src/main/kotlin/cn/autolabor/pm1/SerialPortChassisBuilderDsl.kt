@@ -11,6 +11,8 @@ import org.mechdancer.geometry.angle.toRad
 
 @BuilderDslMarker
 class SerialPortChassisBuilderDsl private constructor() {
+    var portName: String? = null
+
     var wheelEncodersPulsesPerRound: Int = 4 * 400 * 20
     var rudderEncoderPulsesPerRound: Int = 16384
 
@@ -55,22 +57,24 @@ class SerialPortChassisBuilderDsl private constructor() {
                 }
                 .run {
                     SerialPortChassis(
-                            robotOnOdometry = robotOnOdometry,
+                        robotOnOdometry = robotOnOdometry,
 
-                            wheelEncodersPulsesPerRound = wheelEncodersPulsesPerRound,
-                            rudderEncoderPulsesPerRound = rudderEncoderPulsesPerRound,
+                        portName = portName,
 
-                            width = width,
-                            leftRadius = leftRadius,
-                            rightRadius = rightRadius,
-                            length = length,
+                        wheelEncodersPulsesPerRound = wheelEncodersPulsesPerRound,
+                        rudderEncoderPulsesPerRound = rudderEncoderPulsesPerRound,
 
-                            odometryInterval = odometryInterval,
-                            maxWheelSpeed = maxWheelSpeed,
-                            maxV = maxV,
-                            maxW = maxW,
-                            optimizeWidth = optimizeWidth,
-                            maxAccelerate = maxAccelerate)
+                        width = width,
+                        leftRadius = leftRadius,
+                        rightRadius = rightRadius,
+                        length = length,
+
+                        odometryInterval = odometryInterval,
+                        maxWheelSpeed = maxWheelSpeed,
+                        maxV = maxV,
+                        maxW = maxW,
+                        optimizeWidth = optimizeWidth,
+                        maxAccelerate = maxAccelerate)
                 }
                 .also(this::register)
     }

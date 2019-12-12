@@ -1,10 +1,7 @@
 package com.marvelmind
 
 import cn.autolabor.serialport.manager.Certificator
-import cn.autolabor.serialport.manager.OpenCondition.Certain
-import cn.autolabor.serialport.manager.OpenCondition.None
-import cn.autolabor.serialport.manager.SerialPortDevice
-import cn.autolabor.serialport.manager.durationFrom
+import cn.autolabor.serialport.manager.SerialPortDeviceBase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
@@ -39,7 +36,7 @@ internal constructor(
     heightRange: ClosedFloatingPointRange<Double>,
 
     private val logger: SimpleLogger?
-) : SerialPortDevice,
+) : SerialPortDeviceBase(NAME, 115200, 32, portName),
     MobileBeacon {
     // 协议解析引擎
     private val engine = engine()
@@ -49,11 +46,6 @@ internal constructor(
     // 数据过滤
     private val delayRange = 1..delayLimit
     private val zRange = (heightRange.start * 1000).roundToInt()..(heightRange.endInclusive * 1000).roundToInt()
-
-    override val tag = NAME
-    override val openCondition = portName?.let { Certain(it) } ?: None
-    override val baudRate = 115200
-    override val bufferSize = 32
 
     override var location = Stamped(0L, vector2DOfZero())
         private set
@@ -65,25 +57,19 @@ internal constructor(
         return memory != last
     }
 
-    override fun buildCertificator() =
-        object : Certificator {
+    override fun buildCertificator(): Certificator =
+        object : CertificatorBase(dataTimeout) {
             override val activeBytes = byteArrayOf()
-
-            private val t0 = System.currentTimeMillis()
             override fun invoke(bytes: Iterable<Byte>): Boolean? {
                 var result = false
                 engine(bytes) { pack ->
                     when (pack) {
                         is BeaconPackage.Nothing -> logger?.log("nothing")
                         is BeaconPackage.Failed  -> logger?.log("failed")
-                        is BeaconPackage.Data    -> result = result || parse(pack) != null
+                        is BeaconPackage.Data    -> result = parse(pack) != null || result
                     }
                 }
-                return when {
-                    result                         -> true
-                    durationFrom(t0) > dataTimeout -> false
-                    else                           -> null
-                }
+                return passOrTimeout(result)
             }
         }
 

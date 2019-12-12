@@ -6,8 +6,7 @@ import cn.autolabor.autocan.engine
 import cn.autolabor.pm1.model.*
 import cn.autolabor.pm1.model.ControlVariable.Physical
 import cn.autolabor.serialport.manager.Certificator
-import cn.autolabor.serialport.manager.OpenCondition
-import cn.autolabor.serialport.manager.SerialPortDevice
+import cn.autolabor.serialport.manager.SerialPortDeviceBase
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.Channel.Factory.UNLIMITED
@@ -33,6 +32,8 @@ import kotlin.math.max
 class SerialPortChassis internal constructor(
     private val robotOnOdometry: SendChannel<Stamped<Odometry>>,
 
+    portName: String?,
+
     wheelEncodersPulsesPerRound: Int,
     rudderEncoderPulsesPerRound: Int,
 
@@ -47,14 +48,8 @@ class SerialPortChassis internal constructor(
     maxW: Angle,
     optimizeWidth: Angle,
     maxAccelerate: Double
-) : Chassis<ControlVariable>,
-    SerialPortDevice {
-
-    override val tag = "PM1 chassis"
-    override val openCondition = OpenCondition.None
-    override val baudRate = 115200
-    override val bufferSize = 64
-
+) : SerialPortDeviceBase("PM1 chassis", 115200, 64, portName),
+    Chassis<ControlVariable> {
     // 解析引擎
     private val engine = engine()
     // 无状态计算模型
@@ -106,8 +101,8 @@ class SerialPortChassis internal constructor(
         externalCommands.send(releaseStop)
     }
 
-    override fun buildCertificator() =
-        object : Certificator {
+    override fun buildCertificator(): Certificator =
+        object : CertificatorBase(1000L) {
             override val activeBytes =
                 sequenceOf(CanNode.ECU().currentPositionTx,
                            CanNode.TCU(0).currentPositionTx,
@@ -118,7 +113,6 @@ class SerialPortChassis internal constructor(
                     .toList()
                     .toByteArray()
 
-            private val t0 = System.currentTimeMillis()
             private var left = false
             private var right = false
             private var rudder = false
@@ -151,11 +145,7 @@ class SerialPortChassis internal constructor(
                         }
                     }
                 }
-                return when {
-                    System.currentTimeMillis() - t0 > 1000L -> false
-                    left && right && rudder && battery      -> true
-                    else                                    -> null
-                }
+                return passOrTimeout(left && right && rudder && battery)
             }
         }
 
@@ -299,8 +289,8 @@ class SerialPortChassis internal constructor(
         ecuL.position = Stamped(t, l)
         ecuR.position = Stamped(t, r)
         val delta = structure.toDeltaOdometry(
-                (l.asRadian() - `ln-1`).toRad(),
-                (r.asRadian() - `rn-1`).toRad())
+            (l.asRadian() - `ln-1`).toRad(),
+            (r.asRadian() - `rn-1`).toRad())
         odometry = Stamped(t, odometry.data plusDelta delta)
     }
 

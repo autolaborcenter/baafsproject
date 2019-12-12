@@ -1,10 +1,7 @@
 package com.usarthmi
 
 import cn.autolabor.serialport.manager.Certificator
-import cn.autolabor.serialport.manager.OpenCondition.Certain
-import cn.autolabor.serialport.manager.OpenCondition.None
-import cn.autolabor.serialport.manager.SerialPortDevice
-import cn.autolabor.serialport.manager.durationFrom
+import cn.autolabor.serialport.manager.SerialPortDeviceBase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -14,12 +11,7 @@ import kotlinx.coroutines.launch
 class UsartHmi(
     portName: String?,
     private val msgFromHmi: SendChannel<String>
-) : SerialPortDevice {
-    override val tag = "usart hmi"
-    override val openCondition = portName?.let(::Certain) ?: None
-    override val baudRate = 9600
-    override val bufferSize = 64
-
+) : SerialPortDeviceBase("usart hmi", 9600, 32, portName) {
     private val engine = engine()
     private val output = Channel<String>()
 
@@ -39,19 +31,13 @@ class UsartHmi(
         const val 字库 = "等待连接记录保存运行取消正在空闲请移除障碍"
     }
 
-    override fun buildCertificator() =
-        object : Certificator {
+    override fun buildCertificator(): Certificator =
+        object : CertificatorBase(1000L) {
             override val activeBytes = byteArrayOf()
-
-            private val t0 = System.currentTimeMillis()
             override fun invoke(bytes: Iterable<Byte>): Boolean? {
                 var result = false
-                engine(bytes) { if (it == INIT) result = true }
-                return when {
-                    result                   -> true
-                    durationFrom(t0) > 1000L -> false
-                    else                     -> null
-                }
+                engine(bytes) { result = result || it == INIT }
+                return passOrTimeout(result)
             }
         }
 
@@ -68,7 +54,7 @@ class UsartHmi(
                     .let { toDevice.send(it) }
         }
         scope.launch {
-            for (bytes in fromDevice) {
+            for (bytes in fromDevice)
                 engine(bytes) {
                     when (it) {
                         HMIPackage.Nothing,
@@ -79,7 +65,6 @@ class UsartHmi(
                         BUTTON3           -> launch { msgFromHmi.send("load path\n'") }
                     }
                 }
-            }
         }
     }
 }

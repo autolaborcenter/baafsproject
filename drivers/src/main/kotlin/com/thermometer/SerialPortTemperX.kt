@@ -1,10 +1,7 @@
 package com.thermometer
 
 import cn.autolabor.serialport.manager.Certificator
-import cn.autolabor.serialport.manager.OpenCondition.Certain
-import cn.autolabor.serialport.manager.OpenCondition.None
-import cn.autolabor.serialport.manager.SerialPortDevice
-import cn.autolabor.serialport.manager.durationFrom
+import cn.autolabor.serialport.manager.SerialPortDeviceBase
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
@@ -26,7 +23,7 @@ internal constructor(
 
     private val period: Long,
     dataTimeout: Long
-) : SerialPortDevice {
+) : SerialPortDeviceBase(NAME, 9600, 32, portName) {
     // 协议解析引擎
     private val engine = engine()
     // 超时异常监控
@@ -36,12 +33,6 @@ internal constructor(
         WatchDog(timeout = dataTimeout)
         { exceptions.send(Occurred(dataTimeoutException)) }
 
-    override val tag get() = NAME
-
-    override val openCondition = portName?.let { Certain(it) } ?: None
-    override val baudRate = 9600
-    override val bufferSize = 64
-
     var logger: SimpleLogger? = null
 
     private companion object {
@@ -49,11 +40,10 @@ internal constructor(
         val ACTIVE_BYTES = "ReadTemp".toByteArray(Charsets.US_ASCII)
     }
 
-    override fun buildCertificator() =
-        object : Certificator {
+    override fun buildCertificator(): Certificator =
+        object : CertificatorBase(2000L) {
             override val activeBytes get() = ACTIVE_BYTES
 
-            private val t0 = System.currentTimeMillis()
             override fun invoke(bytes: Iterable<Byte>): Boolean? {
                 var result = false
                 engine(bytes) { pair ->
@@ -63,11 +53,7 @@ internal constructor(
                         GlobalScope.launch { temperatures.send(stamp(it)) }
                     }
                 }
-                return when {
-                    result                   -> true
-                    durationFrom(t0) > 2000L -> false
-                    else                     -> null
-                }
+                return passOrTimeout(result)
             }
         }
 

@@ -1,10 +1,7 @@
 package com.faselase
 
 import cn.autolabor.serialport.manager.Certificator
-import cn.autolabor.serialport.manager.OpenCondition.Certain
-import cn.autolabor.serialport.manager.OpenCondition.None
-import cn.autolabor.serialport.manager.SerialPortDevice
-import cn.autolabor.serialport.manager.durationFrom
+import cn.autolabor.serialport.manager.SerialPortDeviceBase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -26,18 +23,15 @@ internal class FaselaseLidar(
     private val exceptions: SendChannel<ExceptionMessage>,
 
     portName: String?,
-    override val tag: String,
+    tag: String,
 
     dataTimeout: Long
-) : SerialPortDevice {
-    override val openCondition = portName?.let(::Certain) ?: None
-    override val baudRate = 460800
-    override val bufferSize = 64
-
+) : SerialPortDeviceBase(tag, 460800, 64, portName) {
     // 解析
     private val engine = engine()
     // 缓存
     private val queue = PolarFrameCollectorQueue()
+
     // 访问
     val frame get() = queue.get()
 
@@ -46,21 +40,15 @@ internal class FaselaseLidar(
         WatchDog(GlobalScope, dataTimeout)
         { exceptions.send(Occurred(dataTimeoutException)) }
 
-    override fun buildCertificator(): Certificator? =
-        object : Certificator {
+    override fun buildCertificator(): Certificator =
+        object : CertificatorBase(5000L) {
             override val activeBytes get() = ACTIVE_BYTES
-
-            private val t0 = System.currentTimeMillis()
             override fun invoke(bytes: Iterable<Byte>): Boolean? {
                 var result = false
                 engine(bytes) { pack ->
-                    result = result || parse(pack)
+                    result = parse(pack) || result
                 }
-                return when {
-                    result                   -> true
-                    durationFrom(t0) > 5000L -> false
-                    else                     -> null
-                }
+                return passOrTimeout(result)
             }
         }
 
