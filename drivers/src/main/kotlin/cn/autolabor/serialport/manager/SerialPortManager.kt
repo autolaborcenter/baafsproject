@@ -5,10 +5,10 @@ import com.fazecast.jSerialComm.SerialPort
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.channel
+import org.mechdancer.exceptions.DeviceOfflineException
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
-import org.mechdancer.exceptions.device.DeviceOfflineException
 
 /** 串口管理器 */
 class SerialPortManager(

@@ -15,10 +15,10 @@ import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.common.Stamped
 import org.mechdancer.core.MobileBeacon
+import org.mechdancer.exceptions.DataTimeoutException
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
-import org.mechdancer.exceptions.device.DataTimeoutException
 import kotlin.math.roundToInt
 
 /**
@@ -42,7 +42,8 @@ internal constructor(
     // 协议解析引擎
     private val engine = engine()
     // 超时异常监控
-    private val dataTimeoutException = DataTimeoutException(NAME, dataTimeout)
+    private val dataTimeoutException =
+        DataTimeoutException(NAME, dataTimeout)
     private val dataWatchDog = WatchDog(timeout = dataTimeout) { exceptions.send(Occurred(dataTimeoutException)) }
     // 数据过滤
     private val delayRange = 1..delayLimit

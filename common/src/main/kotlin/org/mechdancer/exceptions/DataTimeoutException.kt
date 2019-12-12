@@ -1,6 +1,4 @@
-package org.mechdancer.exceptions.device
-
-import org.mechdancer.exceptions.RecoverableException
+package org.mechdancer.exceptions
 
 /** 数据超时异常 */
 class DataTimeoutException(val what: String, timeout: Long)

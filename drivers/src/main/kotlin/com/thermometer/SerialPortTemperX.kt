@@ -9,10 +9,10 @@ import org.mechdancer.SimpleLogger
 import org.mechdancer.WatchDog
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Stamped.Companion.stamp
+import org.mechdancer.exceptions.DataTimeoutException
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
-import org.mechdancer.exceptions.device.DataTimeoutException
 
 class SerialPortTemperX
 internal constructor(

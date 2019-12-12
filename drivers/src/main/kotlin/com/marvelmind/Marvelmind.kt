@@ -14,10 +14,10 @@ import org.mechdancer.algebra.function.vector.div
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.common.Stamped
+import org.mechdancer.exceptions.DataTimeoutException
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
-import org.mechdancer.exceptions.device.DataTimeoutException
 import java.util.concurrent.Executors
 import kotlin.math.roundToInt
 
@@ -69,7 +69,8 @@ internal class Marvelmind(
     // 原始距离
     private var rawDistances = IntArray(0)
     // 超时异常监控
-    private val dataTimeoutException = DataTimeoutException(NAME, dataTimeout)
+    private val dataTimeoutException =
+        DataTimeoutException(NAME, dataTimeout)
     private val dataWatchDog = WatchDog(timeout = dataTimeout) { exceptions.send(Occurred(dataTimeoutException)) }
     // 数据过滤
     private val delayRange = 1..delayLimit

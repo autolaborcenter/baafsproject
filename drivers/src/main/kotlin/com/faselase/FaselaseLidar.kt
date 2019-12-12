@@ -10,10 +10,10 @@ import kotlinx.coroutines.launch
 import org.mechdancer.WatchDog
 import org.mechdancer.common.Polar
 import org.mechdancer.common.Stamped
+import org.mechdancer.exceptions.DataTimeoutException
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
-import org.mechdancer.exceptions.device.DataTimeoutException
 import kotlin.math.PI
 
 /**
@@ -35,7 +35,8 @@ internal class FaselaseLidar(
     // 访问
     val frame get() = queue.get()
 
-    private val dataTimeoutException = DataTimeoutException(this.tag, dataTimeout)
+    private val dataTimeoutException =
+        DataTimeoutException(this.tag, dataTimeout)
     private val dataWatchDog =
         WatchDog(GlobalScope, dataTimeout)
         { exceptions.send(Occurred(dataTimeoutException)) }
