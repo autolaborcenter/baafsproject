@@ -41,16 +41,14 @@ class TemperXBuilderDsl private constructor() {
                     require(dataTimeout > 0)
                 }
                 .run {
-                    TemperX(
-                        scope = this@startTemperX,
-                        thermometer = thermometer,
-                        exceptions = exceptions,
-                        portName = port,
-                        dataTimeout = dataTimeout,
-                        retryInterval = retryInterval,
-                        mainInterval = mainInterval,
-                        logger = logger
-                    )
+                    TemperX(scope = this@startTemperX,
+                            thermometer = thermometer,
+                            exceptions = exceptions,
+                            portName = port,
+                            dataTimeout = dataTimeout,
+                            retryInterval = retryInterval,
+                            mainInterval = mainInterval,
+                            logger = logger)
                 }
         }
     }
