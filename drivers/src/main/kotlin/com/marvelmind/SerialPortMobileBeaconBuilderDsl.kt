@@ -26,7 +26,6 @@ class SerialPortMobileBeaconBuilderDsl private constructor() {
 
     companion object {
         /**
-         * 在协程作用域上启动定位标签
          * @param beaconOnMap 输出标签在地图上的位置
          * @param exceptions 输出异常信息
          * @param block 配置参数

@@ -12,7 +12,7 @@ fun main() {
     val hmiMessages = channel<String>()
 
     val manager = SerialPortManager(exceptions)
-    val hmi = UsartHmi(portName = "COM3", msgFromHmi = hmiMessages)
+    val hmi = UsartHmi(portName = "COM4", msgFromHmi = hmiMessages)
     manager.register(hmi)
 
     while (manager.sync().isNotEmpty())

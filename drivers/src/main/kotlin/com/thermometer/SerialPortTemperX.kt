@@ -5,31 +5,49 @@ import cn.autolabor.serialport.manager.OpenCondition.Certain
 import cn.autolabor.serialport.manager.OpenCondition.None
 import cn.autolabor.serialport.manager.SerialPortDevice
 import cn.autolabor.serialport.manager.durationFrom
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import kotlin.math.max
+import org.mechdancer.SimpleLogger
+import org.mechdancer.WatchDog
+import org.mechdancer.common.Stamped
+import org.mechdancer.common.Stamped.Companion.stamp
+import org.mechdancer.exceptions.ExceptionMessage
+import org.mechdancer.exceptions.ExceptionMessage.Occurred
+import org.mechdancer.exceptions.ExceptionMessage.Recovered
+import org.mechdancer.exceptions.device.DataTimeoutException
 
 class SerialPortTemperX
 internal constructor(
-    portName: String?
-) : SerialPortDevice {
-    private val engine = engine()
+    private val temperatures: SendChannel<Stamped<Temperature>>,
+    private val exceptions: SendChannel<ExceptionMessage>,
 
-    override val tag = "temperx 232"
+    portName: String?,
+
+    private val period: Long,
+    dataTimeout: Long
+) : SerialPortDevice {
+    // 协议解析引擎
+    private val engine = engine()
+    // 超时异常监控
+    private val dataTimeoutException =
+        DataTimeoutException(NAME, dataTimeout)
+    private val dataWatchDog =
+        WatchDog(timeout = dataTimeout)
+        { exceptions.send(Occurred(dataTimeoutException)) }
+
+    override val tag get() = NAME
 
     override val openCondition = portName?.let { Certain(it) } ?: None
     override val baudRate = 9600
     override val bufferSize = 64
 
+    var logger: SimpleLogger? = null
+
     private companion object {
+        const val NAME = "temperx 232"
         val ACTIVE_BYTES = "ReadTemp".toByteArray(Charsets.US_ASCII)
     }
-
-    private var lastReceive = 0L
 
     override fun buildCertificator() =
         object : Certificator {
@@ -39,9 +57,10 @@ internal constructor(
             override fun invoke(bytes: Iterable<Byte>): Boolean? {
                 var result = false
                 engine(bytes) { pair ->
-                    if (pair != null) {
-                        lastReceive = System.currentTimeMillis()
+                    pair?.also {
                         result = true
+                        dataWatchDog.feed()
+                        GlobalScope.launch { temperatures.send(stamp(it)) }
                     }
                 }
                 return when {
@@ -59,17 +78,20 @@ internal constructor(
     ) {
         scope.launch {
             while (isActive) {
-                delay(max(1L, lastReceive + 2000L - System.currentTimeMillis()))
+                delay(period)
                 toDevice.send(ACTIVE_BYTES.asList())
-                delay(100L)
             }
         }
         scope.launch {
             for (bytes in fromDevice)
                 engine(bytes) { pair ->
-                    if (pair != null) {
-                        lastReceive = System.currentTimeMillis()
-                        println(pair)
+                    pair?.also {
+                        scope.launch {
+                            temperatures.send(stamp(it))
+                            exceptions.send(Recovered(dataTimeoutException))
+                        }
+                        dataWatchDog.feed()
+                        logger?.log(pair)
                     }
                 }
         }

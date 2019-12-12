@@ -9,6 +9,8 @@ import cn.autolabor.serialport.manager.Certificator
 import cn.autolabor.serialport.manager.OpenCondition
 import cn.autolabor.serialport.manager.SerialPortDevice
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.Channel.Factory.UNLIMITED
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.ClampMatcher
@@ -73,8 +75,12 @@ class SerialPortChassis internal constructor(
     private val controlWatchDog =
         WatchDog(GlobalScope, 10 * odometryInterval)
         { enabled = false }
-    private var lastPhysical = Physical.static
+    private var lastPhysical =
+        Physical.static
+    private var externalCommands =
+        Channel<ByteArray>(UNLIMITED)
 
+    /** 驱动使能 */
     var enabled = false
         set(value) {
             if (!value) lastPhysical = lastPhysical.copy(speed = .0)
@@ -95,6 +101,10 @@ class SerialPortChassis internal constructor(
     // 轨迹预测
     override fun predict(target: ControlVariable) =
         predictor.predict(target, lastPhysical)
+
+    suspend fun unLock() {
+        externalCommands.send(releaseStop)
+    }
 
     override fun buildCertificator() =
         object : Certificator {
@@ -177,6 +187,10 @@ class SerialPortChassis internal constructor(
                     .also { toDevice.send(it) }
                 delay(max(1, flags.min()!! - now + 1))
             }
+        }
+        scope.launch {
+            for (pack in externalCommands)
+                toDevice.send(pack.asList())
         }
         scope.launch {
             val serial = mutableListOf<Byte>()
@@ -285,12 +299,14 @@ class SerialPortChassis internal constructor(
         ecuL.position = Stamped(t, l)
         ecuR.position = Stamped(t, r)
         val delta = structure.toDeltaOdometry(
-            (l.asRadian() - `ln-1`).toRad(),
-            (r.asRadian() - `rn-1`).toRad())
+                (l.asRadian() - `ln-1`).toRad(),
+                (r.asRadian() - `rn-1`).toRad())
         odometry = Stamped(t, odometry.data plusDelta delta)
     }
 
     private companion object {
+        val releaseStop = CanNode.EveryNode.releaseStop.pack(data = byteArrayOf(0xff.toByte()))
+
         fun PM1Pack.WithData.getState() =
             when (data[0]) {
                 0x01.toByte() -> CanNode.State.Normal

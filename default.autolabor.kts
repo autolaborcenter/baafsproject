@@ -10,14 +10,16 @@ import cn.autolabor.baafs.parser.registerBusinessParser
 import cn.autolabor.baafs.parser.registerExceptionServerParser
 import cn.autolabor.baafs.parser.registerParticleFilterParser
 import cn.autolabor.locator.LocationFusionModuleBuilderDsl.Companion.startLocationFusion
+import cn.autolabor.pm1.SerialPortChassis
 import cn.autolabor.pm1.SerialPortChassisBuilderDsl.Companion.registerPM1Chassis
 import cn.autolabor.pm1.model.ControlVariable
 import cn.autolabor.serialport.manager.SerialPortManager
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.registerFaselaseLidarSet
 import com.faselase.LidarSet
 import com.marvelmind.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
+import com.thermometer.SerialPortTemperXBuilderDsl.Companion.registerTemperX
+import com.thermometer.Temperature
 import com.usarthmi.usartHmi
-import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.action.PathFollowerBuilderDsl.Companion.pathFollower
 import org.mechdancer.algebra.function.vector.*
@@ -56,16 +58,27 @@ val remote: RemoteHub? =
         }
 // 话题
 val exceptions = channel<ExceptionMessage>()
+
 val msgFromHmi = channel<String>()
 val robotOnOdometry = YChannel<Stamped<Odometry>>()
 val robotOnMap = channel<Stamped<Odometry>>()
 val beaconOnMap = channel<Stamped<Vector2D>>()
+val temperatures = channel<Stamped<Temperature>>()
+
 val globalOnRobot = channel<LocalPath>()
 val commandToSwitch = channel<ControlVariable>()
 // 连接串口外设
 val manager = SerialPortManager(exceptions)
 // 配置屏幕
 val hmi = manager.usartHmi("/dev/ttyUSB4", msgFromHmi)
+// 配置温度计
+val temperX =
+    manager.registerTemperX(
+            temperatures = temperatures,
+            exceptions = exceptions
+    ) {
+        period = 1000L
+    }
 // 配置底盘
 val chassis: Chassis<ControlVariable> =
     manager.registerPM1Chassis(
@@ -107,6 +120,7 @@ val lidarSet: LidarSet =
             p euclid wonder > .05 && p !in outlineFilter
         }
     }
+// 配置温度计
 // 连接串口设备
 sync@ while (true) {
     val remain = manager.sync()
@@ -128,6 +142,7 @@ sync@ while (true) {
 // 任务
 try {
     runBlocking(Dispatchers.Default) {
+        (chassis as? SerialPortChassis)?.unLock()
         // 启动服务
         println("staring data process modules...")
         // 启动异常服务器

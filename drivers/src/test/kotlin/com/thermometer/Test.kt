@@ -1,8 +1,10 @@
 package com.thermometer
 
 import cn.autolabor.serialport.manager.SerialPortManager
+import com.thermometer.SerialPortTemperXBuilderDsl.Companion.registerTemperX
 import kotlinx.coroutines.ObsoleteCoroutinesApi
-import org.mechdancer.algebra.implement.vector.Vector2D
+import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.runBlocking
 import org.mechdancer.channel
 import org.mechdancer.common.Stamped
 import org.mechdancer.exceptions.ExceptionMessage
@@ -11,14 +13,14 @@ import org.mechdancer.exceptions.ExceptionMessage
 @ObsoleteCoroutinesApi
 fun main() {
     // 话题
-    val beaconOnMap = channel<Stamped<Vector2D>>()
+    val temperatures = channel<Stamped<Temperature>>()
     val exceptions = channel<ExceptionMessage>()
     with(SerialPortManager(exceptions)) {
-        register(SerialPortTemperX(null))
+        registerTemperX(temperatures, exceptions)
         while (true) {
             println(sync().takeUnless(Collection<*>::isEmpty) ?: break)
             Thread.sleep(100L)
         }
     }
-    Thread.sleep(10_000)
+    runBlocking { temperatures.consumeEach(::println) }
 }
