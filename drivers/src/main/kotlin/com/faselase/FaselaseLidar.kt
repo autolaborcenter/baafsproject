@@ -40,14 +40,16 @@ internal class FaselaseLidar(
         WatchDog(GlobalScope, dataTimeout)
         { exceptions.send(Occurred(dataTimeoutException)) }
 
+    private companion object {
+        val ACTIVE_BYTES = "#SF 10\r\n".toByteArray(Charsets.US_ASCII)
+    }
+
     override fun buildCertificator(): Certificator =
         object : CertificatorBase(5000L) {
             override val activeBytes get() = ACTIVE_BYTES
             override fun invoke(bytes: Iterable<Byte>): Boolean? {
                 var result = false
-                engine(bytes) { pack ->
-                    result = parse(pack) || result
-                }
+                engine(bytes) { result = parse(it) || result }
                 return passOrTimeout(result)
             }
         }
@@ -90,8 +92,4 @@ internal class FaselaseLidar(
                 true
             }
         }
-
-    private companion object {
-        val ACTIVE_BYTES = "#SF 10\r\n".toByteArray(Charsets.US_ASCII)
-    }
 }

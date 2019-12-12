@@ -3,6 +3,7 @@ package com.marvelmind
 import cn.autolabor.serialport.manager.Certificator
 import cn.autolabor.serialport.manager.SerialPortDeviceBase
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
@@ -66,7 +67,7 @@ internal constructor(
                     when (pack) {
                         is BeaconPackage.Nothing -> logger?.log("nothing")
                         is BeaconPackage.Failed  -> logger?.log("failed")
-                        is BeaconPackage.Data    -> result = parse(pack) != null || result
+                        is BeaconPackage.Data    -> result = GlobalScope.parse(pack) || result
                     }
                 }
                 return passOrTimeout(result)
@@ -84,25 +85,19 @@ internal constructor(
                     when (pack) {
                         is BeaconPackage.Nothing -> logger?.log("nothing")
                         is BeaconPackage.Failed  -> logger?.log("failed")
-                        is BeaconPackage.Data    ->
-                            parse(pack)?.let {
-                                launch {
-                                    beaconOnMap.send(it)
-                                    exceptions.send(Recovered(dataTimeoutException))
-                                }
-                            }
+                        is BeaconPackage.Data    -> parse(pack)
                     }
                 }
         }
     }
 
-    private fun parse(
+    private fun CoroutineScope.parse(
         pack: BeaconPackage.Data
-    ): Stamped<Vector2D>? {
+    ): Boolean {
         val (code, payload) = pack
         return if (code != COORDINATE_CODE) {
             logger?.log("code = $code")
-            null
+            false
         } else {
             val now = System.currentTimeMillis()
             val value = ResolutionCoordinate(payload)
@@ -112,12 +107,16 @@ internal constructor(
             val delay = value.delay
             logger?.log("delay = $delay, x = ${x / 1000.0}, y = ${y / 1000.0}, z = ${z / 1000.0}")
             // 过滤
-            Unit.takeIf { delay in delayRange && z in zRange && notStatic(x, y, z) }
-                ?.let { Stamped(now - delay, vector2DOf(x, y) / 1000.0) }
-                ?.also {
-                    dataWatchDog.feed()
-                    location = it
+            if (delay in delayRange && z in zRange && notStatic(x, y, z)) {
+                location = Stamped(now - delay, vector2DOf(x, y) / 1000.0)
+                launch {
+                    beaconOnMap.send(location)
+                    exceptions.send(Recovered(dataTimeoutException))
                 }
+                dataWatchDog.feed()
+                true
+            } else
+                false
         }
     }
 

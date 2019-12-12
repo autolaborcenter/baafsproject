@@ -43,16 +43,9 @@ internal constructor(
     override fun buildCertificator(): Certificator =
         object : CertificatorBase(2000L) {
             override val activeBytes get() = ACTIVE_BYTES
-
             override fun invoke(bytes: Iterable<Byte>): Boolean? {
                 var result = false
-                engine(bytes) { pair ->
-                    pair?.also {
-                        result = true
-                        dataWatchDog.feed()
-                        GlobalScope.launch { temperatures.send(stamp(it)) }
-                    }
-                }
+                engine(bytes) { result = GlobalScope.parse(it) || result }
                 return passOrTimeout(result)
             }
         }
@@ -70,16 +63,19 @@ internal constructor(
         }
         scope.launch {
             for (bytes in fromDevice)
-                engine(bytes) { pair ->
-                    pair?.also {
-                        scope.launch {
-                            temperatures.send(stamp(it))
-                            exceptions.send(Recovered(dataTimeoutException))
-                        }
-                        dataWatchDog.feed()
-                        logger?.log(pair)
-                    }
-                }
+                engine(bytes) { parse(it) }
         }
     }
+
+    private fun CoroutineScope.parse(
+        temperature: Temperature?
+    ): Boolean =
+        null != temperature?.also {
+            launch {
+                temperatures.send(stamp(temperature))
+                exceptions.send(Recovered(dataTimeoutException))
+            }
+            dataWatchDog.feed()
+            logger?.log(temperature)
+        }
 }
