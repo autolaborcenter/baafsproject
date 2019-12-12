@@ -48,7 +48,7 @@ internal class FaselaseLidar(
 
     override fun buildCertificator(): Certificator? =
         object : Certificator {
-            override val activeBytes = ACTIVE_BYTES
+            override val activeBytes get() = ACTIVE_BYTES
 
             private val t0 = System.currentTimeMillis()
             override fun invoke(bytes: Iterable<Byte>): Boolean? {

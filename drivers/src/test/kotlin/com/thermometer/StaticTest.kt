@@ -1,37 +1,24 @@
 package com.thermometer
 
-import com.thermometer.TemperXBuilderDsl.Companion.startTemperX
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import cn.autolabor.serialport.manager.SerialPortManager
+import kotlinx.coroutines.ObsoleteCoroutinesApi
+import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.channel
 import org.mechdancer.common.Stamped
 import org.mechdancer.exceptions.ExceptionMessage
 
 // 测试温湿度计，每秒读取一次
-fun main() = runBlocking<Unit>(Dispatchers.Default) {
+@ObsoleteCoroutinesApi
+fun main() {
     // 话题
+    val beaconOnMap = channel<Stamped<Vector2D>>()
     val exceptions = channel<ExceptionMessage>()
-    val thermometer = channel<Stamped<Pair<Double, Double>>>()
-    // 任务
-    startTemperX(
-        thermometer = thermometer,
-        exceptions = exceptions
-    ) {
-        port = "COM14"
-    }
-    var start = System.currentTimeMillis()
-    launch {
-        for ((stamp, p) in thermometer) {
-        println("dt = ${stamp - start}, temp = ${String.format("%.2f", p.first)} [C], humi = ${String.format("%.2f", p.second)} [%]")
-        start = stamp
-    }
-    }
-    launch {
-        for (e in exceptions) {
-            if (e is ExceptionMessage.Occurred) {
-                println(e.what)
-            }
+    with(SerialPortManager(exceptions)) {
+        register(SerialPortTemperX(null))
+        while (true) {
+            println(sync().takeUnless(Collection<*>::isEmpty) ?: break)
+            Thread.sleep(100L)
         }
     }
+    Thread.sleep(10_000)
 }
