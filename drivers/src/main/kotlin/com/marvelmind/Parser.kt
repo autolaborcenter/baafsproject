@@ -3,6 +3,7 @@ package com.marvelmind
 import cn.autolabor.serialport.parser.ParseEngine
 import cn.autolabor.serialport.parser.ParseEngine.ParseInfo
 import com.marvelmind.BeaconPackage.*
+import com.marvelmind.BeaconPackage.Nothing
 import com.marvelmind.BeaconPackage.RawDistance.Distance
 import java.io.ByteArrayInputStream
 
@@ -27,7 +28,7 @@ internal sealed class BeaconPackage {
         val pair: Short,
         val delay: Short
     ) : BeaconPackage() {
-        val available get() = flags % 2 == 1
+        val available get() = flags % 2 == 0
     }
 
     data class RawDistance(
@@ -62,7 +63,7 @@ internal fun engine(): ParseEngine<Byte, BeaconPackage> =
         } ?: return@ParseEngine ParseInfo(
             nextHead = (if (buffer.last() == DestinationAddress) size - 1 else size),
             nextBegin = size,
-            result = BeaconPackage.Nothing)
+            result = Nothing)
         // 确定帧长度
         val `package` =
             (begin + 7)
@@ -73,7 +74,7 @@ internal fun engine(): ParseEngine<Byte, BeaconPackage> =
             ?: return@ParseEngine ParseInfo(
                 nextHead = begin,
                 nextBegin = size,
-                result = BeaconPackage.Nothing)
+                result = Nothing)
         // crc 校验
         val result =
             if (crc16Check(`package`)) {
