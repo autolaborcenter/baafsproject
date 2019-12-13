@@ -2,42 +2,54 @@ package com.marvelmind
 
 import cn.autolabor.serialport.parser.ParseEngine
 import cn.autolabor.serialport.parser.ParseEngine.ParseInfo
+import com.marvelmind.BeaconPackage.*
+import com.marvelmind.BeaconPackage.RawDistance.Distance
 import java.io.ByteArrayInputStream
 
 private const val DestinationAddress = 0xff.toByte()
 private const val PacketType = 0x47.toByte()
 
-internal class ResolutionCoordinate(list: ByteArray) {
-    val timeStamp: Int
-    val x: Int
-    val y: Int
-    val z: Int
-    val flags: Byte
-    val address: Byte
-    val pair: Short
-    val delay: Short
-
-    init {
-        val stream = ByteArrayInputStream(list)
-
-        timeStamp = stream.readIntLE()
-        x = stream.readIntLE()
-        y = stream.readIntLE()
-        z = stream.readIntLE()
-        flags = stream.read().toByte()
-        address = stream.read().toByte()
-        pair = stream.readShortLE()
-        delay = stream.readShortLE()
-    }
-}
+private const val CODE_COORDINATE = 0x0011.toShort()
+private const val CODE_RAW_DISTANCE = 0x0004.toShort()
+private const val CODE_QUALITY = 0x0007.toShort()
 
 internal sealed class BeaconPackage {
     object Nothing : BeaconPackage()
     object Failed : BeaconPackage()
-    class Data(val code: Int, val payload: ByteArray) : BeaconPackage() {
-        operator fun component1() = code
-        operator fun component2() = payload
+
+    data class Coordinate(
+        val timeStamp: Int,
+        val x: Int,
+        val y: Int,
+        val z: Int,
+        val flags: Byte,
+        val address: Byte,
+        val pair: Short,
+        val delay: Short
+    ) : BeaconPackage() {
+        val available get() = flags % 2 == 1
     }
+
+    data class RawDistance(
+        val address: Byte,
+        val d0: Distance,
+        val d1: Distance,
+        val d2: Distance,
+        val d3: Distance,
+        val timeStamp: Int,
+        val delay: Short
+    ) : BeaconPackage() {
+        data class Distance(val address: Byte, val value: Int)
+    }
+
+    data class Quality(
+        val address: Byte,
+        val qualityPercent: Byte
+    ) : BeaconPackage()
+
+    data class Others(
+        val code: Short
+    ) : BeaconPackage()
 }
 
 /** MarvelMind 移动节点网络层解析器 */
@@ -48,9 +60,9 @@ internal fun engine(): ParseEngine<Byte, BeaconPackage> =
         var begin = (0 until size - 1).find { i ->
             buffer[i] == DestinationAddress && buffer[i + 1] == PacketType
         } ?: return@ParseEngine ParseInfo(
-                nextHead = (if (buffer.last() == DestinationAddress) size - 1 else size),
-                nextBegin = size,
-                result = BeaconPackage.Nothing)
+            nextHead = (if (buffer.last() == DestinationAddress) size - 1 else size),
+            nextBegin = size,
+            result = BeaconPackage.Nothing)
         // 确定帧长度
         val `package` =
             (begin + 7)
@@ -59,20 +71,59 @@ internal fun engine(): ParseEngine<Byte, BeaconPackage> =
                 ?.takeIf { it <= size }
                 ?.let { buffer.subList(begin, it) }
             ?: return@ParseEngine ParseInfo(
-                    nextHead = begin,
-                    nextBegin = size,
-                    result = BeaconPackage.Nothing)
+                nextHead = begin,
+                nextBegin = size,
+                result = BeaconPackage.Nothing)
         // crc 校验
         val result =
             if (crc16Check(`package`)) {
                 begin += `package`.size
-                BeaconPackage.Data(
-                        code = `package`[3].toIntUnsigned() * 256 + `package`[2].toIntUnsigned(),
-                        payload = `package`.subList(5, `package`.size - 2).toByteArray())
+                val stream = ByteArrayInputStream(`package`.toByteArray())
+                stream.readNBytes(2)
+                val code = stream.readShortLE()
+                stream.read()
+                val payload = stream.readNBytes(`package`.size - 7)
+                when (code) {
+                    CODE_COORDINATE   -> payload.toResolutionCoordinate()
+                    CODE_RAW_DISTANCE -> payload.toRawDistance()
+                    CODE_QUALITY      -> payload.toQuality()
+                    else              -> Others(code)
+                }
             } else {
                 begin += 2
-                BeaconPackage.Failed
+                Failed
             }
-        // 找到下一个帧头
         return@ParseEngine ParseInfo(begin, begin, result)
+    }
+
+private fun ByteArray.toResolutionCoordinate() =
+    ByteArrayInputStream(this).use { stream ->
+        Coordinate(
+            timeStamp = stream.readIntLE(),
+            x = stream.readIntLE(),
+            y = stream.readIntLE(),
+            z = stream.readIntLE(),
+            flags = stream.read().toByte(),
+            address = stream.read().toByte(),
+            pair = stream.readShortLE(),
+            delay = stream.readShortLE())
+    }
+
+private fun ByteArray.toRawDistance() =
+    ByteArrayInputStream(this).use { stream ->
+        RawDistance(
+            address = stream.read().toByte(),
+            d0 = Distance(stream.read().toByte(), stream.readIntLE()),
+            d1 = Distance(stream.read().toByte(), stream.readIntLE()),
+            d2 = Distance(stream.read().toByte(), stream.readIntLE()),
+            d3 = Distance(stream.read().toByte(), stream.readIntLE()),
+            timeStamp = stream.readIntLE(),
+            delay = stream.readShortLE())
+    }
+
+private fun ByteArray.toQuality() =
+    ByteArrayInputStream(this).use { stream ->
+        Quality(
+            address = stream.read().toByte(),
+            qualityPercent = stream.read().toByte())
     }

@@ -14,7 +14,7 @@ object MarvelmindTest {
             baudRate = 115200
             timeoutMs = 1000
             bufferSize = 32
-            condition { it is BeaconPackage.Data && it.code == 0x11 }
+            condition { it is BeaconPackage.Others && it.code == 0x11 }
         }.descriptivePortName.let(::println)
     }
 }

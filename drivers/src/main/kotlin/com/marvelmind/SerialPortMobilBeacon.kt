@@ -2,8 +2,9 @@ package com.marvelmind
 
 import cn.autolabor.serialport.manager.Certificator
 import cn.autolabor.serialport.manager.SerialPortDeviceBase
+import com.marvelmind.BeaconPackage.*
+import com.marvelmind.BeaconPackage.Nothing
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
@@ -61,6 +62,10 @@ internal constructor(
         return memory != last
     }
 
+    private companion object {
+        const val NAME = "marvelmind mobile beacon"
+    }
+
     override fun buildCertificator(): Certificator =
         object : CertificatorBase(dataTimeout) {
             override val activeBytes = byteArrayOf()
@@ -68,9 +73,8 @@ internal constructor(
                 var result = false
                 engine(bytes) { pack ->
                     when (pack) {
-                        is BeaconPackage.Nothing -> logger?.log("nothing")
-                        is BeaconPackage.Failed  -> logger?.log("failed")
-                        is BeaconPackage.Data    -> result = GlobalScope.parse(pack) || result
+                        Nothing, Failed, is Others -> Unit
+                        is Coordinate              -> result = true
                     }
                 }
                 return passOrTimeout(result)
@@ -86,46 +90,42 @@ internal constructor(
             for (bytes in fromDevice)
                 engine(bytes) { pack ->
                     when (pack) {
-                        is BeaconPackage.Nothing -> logger?.log("nothing")
-                        is BeaconPackage.Failed  -> logger?.log("failed")
-                        is BeaconPackage.Data    -> parse(pack)
+                        is Nothing     -> logger?.log("nothing")
+                        is Failed      -> logger?.log("failed")
+                        is Others      -> logger?.log("code = ${pack.code}")
+                        is Coordinate  -> {
+                            val now = System.currentTimeMillis()
+                            val (_, x, y, z, _, _, _, delay) = pack
+                            // 过滤
+                            if (pack.available
+                                && delay in delayRange
+                                && z in zRange
+                                && notStatic(x, y, z)
+                            ) {
+                                location = Stamped(now - delay, vector2DOf(x, y) / 1000.0)
+                                launch {
+                                    beaconOnMap.send(location)
+                                    exceptions.send(Recovered(dataTimeoutException))
+                                }
+                                dataWatchDog.feed()
+                            }
+                            // 日志
+                            logger?.log(buildString {
+                                append("available = ${pack.available}")
+                                append("delay = $delay, ")
+                                append("x = ${x / 1000.0}, ")
+                                append("y = ${y / 1000.0}, ")
+                                append("z = ${z / 1000.0}")
+                            })
+                        }
+                        is RawDistance -> {
+
+                        }
+                        is Quality     -> {
+
+                        }
                     }
                 }
         }
-    }
-
-    private fun CoroutineScope.parse(
-        pack: BeaconPackage.Data
-    ): Boolean {
-        val (code, payload) = pack
-        return if (code != COORDINATE_CODE) {
-            logger?.log("code = $code")
-            false
-        } else {
-            val now = System.currentTimeMillis()
-            val value = ResolutionCoordinate(payload)
-            val x = value.x
-            val y = value.y
-            val z = value.z
-            val delay = value.delay
-            logger?.log("delay = $delay, x = ${x / 1000.0}, y = ${y / 1000.0}, z = ${z / 1000.0}")
-            // 过滤
-            if (delay in delayRange && z in zRange && notStatic(x, y, z)) {
-                location = Stamped(now - delay, vector2DOf(x, y) / 1000.0)
-                launch {
-                    beaconOnMap.send(location)
-                    exceptions.send(Recovered(dataTimeoutException))
-                }
-                dataWatchDog.feed()
-                true
-            } else
-                false
-        }
-    }
-
-    // 常量参数
-    private companion object {
-        const val NAME = "marvelmind mobile beacon"
-        const val COORDINATE_CODE = 0x11
     }
 }
