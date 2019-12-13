@@ -2,6 +2,8 @@ package org.mechdancer.vectorgrid
 
 import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.function.vector.div
+import org.mechdancer.algebra.function.vector.plus
+import org.mechdancer.algebra.implement.vector.listVectorOfZero
 
 class VectorGird<T : Vector>(
     private val blockSize: T,
@@ -23,6 +25,20 @@ class VectorGird<T : Vector>(
         regionMap.regions
             .mapNotNull { region ->
                 region.takeIf(block)?.flatMap(grids::getValue)
+            }
+
+    /** 对满足条件的类按格求均值 */
+    fun getSamplePoints(block: (Set<IndexN>) -> Boolean) =
+        regionMap.regions
+            .mapNotNull { region ->
+                region
+                    .takeUnless(Collection<*>::isEmpty)
+                    ?.takeIf(block)
+                    ?.map(grids::getValue)
+                    ?.map { set ->
+                        set.fold(listVectorOfZero(blockSize.dim))
+                        { sum, it -> sum + it } / set.size
+                    }
             }
 
     /** 区域正反映射 */

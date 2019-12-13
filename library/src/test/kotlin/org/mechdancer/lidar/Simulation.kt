@@ -15,6 +15,7 @@ import com.faselase.LidarSet
 import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.action.PathFollowerBuilderDsl.Companion.pathFollower
+import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.function.vector.normalize
 import org.mechdancer.algebra.function.vector.times
@@ -81,7 +82,7 @@ fun main() {
     val globalOnRobot = channel<LocalPath>()
     val exceptions = channel<ExceptionMessage>()
     val command = AtomicReference(Velocity.velocity(.0, .0))
-    runBlocking(Dispatchers.Default) {
+    runBlocking(Dispatchers.IO) {
         val exceptionServer =
             startExceptionServer(exceptions) {
                 exceptionOccur { command.set(Velocity.velocity(.0, .0)) }
@@ -118,13 +119,18 @@ fun main() {
                 }
 
                 obstacles {
-                    obstacleFrame =
+                    val frame =
                         lidarSet.frame
+                    val contourFrame =
+                        frame
                             .takeUnless(Collection<*>::isEmpty)
                             ?.let { VectorGird(vector2DOf(.05, .05), it) }
-                            ?.getPoints { it.size > 2 }
+                            ?.getSamplePoints { it.size > 2 }
                             ?.flatten()
+                            ?.map(Vector::to2D)
                         ?: emptyList()
+
+                    obstacleFrame = contourFrame
                     remote.paintVectors("R 聚类", obstacleFrame)
                     obstacleFrame
                 }
@@ -218,11 +224,16 @@ fun main() {
                 while (System.currentTimeMillis() - invokeTime > 2000L) {
                     val frame = lidarSet.frame
                     remote.paintVectors("R 雷达", frame)
-                    if (frame.isNotEmpty()) {
-                        val valid = VectorGird(vector2DOf(.05, .05), frame).getPoints { it.size > 2 }
-                        remote.paintVectors("R 聚类", valid.flatten())
-                    }
-                    delay(100L)
+                    val contourFrame =
+                        frame
+                            .takeUnless(Collection<*>::isEmpty)
+                            ?.let { VectorGird(vector2DOf(.05, .05), it) }
+                            ?.getSamplePoints { it.size > 2 }
+                            ?.flatten()
+                            ?.map(Vector::to2D)
+                        ?: emptyList()
+                    remote.paintVectors("R 聚类", contourFrame)
+                    delay(200L)
                 }
                 delay(5000L)
             }

@@ -11,10 +11,32 @@ internal class MobileBeaconDataCollector {
     private var quality: Stamped<Quality>? = null
 
     @Synchronized
-    fun updateCoordinate(coordinate: Stamped<Coordinate>): MobileBeaconData? {
-        this.coordinate = coordinate
-        return collect()
-    }
+    fun updateCoordinate(coordinate: Stamped<Coordinate>) =
+        when (val last = this.coordinate) {
+            null -> {
+                this.coordinate = coordinate
+                collect()
+            }
+            else -> {
+                val a = last.data
+                val b = rawDistance?.takeIf { it > last }?.data
+                val c = quality?.takeIf { it > last }?.data
+                this.coordinate = coordinate
+                rawDistance = null
+                quality = null
+                MobileBeaconData(
+                    address = a.address,
+                    coordinate = vector3DOf(a.x / 1000.0, a.y / 1000.0, a.x / 1000.0),
+                    available = a.available,
+                    quality = c?.qualityPercent,
+                    rawDistance = b?.let {
+                        mapOf(it.d0.toPair(),
+                              it.d1.toPair(),
+                              it.d2.toPair(),
+                              it.d3.toPair())
+                    })
+            }
+        }
 
     @Synchronized
     fun updateRawDistance(rawDistance: Stamped<RawDistance>): MobileBeaconData? {
@@ -28,7 +50,6 @@ internal class MobileBeaconDataCollector {
         return collect()
     }
 
-    @Synchronized
     private fun collect(): MobileBeaconData? {
         val (ta, a) = coordinate ?: return null
         val (tb, b) = rawDistance ?: return null
@@ -38,14 +59,14 @@ internal class MobileBeaconDataCollector {
             rawDistance = null
             quality = null
             return MobileBeaconData(
+                address = a.address,
                 coordinate = vector3DOf(a.x / 1000.0, a.y / 1000.0, a.x / 1000.0),
                 available = a.available,
                 quality = c.qualityPercent,
                 rawDistance = mapOf(b.d0.toPair(),
                                     b.d1.toPair(),
                                     b.d2.toPair(),
-                                    b.d3.toPair())
-            )
+                                    b.d3.toPair()))
         }
         return null
     }
