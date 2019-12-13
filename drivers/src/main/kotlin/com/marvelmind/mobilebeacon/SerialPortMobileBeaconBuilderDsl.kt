@@ -2,7 +2,6 @@ package com.marvelmind.mobilebeacon
 
 import cn.autolabor.serialport.manager.SerialPortManager
 import kotlinx.coroutines.channels.SendChannel
-import org.mechdancer.SimpleLogger
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.annotations.BuilderDslMarker
 import org.mechdancer.common.Stamped
@@ -21,8 +20,6 @@ class SerialPortMobileBeaconBuilderDsl private constructor() {
     var delayLimit: Long = 400L
     var heightRange: ClosedFloatingPointRange<Double> =
         Double.NEGATIVE_INFINITY..Double.POSITIVE_INFINITY
-    // 调试参数
-    var logger: SimpleLogger? = SimpleLogger("MarvelmindMobileBeacon")
 
     companion object {
         /**
@@ -32,6 +29,7 @@ class SerialPortMobileBeaconBuilderDsl private constructor() {
          */
         fun SerialPortManager.registerMobileBeacon(
             beaconOnMap: SendChannel<Stamped<Vector2D>>,
+            beaconData: SendChannel<Stamped<MobileBeaconData>>,
             exceptions: SendChannel<ExceptionMessage>,
             block: SerialPortMobileBeaconBuilderDsl.() -> Unit = {}
         ) = SerialPortMobileBeaconBuilderDsl()
@@ -43,12 +41,12 @@ class SerialPortMobileBeaconBuilderDsl private constructor() {
             .run {
                 SerialPortMobilBeacon(
                     beaconOnMap = beaconOnMap,
+                    beaconData = beaconData,
                     exceptions = exceptions,
                     portName = portName,
                     dataTimeout = dataTimeout,
                     delayLimit = delayLimit,
-                    heightRange = heightRange,
-                    logger = logger)
+                    heightRange = heightRange)
             }
             .also(this::register)
     }

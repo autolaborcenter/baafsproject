@@ -1,6 +1,7 @@
 package com.marvelmind
 
 import cn.autolabor.serialport.manager.SerialPortManager
+import com.marvelmind.mobilebeacon.MobileBeaconData
 import com.marvelmind.mobilebeacon.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
 import kotlinx.coroutines.ObsoleteCoroutinesApi
 import kotlinx.coroutines.runBlocking
@@ -19,9 +20,10 @@ import kotlin.math.sqrt
 fun main() {
     // 话题
     val beaconOnMap = channel<Stamped<Vector2D>>()
+    val beaconData = channel<Stamped<MobileBeaconData>>()
     val exceptions = channel<ExceptionMessage>()
     with(SerialPortManager(exceptions)) {
-        registerMobileBeacon(beaconOnMap, exceptions)
+        registerMobileBeacon(beaconOnMap, beaconData, exceptions)
         while (sync().isNotEmpty())
             Thread.sleep(100L)
     }

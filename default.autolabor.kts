@@ -16,7 +16,8 @@ import cn.autolabor.pm1.model.ControlVariable
 import cn.autolabor.serialport.manager.SerialPortManager
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.registerFaselaseLidarSet
 import com.faselase.LidarSet
-import com.marvelmind.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
+import com.marvelmind.mobilebeacon.MobileBeaconData
+import com.marvelmind.mobilebeacon.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
 import com.thermometer.SerialPortTemperXBuilderDsl.Companion.registerTemperX
 import com.thermometer.Temperature
 import com.usarthmi.UsartHmiBuilderDsl.Companion.registerUsartHmi
@@ -62,7 +63,9 @@ val exceptions = channel<ExceptionMessage>()
 val msgFromHmi = channel<String>()
 val robotOnOdometry = YChannel<Stamped<Odometry>>()
 val robotOnMap = channel<Stamped<Odometry>>()
+
 val beaconOnMap = channel<Stamped<Vector2D>>()
+val beaconData = channel<Stamped<MobileBeaconData>>()
 val temperatures = channel<Stamped<Temperature>>()
 
 val globalOnRobot = channel<LocalPath>()
@@ -91,6 +94,7 @@ val chassis: Chassis<ControlVariable> =
 val beacon: MobileBeacon =
     manager.registerMobileBeacon(
         beaconOnMap = beaconOnMap,
+        beaconData = beaconData,
         exceptions = exceptions
     ) {
         portName = "/dev/beacon"

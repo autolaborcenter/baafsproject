@@ -2,7 +2,6 @@ package com.marvelmind.mobilebeacon
 
 import com.marvelmind.mobilebeacon.BeaconPackage.*
 import com.marvelmind.mobilebeacon.BeaconPackage.RawDistance.Distance
-import org.mechdancer.algebra.implement.vector.vector3DOf
 import org.mechdancer.common.Stamped
 
 internal class MobileBeaconDataCollector {
@@ -18,39 +17,39 @@ internal class MobileBeaconDataCollector {
                 collect()
             }
             else -> {
-                val a = last.data
+                val (t, a) = last
                 val b = rawDistance?.takeIf { it > last }?.data
                 val c = quality?.takeIf { it > last }?.data
                 this.coordinate = coordinate
                 rawDistance = null
                 quality = null
-                MobileBeaconData(
+                Stamped(t, MobileBeaconData(
                     address = a.address,
-                    coordinate = vector3DOf(a.x / 1000.0, a.y / 1000.0, a.x / 1000.0),
+                    x = a.x,
+                    y = a.y,
+                    z = a.z,
                     available = a.available,
                     quality = c?.qualityPercent,
-                    rawDistance = b?.let {
-                        mapOf(it.d0.toPair(),
-                              it.d1.toPair(),
-                              it.d2.toPair(),
-                              it.d3.toPair())
-                    })
+                    rawDistance = b?.toMap())
+                )
             }
         }
 
     @Synchronized
-    fun updateRawDistance(rawDistance: Stamped<RawDistance>): MobileBeaconData? {
+    fun updateRawDistance(rawDistance: Stamped<RawDistance>)
+        : Stamped<MobileBeaconData>? {
         this.rawDistance = rawDistance
         return collect()
     }
 
     @Synchronized
-    fun updateQuality(quality: Stamped<Quality>): MobileBeaconData? {
+    fun updateQuality(quality: Stamped<Quality>)
+        : Stamped<MobileBeaconData>? {
         this.quality = quality
         return collect()
     }
 
-    private fun collect(): MobileBeaconData? {
+    private fun collect(): Stamped<MobileBeaconData>? {
         val (ta, a) = coordinate ?: return null
         val (tb, b) = rawDistance ?: return null
         val (tc, c) = quality ?: return null
@@ -58,20 +57,23 @@ internal class MobileBeaconDataCollector {
             coordinate = null
             rawDistance = null
             quality = null
-            return MobileBeaconData(
+            return Stamped(ta, MobileBeaconData(
                 address = a.address,
-                coordinate = vector3DOf(a.x / 1000.0, a.y / 1000.0, a.x / 1000.0),
+                x = a.x,
+                y = a.y,
+                z = a.z,
                 available = a.available,
                 quality = c.qualityPercent,
-                rawDistance = mapOf(b.d0.toPair(),
-                                    b.d1.toPair(),
-                                    b.d2.toPair(),
-                                    b.d3.toPair()))
+                rawDistance = b.toMap()))
         }
         return null
     }
 
     private companion object {
-        fun Distance.toPair() = let { (address, value) -> address to value / 1000.0 }
+        fun Distance.toPair() =
+            let { (address, value) -> address to value }
+
+        fun RawDistance.toMap() =
+            mapOf(d0.toPair(), d1.toPair(), d2.toPair(), d3.toPair())
     }
 }

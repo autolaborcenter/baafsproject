@@ -8,7 +8,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
-import org.mechdancer.SimpleLogger
 import org.mechdancer.WatchDog
 import org.mechdancer.algebra.function.vector.div
 import org.mechdancer.algebra.implement.vector.Vector2D
@@ -28,6 +27,7 @@ import kotlin.math.roundToInt
 class SerialPortMobilBeacon
 internal constructor(
     private val beaconOnMap: SendChannel<Stamped<Vector2D>>,
+    private val beaconData: SendChannel<Stamped<MobileBeaconData>>,
     private val exceptions: SendChannel<ExceptionMessage>,
 
     portName: String?,
@@ -35,9 +35,7 @@ internal constructor(
     private val dataTimeout: Long,
 
     delayLimit: Long,
-    heightRange: ClosedFloatingPointRange<Double>,
-
-    private val logger: SimpleLogger?
+    heightRange: ClosedFloatingPointRange<Double>
 ) : SerialPortDeviceBase(NAME, 115200, 32, portName),
     MobileBeacon {
     // 协议解析引擎
@@ -93,10 +91,8 @@ internal constructor(
                 val now = System.currentTimeMillis()
                 engine(bytes) { pack ->
                     when (pack) {
-                        is Nothing     -> logger?.log("nothing")
-                        is Failed      -> logger?.log("failed")
-                        is Others      -> logger?.log("code = ${pack.code}")
-                        is Coordinate  -> {
+                        Nothing, Failed, is Others -> Unit
+                        is Coordinate              -> {
                             val (_, x, y, z, _, _, _, delay) = pack
                             // 过滤
                             if (pack.available
@@ -111,22 +107,17 @@ internal constructor(
                                 }
                                 dataWatchDog.feed()
                             }
-                            // 日志
-                            logger?.log(buildString {
-                                append("available = ${pack.available}")
-                                append("delay = $delay, ")
-                                append("x = ${x / 1000.0}, ")
-                                append("y = ${y / 1000.0}, ")
-                                append("z = ${z / 1000.0}")
-                            })
-                            collector.updateCoordinate(Stamped(now, pack))
+                            // 发送
+                            if (delay in delayRange)
+                                collector.updateCoordinate(Stamped(now, pack))
+                                    ?.let { launch { beaconData.send(it) } }
                         }
-                        is RawDistance -> {
+                        is RawDistance             ->
                             collector.updateRawDistance(Stamped(now, pack))
-                        }
-                        is Quality     -> {
+                                ?.let { launch { beaconData.send(it) } }
+                        is Quality                 ->
                             collector.updateQuality(Stamped(now, pack))
-                        }
+                                ?.let { launch { beaconData.send(it) } }
                     }
                 }
             }
