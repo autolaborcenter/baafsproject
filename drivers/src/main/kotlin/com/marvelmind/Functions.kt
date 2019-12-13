@@ -14,16 +14,22 @@ internal fun shortLEOf(b0: Byte, b1: Byte) =
 internal fun shortLEOfU(b0: Byte, b1: Byte) =
     shortLEOf(b0, b1).let { if (it >= 0) it.toInt() else it + 65536 }
 
-// 读取一个小端短整型
-internal fun InputStream.readShortLE(): Short {
+internal fun InputStream.readU8() = read()
+
+internal fun InputStream.readU16LE(): Int {
     val b1: Int = read()
     val b2: Int = read()
     if (b1 or b2 < 0) throw EOFException()
-    return ((b2 shl 8) or b1).toShort()
+    return (b2 shl 8) or b1
 }
 
-// 读取一个小端整型
-internal fun InputStream.readIntLE(): Int {
+internal fun InputStream.readU32LE() =
+    readI32LE().toLong() and 0xff_ff_ff_ff
+
+internal fun InputStream.readI16LE() =
+    readU16LE().toShort()
+
+internal fun InputStream.readI32LE(): Int {
     val b1: Int = read()
     val b2: Int = read()
     val b3: Int = read()
@@ -31,6 +37,9 @@ internal fun InputStream.readIntLE(): Int {
     if (b1 or b2 or b3 or b4 < 0) throw EOFException()
     return (b4 shl 24) or (b3 shl 16) or (b2 shl 8) or b1
 }
+
+internal fun InputStream.readShortLE() = readI16LE()
+internal fun InputStream.readIntLE() = readI32LE()
 
 internal fun OutputStream.writeLE(value: Short) {
     var java = value.toInt()

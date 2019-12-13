@@ -1,7 +1,7 @@
 package com.marvelmind
 
 import cn.autolabor.serialport.manager.SerialPortManager
-import com.marvelmind.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
+import com.marvelmind.mobilebeacon.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
 import kotlinx.coroutines.ObsoleteCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.algebra.implement.vector.Vector2D

@@ -16,7 +16,7 @@ import cn.autolabor.pm1.model.ControlVariable
 import cn.autolabor.serialport.manager.SerialPortManager
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.registerFaselaseLidarSet
 import com.faselase.LidarSet
-import com.marvelmind.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
+import com.marvelmind.mobilebeacon.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
 import com.thermometer.SerialPortTemperXBuilderDsl.Companion.registerTemperX
 import com.thermometer.Temperature
 import com.usarthmi.UsartHmiBuilderDsl.Companion.registerUsartHmi

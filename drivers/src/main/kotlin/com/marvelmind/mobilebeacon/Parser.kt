@@ -1,10 +1,14 @@
-package com.marvelmind
+package com.marvelmind.mobilebeacon
 
 import cn.autolabor.serialport.parser.ParseEngine
 import cn.autolabor.serialport.parser.ParseEngine.ParseInfo
-import com.marvelmind.BeaconPackage.*
-import com.marvelmind.BeaconPackage.Nothing
-import com.marvelmind.BeaconPackage.RawDistance.Distance
+import com.marvelmind.crc16Check
+import com.marvelmind.mobilebeacon.BeaconPackage.*
+import com.marvelmind.mobilebeacon.BeaconPackage.Nothing
+import com.marvelmind.mobilebeacon.BeaconPackage.RawDistance.Distance
+import com.marvelmind.readIntLE
+import com.marvelmind.readShortLE
+import com.marvelmind.toIntUnsigned
 import java.io.ByteArrayInputStream
 
 private const val DestinationAddress = 0xff.toByte()
@@ -98,33 +102,39 @@ internal fun engine(): ParseEngine<Byte, BeaconPackage> =
     }
 
 private fun ByteArray.toResolutionCoordinate() =
-    ByteArrayInputStream(this).use { stream ->
-        Coordinate(
-            timeStamp = stream.readIntLE(),
-            x = stream.readIntLE(),
-            y = stream.readIntLE(),
-            z = stream.readIntLE(),
-            flags = stream.read().toByte(),
-            address = stream.read().toByte(),
-            pair = stream.readShortLE(),
-            delay = stream.readShortLE())
-    }
+    ByteArrayInputStream(this).runCatching {
+        use { stream ->
+            Coordinate(
+                timeStamp = stream.readIntLE(),
+                x = stream.readIntLE(),
+                y = stream.readIntLE(),
+                z = stream.readIntLE(),
+                flags = stream.read().toByte(),
+                address = stream.read().toByte(),
+                pair = stream.readShortLE(),
+                delay = stream.readShortLE())
+        }
+    }.getOrDefault(Failed)
 
 private fun ByteArray.toRawDistance() =
-    ByteArrayInputStream(this).use { stream ->
-        RawDistance(
-            address = stream.read().toByte(),
-            d0 = Distance(stream.read().toByte(), stream.readIntLE()),
-            d1 = Distance(stream.read().toByte(), stream.readIntLE()),
-            d2 = Distance(stream.read().toByte(), stream.readIntLE()),
-            d3 = Distance(stream.read().toByte(), stream.readIntLE()),
-            timeStamp = stream.readIntLE(),
-            delay = stream.readShortLE())
-    }
+    ByteArrayInputStream(this).runCatching {
+        use { stream ->
+            RawDistance(
+                address = stream.read().toByte(),
+                d0 = Distance(stream.read().toByte(), stream.readIntLE()),
+                d1 = Distance(stream.read().toByte(), stream.readIntLE()),
+                d2 = Distance(stream.read().toByte(), stream.readIntLE()),
+                d3 = Distance(stream.read().toByte(), stream.readIntLE()),
+                timeStamp = stream.readIntLE(),
+                delay = stream.readShortLE())
+        }
+    }.getOrDefault(Failed)
 
 private fun ByteArray.toQuality() =
-    ByteArrayInputStream(this).use { stream ->
-        Quality(
-            address = stream.read().toByte(),
-            qualityPercent = stream.read().toByte())
-    }
+    ByteArrayInputStream(this).runCatching {
+        use { stream ->
+            Quality(
+                address = stream.read().toByte(),
+                qualityPercent = stream.read().toByte())
+        }
+    }.getOrDefault(Failed)

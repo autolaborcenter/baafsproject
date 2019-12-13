@@ -1,4 +1,4 @@
-package com.marvelmind
+package com.marvelmind.mobilebeacon
 
 import cn.autolabor.serialport.manager.SerialPortManager
 import kotlinx.coroutines.channels.SendChannel
@@ -42,13 +42,13 @@ class SerialPortMobileBeaconBuilderDsl private constructor() {
             }
             .run {
                 SerialPortMobilBeacon(
-                        beaconOnMap = beaconOnMap,
-                        exceptions = exceptions,
-                        portName = portName,
-                        dataTimeout = dataTimeout,
-                        delayLimit = delayLimit,
-                        heightRange = heightRange,
-                        logger = logger)
+                    beaconOnMap = beaconOnMap,
+                    exceptions = exceptions,
+                    portName = portName,
+                    dataTimeout = dataTimeout,
+                    delayLimit = delayLimit,
+                    heightRange = heightRange,
+                    logger = logger)
             }
             .also(this::register)
     }

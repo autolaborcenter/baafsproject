@@ -1,9 +1,9 @@
-package com.marvelmind
+package com.marvelmind.mobilebeacon
 
 import cn.autolabor.serialport.manager.Certificator
 import cn.autolabor.serialport.manager.SerialPortDeviceBase
-import com.marvelmind.BeaconPackage.*
-import com.marvelmind.BeaconPackage.Nothing
+import com.marvelmind.mobilebeacon.BeaconPackage.*
+import com.marvelmind.mobilebeacon.BeaconPackage.Nothing
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
@@ -55,6 +55,8 @@ internal constructor(
     override var location = Stamped(0L, vector2DOfZero())
         private set
 
+    private val collector = MobileBeaconDataCollector()
+
     private var memory = Triple(0, 0, 0)
     private fun notStatic(x: Int, y: Int, z: Int): Boolean {
         val last = memory
@@ -87,14 +89,14 @@ internal constructor(
         fromDevice: ReceiveChannel<List<Byte>>
     ) {
         scope.launch {
-            for (bytes in fromDevice)
+            for (bytes in fromDevice) {
+                val now = System.currentTimeMillis()
                 engine(bytes) { pack ->
                     when (pack) {
                         is Nothing     -> logger?.log("nothing")
                         is Failed      -> logger?.log("failed")
                         is Others      -> logger?.log("code = ${pack.code}")
                         is Coordinate  -> {
-                            val now = System.currentTimeMillis()
                             val (_, x, y, z, _, _, _, delay) = pack
                             // 过滤
                             if (pack.available
@@ -117,15 +119,17 @@ internal constructor(
                                 append("y = ${y / 1000.0}, ")
                                 append("z = ${z / 1000.0}")
                             })
+                            collector.updateCoordinate(Stamped(now, pack))
                         }
                         is RawDistance -> {
-
+                            collector.updateRawDistance(Stamped(now, pack))
                         }
                         is Quality     -> {
-
+                            collector.updateQuality(Stamped(now, pack))
                         }
                     }
                 }
+            }
         }
     }
 }
