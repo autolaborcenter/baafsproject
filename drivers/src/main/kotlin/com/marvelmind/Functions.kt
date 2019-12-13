@@ -80,3 +80,14 @@ internal fun crc16Check(list: List<Byte>): Boolean {
     val (crc0, crc1) = crc16(list.toByteArray())
     return crc0 == 0.toByte() && crc1 == 0.toByte()
 }
+
+// 比较字节数组内容
+internal fun ByteArray.dataEquals(other: ByteArray): Boolean {
+    if (this.size != other.size)
+        return false
+    for (i in this.indices) {
+        if (this[i] != other[i])
+            return false
+    }
+    return true
+}
