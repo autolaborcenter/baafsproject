@@ -20,6 +20,7 @@ import com.marvelmind.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileB
 import com.thermometer.SerialPortTemperXBuilderDsl.Companion.registerTemperX
 import com.thermometer.Temperature
 import com.usarthmi.UsartHmiBuilderDsl.Companion.registerUsartHmi
+import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.action.PathFollowerBuilderDsl.Companion.pathFollower
 import org.mechdancer.algebra.function.vector.*
@@ -31,7 +32,6 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.console.parser.buildParser
-import org.mechdancer.console.parser.feedback
 import org.mechdancer.core.Chassis
 import org.mechdancer.core.LocalPath
 import org.mechdancer.core.MobileBeacon
@@ -74,15 +74,15 @@ val hmi = manager.registerUsartHmi(msgFromHmi)
 // 配置温度计
 val temperX =
     manager.registerTemperX(
-            temperatures = temperatures,
-            exceptions = exceptions
+        temperatures = temperatures,
+        exceptions = exceptions
     ) {
         period = 1000L
     }
 // 配置底盘
 val chassis: Chassis<ControlVariable> =
     manager.registerPM1Chassis(
-            robotOnOdometry = robotOnOdometry.input
+        robotOnOdometry = robotOnOdometry
     ) {
         odometryInterval = 40L
         maxAccelerate = .75
@@ -90,8 +90,8 @@ val chassis: Chassis<ControlVariable> =
 // 配置定位标签
 val beacon: MobileBeacon =
     manager.registerMobileBeacon(
-            beaconOnMap = beaconOnMap,
-            exceptions = exceptions
+        beaconOnMap = beaconOnMap,
+        exceptions = exceptions
     ) {
         portName = "/dev/beacon"
         dataTimeout = 5000L
@@ -102,7 +102,7 @@ val beacon: MobileBeacon =
 // 配置雷达
 val lidarSet: LidarSet =
     manager.registerFaselaseLidarSet(
-            exceptions = exceptions
+        exceptions = exceptions
     ) {
         dataTimeout = 400L
         lidar(port = "/dev/pos3") {
@@ -154,9 +154,9 @@ try {
         // 启动定位融合模块（粒子滤波器）
         val particleFilter =
             startLocationFusion(
-                    robotOnOdometry = robotOnOdometry.outputs[0],
-                    beaconOnMap = beaconOnMap,
-                    robotOnMap = robotOnMap
+                robotOnOdometry = robotOnOdometry.outputs[0],
+                beaconOnMap = beaconOnMap,
+                robotOnMap = robotOnMap
             ) {
                 filter {
                     beaconOnRobot = vector2DOf(-.01, -.02)
@@ -169,8 +169,8 @@ try {
         // 启动业务交互后台
         val business =
             startBusiness(
-                    robotOnMap = robotOnMap,
-                    globalOnRobot = globalOnRobot
+                robotOnMap = robotOnMap,
+                globalOnRobot = globalOnRobot
             ) {
                 localRadius = .5
                 pathInterval = .05
@@ -273,21 +273,22 @@ try {
                     val path = (business.function as Business.Functions.Following).planner
                     particleFilter.getOrSet(chassis.odometry, path.firstTarget)
                     path.painter = remote
+                    launch { hmi.write("log.txt=\"正在运行\"") }
                     "${path.size} poses loaded from $name"
                 } catch (e: Exception) {
                     e.message
                 }
+            }
+            this["cancel"] = {
+                runBlocking(coroutineContext) { business.cancel() }
+                launch { hmi.write("log.txt=\"\"") }
+                "current mode: ${business.function?.toString() ?: "Idle"}"
             }
         }
         launch { while (isActive) parser.parseFromConsole() }
         launch {
             for (msg in msgFromHmi)
                 parser(msg)
-                    .first()
-                    .let(::feedback)
-                    .second
-                    .toString()
-                    .let { hmi.write("log.txt=\"$it\"") }
         }
         // 刷新固定显示
         if (remote != null) {

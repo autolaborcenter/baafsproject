@@ -87,7 +87,7 @@ fun main() {
     // 配置底盘
     val chassis: Chassis<ControlVariable> =
         manager.registerPM1Chassis(
-            robotOnOdometry = robotOnOdometry.input
+            robotOnOdometry = robotOnOdometry
         ) {
             odometryInterval = 40L
             maxAccelerate = .75

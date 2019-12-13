@@ -63,6 +63,7 @@ private const val frequency = 50L
 private val lidarSampler = Sampler(20.0)
 private val odometrySampler = Sampler(20.0)
 
+@ObsoleteCoroutinesApi
 @ExperimentalCoroutinesApi
 fun main() {
     val dt = 1000 / frequency
@@ -88,8 +89,8 @@ fun main() {
         // 启动业务交互后台
         val business =
             startBusiness(
-                    robotOnMap = robotOnMap.outputs[0],
-                    globalOnRobot = globalOnRobot
+                robotOnMap = robotOnMap.outputs[0],
+                globalOnRobot = globalOnRobot
             ) {
                 localRadius = .5
                 pathInterval = .05
@@ -237,7 +238,7 @@ fun main() {
             remote.paintRobot(actual.data)
             remote.paintPose("实际", actual.data)
             if (odometrySampler.trySample(t))
-                robotOnMap.input.send(actual)
+                robotOnMap.send(actual)
             // 激光雷达采样
             if (lidarSampler.trySample(t)) {
                 val robotToMap = actual.data.toTransformation()

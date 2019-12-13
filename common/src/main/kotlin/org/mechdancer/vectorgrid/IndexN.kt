@@ -40,7 +40,3 @@ class IndexN(values: List<Int>) : List<Int> by values {
         val powers = mutableListOf(1)
     }
 }
-
-fun main() {
-    IndexN(listOf(1, 2)).neighbors().let(::println)
-}

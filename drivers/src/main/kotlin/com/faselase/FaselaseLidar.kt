@@ -3,7 +3,6 @@ package com.faselase
 import cn.autolabor.serialport.manager.Certificator
 import cn.autolabor.serialport.manager.SerialPortDeviceBase
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
@@ -38,7 +37,7 @@ internal class FaselaseLidar(
     private val dataTimeoutException =
         DataTimeoutException(this.tag, dataTimeout)
     private val dataWatchDog =
-        WatchDog(GlobalScope, dataTimeout)
+        WatchDog(timeout = dataTimeout)
         { exceptions.send(Occurred(dataTimeoutException)) }
 
     private companion object {

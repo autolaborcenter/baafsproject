@@ -3,7 +3,10 @@ package cn.autolabor.serialport.manager
 import cn.autolabor.serialport.manager.OpenCondition.Certain
 import com.fazecast.jSerialComm.SerialPort
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.channels.actor
+import kotlinx.coroutines.channels.consumeEach
 import org.mechdancer.channel
 import org.mechdancer.exceptions.DeviceOfflineException
 import org.mechdancer.exceptions.ExceptionMessage
@@ -108,15 +111,13 @@ class SerialPortManager(
         // 开协程
         devices[this] =
             launchSingleThreadJob(device.tag) {
-                val fromDriver = channel<List<Byte>>()
                 val toDriver = channel<List<Byte>>()
                 device.setup(CoroutineScope(Dispatchers.IO),
-                             toDevice = fromDriver,
-                             fromDevice = toDriver)
-                launch(Dispatchers.IO) {
-                    for (bytes in fromDriver)
-                        writeBytes(bytes.toByteArray(), bytes.size.toLong())
-                }
+                             fromDevice = toDriver,
+                             toDevice =
+                             actor(context = Dispatchers.IO, capacity = Channel.CONFLATED)
+                             { consumeEach { writeBytes(it.toByteArray(), it.size.toLong()) } })
+
                 val offlineException = DeviceOfflineException(device.tag)
                 while (isActive) {
                     readOrReboot(buffer, 100L)
