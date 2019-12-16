@@ -26,9 +26,11 @@ data class Pdf(
 }
 
 fun ArrayMatrix.toVec3D() =
-    Vector3D(x = this.data[0],
-             y = this.data[1],
-             z = this.data[2])
+    Vector3D(
+        x = this.data[0],
+        y = this.data[1],
+        z = this.data[2]
+    )
 
 fun gaussianSample(pdf: Pdf): Vector3D {
     val noise = arrayMatrixOf(3, 1) { i, _ ->
@@ -60,7 +62,7 @@ fun tred2(v: ArrayMatrix, d: ArrayMatrix, e: ArrayMatrix): Unit {
     for (i in n - 1 downTo 1) {
         // println("[$i]->v : ${v.format()}")
         val scale = d.data.take(i).sumByDouble(::abs)
-        var h = 0.0
+        h = 0.0
         if (scale == 0.0) {
             e.data[i] = d.data[i - 1]
             for (j in 0 until i) {
@@ -95,7 +97,6 @@ fun tred2(v: ArrayMatrix, d: ArrayMatrix, e: ArrayMatrix): Unit {
                 e.data[j] = g
             }
             f = 0.0
-            // h == 0
             for (j in 0 until i) {
                 e.data[j] /= h
                 f += e.data[j] * d.data[j]

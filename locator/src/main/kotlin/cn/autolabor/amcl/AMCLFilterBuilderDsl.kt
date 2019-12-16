@@ -27,7 +27,7 @@ class AMCLFilterBuilderDsl private constructor() {
             AMCLFilterBuilderDsl()
                 .apply(block)
                 .apply {
-                    require(initWaitNumber > 1)
+                    require(initWaitNumber >= 1)
                     require(minCount > 1)
                     require(maxCount > minCount)
                     require(dThresh > 0)
