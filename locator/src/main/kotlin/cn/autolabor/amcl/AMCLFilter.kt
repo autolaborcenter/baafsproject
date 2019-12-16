@@ -23,11 +23,11 @@ class AMCLFilter(
     private val tagPosition: Vector2D,
     private val dThresh: Double = 0.1,
     private val aThresh: Double = 20 * PI / 180,
-    private val alpha1: Double = 0.1,
-    private val alpha2: Double = 0.1,
-    private val alpha3: Double = 0.1,
-    private val alpha4: Double = 0.1,
-    private val weightSigma: Double = 1.0
+    private val alpha1: Double = 0.5, // 角速度对角度速影响
+    private val alpha2: Double = 0.5, // 线速度对角速度影响
+    private val alpha3: Double = 0.03, // 线速度对线速度影响
+    private val alpha4: Double = 0.01, // 角速度对线速度影响
+    private val weightSigma: Double = 0.1
 ) : Mixer<Stamped<Odometry>, Stamped<Vector2D>, Stamped<Odometry>> {
     private val matcher = ClampMatcher<Stamped<Odometry>, Stamped<Vector2D>>(true)
 
@@ -77,7 +77,6 @@ class AMCLFilter(
     }
 
     override fun get(item: Stamped<Odometry>): Stamped<Odometry>? {
-        // TODO("超时处理")
         return Stamped(item.time, (map2odomTrans.data * item.data.toTransformation()).toPose())
     }
 
