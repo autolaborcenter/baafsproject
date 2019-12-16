@@ -2,9 +2,10 @@ package com.marvelmind.modem
 
 import cn.autolabor.serialport.manager.Certificator
 import cn.autolabor.serialport.manager.SerialPortDeviceBase
-import com.marvelmind.*
+import com.marvelmind.dataEquals
 import com.marvelmind.mobilebeacon.MobileBeaconData
 import com.marvelmind.shortLEOfU
+import com.marvelmind.toIntUnsigned
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
@@ -26,10 +27,13 @@ internal constructor(
     private val thermometer: ReceiveChannel<Stamped<Pair<Double, Double>>>,
     private val hedgehog: ReceiveChannel<Stamped<MobileBeaconData>>,
     private val exceptions: SendChannel<ExceptionMessage>,
+
     portName: String?,  // 定位路由串口号
+
     private val tempInterval: Long,     // 设置温度周期
     private val stateInterval: Long,    // 读标签状态周期(电压)
     dataTimeout: Long,                  // 数据超时时间
+
     private val hedgeIdList: ByteArray, // 移动标签id列表
     private val logger: SimpleLogger?   // 运行日志
 ) : SerialPortDeviceBase(NAME, 115200, 1024, portName) {
@@ -77,8 +81,8 @@ internal constructor(
                 engine(bytes) { pack ->
                     when (pack) {
                         is DataPackage.Nothing -> logger?.log("nothing")
-                        is DataPackage.Failed -> logger?.log("failed")
-                        is DataPackage.Data -> {
+                        is DataPackage.Failed  -> logger?.log("failed")
+                        is DataPackage.Data    -> {
                             parse(pack)
                             result = beaconData.isNotEmpty()
                         }
@@ -95,7 +99,7 @@ internal constructor(
     ) {
         // 定时请求配置(温度)
         val jobConfig = scope.launch(start = CoroutineStart.LAZY) {
-            while(temperature < DEFAULT_VAL + 1)
+            while (temperature < DEFAULT_VAL + 1)
                 delay(1000L)
             while (isActive) {
                 requestQueue.offer(CMD_CONFIG)
@@ -130,7 +134,7 @@ internal constructor(
                             append(quality ?: -1).append("\t")
                             rawDistance?.forEach { address, value ->
                                 append("${address.toIntUnsigned()}\t").append("${value}\t")
-                            }?:run{
+                            } ?: run {
                                 append("-1\t-1\t-1\t-1\t")
                             }
                             if (rawDistance != null)
@@ -176,12 +180,10 @@ internal constructor(
                         is DataPackage.Nothing -> logger?.log("nothing")
                         is DataPackage.Failed  -> logger?.log("failed")
                         is DataPackage.Data    ->
-                            parse(pack).let {
-                                launch {
-                                    assert(it.all(requestQueue::offer))
-                                    exceptions.send(Recovered(dataTimeoutException))
-                                    dataWatchDog.feed()
-                                }
+                            launch {
+                                assert(parse(pack).all(requestQueue::offer))
+                                exceptions.send(Recovered(dataTimeoutException))
+                                dataWatchDog.feed()
                             }
                     }
                 }
@@ -287,6 +289,7 @@ internal constructor(
         }
         return false
     }
+
     // 检查固定标签坐标
     private fun checkBeaconCoordinate(data: ByteArray): List<Command> {
         val cmdList = arrayListOf<Command>()
@@ -340,13 +343,12 @@ internal constructor(
         PrintOnly,
         WritePrint
     }
+
     // 日志
     private fun log(logger: SimpleLogger?, text: String, type: LogType = LogType.WritePrint) {
-        if (type == LogType.WriteOnly || type == LogType.WritePrint) {
+        if (type == LogType.WriteOnly || type == LogType.WritePrint)
             logger?.log(text)
-        }
-        if (type == LogType.PrintOnly || type == LogType.WritePrint) {
+        if (type == LogType.PrintOnly || type == LogType.WritePrint)
             println(text)
-        }
     }
 }

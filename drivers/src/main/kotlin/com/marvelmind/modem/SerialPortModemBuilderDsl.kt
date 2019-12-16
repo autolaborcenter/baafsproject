@@ -13,14 +13,19 @@ import org.mechdancer.exceptions.ExceptionMessage
  * 路由模块构建器
  */
 @BuilderDslMarker
-class SerialPortModemBuilderDsl private constructor() {
+class SerialPortModemBuilderDsl
+private constructor() {
     // 指定串口名字
     var portName: String? = null
-    var tempInterval = 60*1000L     // 设置温度周期
-    var stateInterval = 10*60*1000L // 读标签状态周期(电压)
-    var dataTimeout = 2000L         // 数据超时时间
-    var hedgeIdList = ByteArray(0) // 移动标签id列表
-    var logger = SimpleLogger("Marvelmind_Modem")   // 运行日志
+    // 工作周期
+    var tempInterval: Long = 60 * 1000L
+    var stateInterval: Long = 10 * 60 * 1000L
+    // 超时时间
+    var dataTimeout: Long = 2000L
+    // 移动标签id列表
+    var hedgeIdList: ByteArray = ByteArray(0)
+    // 运行日志
+    var logger: SimpleLogger? = SimpleLogger("MarvelmindModem")
 
     companion object {
         /**
@@ -37,19 +42,21 @@ class SerialPortModemBuilderDsl private constructor() {
         ) = SerialPortModemBuilderDsl()
             .apply(block)
             .apply {
+                require(tempInterval > 0)
+                require(stateInterval > 0)
                 require(dataTimeout > 0)
             }
             .run {
                 SerialPortModem(
-                    thermometer = thermometer,
-                    hedgehog = hedgehog,
-                    exceptions = exceptions,
-                    portName = portName,
-                    tempInterval = tempInterval,
-                    stateInterval = stateInterval,
-                    dataTimeout = dataTimeout,
-                    hedgeIdList = hedgeIdList,
-                    logger = logger)
+                        thermometer = thermometer,
+                        hedgehog = hedgehog,
+                        exceptions = exceptions,
+                        portName = portName,
+                        tempInterval = tempInterval,
+                        stateInterval = stateInterval,
+                        dataTimeout = dataTimeout,
+                        hedgeIdList = hedgeIdList,
+                        logger = logger)
             }
             .also(this::register)
     }

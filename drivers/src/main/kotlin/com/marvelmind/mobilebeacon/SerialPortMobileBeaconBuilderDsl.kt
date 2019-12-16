@@ -40,13 +40,13 @@ class SerialPortMobileBeaconBuilderDsl private constructor() {
             }
             .run {
                 SerialPortMobilBeacon(
-                    beaconOnMap = beaconOnMap,
-                    beaconData = beaconData,
-                    exceptions = exceptions,
-                    portName = portName,
-                    dataTimeout = dataTimeout,
-                    delayLimit = delayLimit,
-                    heightRange = heightRange)
+                        beaconOnMap = beaconOnMap,
+                        beaconData = beaconData,
+                        exceptions = exceptions,
+                        portName = portName,
+                        dataTimeout = dataTimeout,
+                        delayLimit = delayLimit,
+                        heightRange = heightRange)
             }
             .also(this::register)
     }

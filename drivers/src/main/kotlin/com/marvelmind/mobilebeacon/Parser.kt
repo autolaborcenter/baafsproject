@@ -65,9 +65,9 @@ internal fun engine(): ParseEngine<Byte, BeaconPackage> =
         var begin = (0 until size - 1).find { i ->
             buffer[i] == DestinationAddress && buffer[i + 1] == PacketType
         } ?: return@ParseEngine ParseInfo(
-            nextHead = (if (buffer.last() == DestinationAddress) size - 1 else size),
-            nextBegin = size,
-            result = Nothing)
+                nextHead = (if (buffer.last() == DestinationAddress) size - 1 else size),
+                nextBegin = size,
+                result = Nothing)
         // 确定帧长度
         val `package` =
             (begin + 7)
@@ -76,9 +76,9 @@ internal fun engine(): ParseEngine<Byte, BeaconPackage> =
                 ?.takeIf { it <= size }
                 ?.let { buffer.subList(begin, it) }
             ?: return@ParseEngine ParseInfo(
-                nextHead = begin,
-                nextBegin = size,
-                result = Nothing)
+                    nextHead = begin,
+                    nextBegin = size,
+                    result = Nothing)
         // crc 校验
         val result =
             if (crc16Check(`package`)) {
@@ -105,14 +105,14 @@ private fun ByteArray.toResolutionCoordinate() =
     ByteArrayInputStream(this).runCatching {
         use { stream ->
             Coordinate(
-                timeStamp = stream.readIntLE(),
-                x = stream.readIntLE(),
-                y = stream.readIntLE(),
-                z = stream.readIntLE(),
-                flags = stream.read().toByte(),
-                address = stream.read().toByte(),
-                pair = stream.readShortLE(),
-                delay = stream.readShortLE())
+                    timeStamp = stream.readIntLE(),
+                    x = stream.readIntLE(),
+                    y = stream.readIntLE(),
+                    z = stream.readIntLE(),
+                    flags = stream.read().toByte(),
+                    address = stream.read().toByte(),
+                    pair = stream.readShortLE(),
+                    delay = stream.readShortLE())
         }
     }.getOrDefault(Failed)
 
@@ -120,13 +120,13 @@ private fun ByteArray.toRawDistance() =
     ByteArrayInputStream(this).runCatching {
         use { stream ->
             RawDistance(
-                address = stream.read().toByte(),
-                d0 = Distance(stream.read().toByte(), stream.readIntLE()),
-                d1 = Distance(stream.read().toByte(), stream.readIntLE()),
-                d2 = Distance(stream.read().toByte(), stream.readIntLE()),
-                d3 = Distance(stream.read().toByte(), stream.readIntLE()),
-                timeStamp = stream.readIntLE(),
-                delay = stream.readShortLE())
+                    address = stream.read().toByte(),
+                    d0 = Distance(stream.read().toByte(), stream.readIntLE()),
+                    d1 = Distance(stream.read().toByte(), stream.readIntLE()),
+                    d2 = Distance(stream.read().toByte(), stream.readIntLE()),
+                    d3 = Distance(stream.read().toByte(), stream.readIntLE()),
+                    timeStamp = stream.readIntLE(),
+                    delay = stream.readShortLE())
         }
     }.getOrDefault(Failed)
 
@@ -134,7 +134,7 @@ private fun ByteArray.toQuality() =
     ByteArrayInputStream(this).runCatching {
         use { stream ->
             Quality(
-                address = stream.read().toByte(),
-                qualityPercent = stream.read().toByte())
+                    address = stream.read().toByte(),
+                    qualityPercent = stream.read().toByte())
         }
     }.getOrDefault(Failed)

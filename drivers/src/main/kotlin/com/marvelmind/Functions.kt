@@ -14,8 +14,6 @@ internal fun shortLEOf(b0: Byte, b1: Byte) =
 internal fun shortLEOfU(b0: Byte, b1: Byte) =
     shortLEOf(b0, b1).let { if (it >= 0) it.toInt() else it + 65536 }
 
-internal fun InputStream.readU8() = read()
-
 internal fun InputStream.readU16LE(): Int {
     val b1: Int = read()
     val b2: Int = read()

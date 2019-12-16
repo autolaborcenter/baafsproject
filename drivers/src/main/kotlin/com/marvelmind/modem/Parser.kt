@@ -3,23 +3,24 @@ package com.marvelmind.modem
 import cn.autolabor.serialport.parser.ParseEngine
 import cn.autolabor.serialport.parser.ParseEngine.ParseInfo
 import com.marvelmind.*
-import com.marvelmind.crc16
-import com.marvelmind.crc16Check
-import com.marvelmind.toIntUnsigned
-import com.marvelmind.writeLE
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 
-sealed class Command:Comparable<Command>{
-    abstract val priority: Int  // 优先级
+internal sealed class Command(
+    val priority: Int
+) : Comparable<Command> {
     abstract val address: Byte  // 地址
     abstract val data: ByteArray
 
-    // 读取配置指令(温度)
-    class CommandConfigR(override val address: Byte): Command() {
-        override val priority = 0
-        override val data by lazy {
+    override fun compareTo(other: Command) =
+        priority.compareTo(other.priority)
+
+    // 读取配置指令（温度）
+    class CommandConfigR(
+        override val address: Byte
+    ) : Command(0) {
+        override val data: ByteArray by lazy {
             ByteArrayOutputStream()
                 .apply {
                     write(address.toInt())
@@ -30,18 +31,14 @@ sealed class Command:Comparable<Command>{
                 }
                 .toByteArray()
         }
-        override fun compareTo(other: Command): Int {
-            return priority.compareTo(other.priority)
-        }
     }
 
     // 写配置指令(温度)
     class CommandConfigW(
         override val address: Byte,
         configData: ByteArray
-        ): Command() {
-        override val priority = 0
-        override val data by lazy {
+    ) : Command(0) {
+        override val data: ByteArray by lazy {
             ByteArrayOutputStream()
                 .apply {
                     write(address.toInt())
@@ -53,15 +50,13 @@ sealed class Command:Comparable<Command>{
                 }
                 .toByteArray()
         }
-        override fun compareTo(other: Command): Int {
-            return priority.compareTo(other.priority)
-        }
     }
 
     // 读取原始距离指令
-    class CommandRawDistanceR(override val address: Byte): Command() {
-        override val priority = 1
-        override val data by lazy {
+    class CommandRawDistanceR(
+        override val address: Byte
+    ) : Command(1) {
+        override val data: ByteArray by lazy {
             ByteArrayOutputStream()
                 .apply {
                     write(address.toInt())
@@ -72,15 +67,13 @@ sealed class Command:Comparable<Command>{
                 }
                 .toByteArray()
         }
-        override fun compareTo(other: Command): Int {
-            return priority.compareTo(other.priority)
-        }
     }
 
     // 读取标签状态指令
-    class CommandStateR(override val address: Byte): Command() {
-        override val priority = 2
-        override val data by lazy {
+    class CommandStateR(
+        override val address: Byte
+    ) : Command(2) {
+        override val data: ByteArray by lazy {
             ByteArrayOutputStream()
                 .apply {
                     write(address.toInt())
@@ -91,15 +84,13 @@ sealed class Command:Comparable<Command>{
                 }
                 .toByteArray()
         }
-        override fun compareTo(other: Command): Int {
-            return priority.compareTo(other.priority)
-        }
     }
 
     // 唤醒标签指令
-    class CommandWakeW(override val address: Byte): Command() {
-        override val priority = 0
-        override val data by lazy {
+    class CommandWakeW(
+        override val address: Byte
+    ) : Command(0) {
+        override val data: ByteArray by lazy {
             ByteArrayOutputStream()
                 .apply {
                     write(address.toInt())
@@ -113,15 +104,13 @@ sealed class Command:Comparable<Command>{
                 }
                 .toByteArray()
         }
-        override fun compareTo(other: Command): Int {
-            return priority.compareTo(other.priority)
-        }
     }
 
     // 读取submap指令
-    class CommandSubmapR(override val address: Byte): Command() {
-        override val priority = 0
-        override val data by lazy {
+    class CommandSubmapR(
+        override val address: Byte
+    ) : Command(0) {
+        override val data: ByteArray by lazy {
             ByteArrayOutputStream()
                 .apply {
                     write(0xFF)
@@ -132,18 +121,14 @@ sealed class Command:Comparable<Command>{
                 }
                 .toByteArray()
         }
-        override fun compareTo(other: Command): Int {
-            return priority.compareTo(other.priority)
-        }
     }
 
     // 写submap指令
     class CommandSubmapW(
         override val address: Byte,
         submapData: ByteArray
-    ): Command() {
-        override val priority = 0
-        override val data by lazy {
+    ) : Command(0) {
+        override val data: ByteArray by lazy {
             ByteArrayOutputStream()
                 .apply {
                     write(0xFF)
@@ -157,18 +142,14 @@ sealed class Command:Comparable<Command>{
                 }
                 .toByteArray()
         }
-        override fun compareTo(other: Command): Int {
-            return priority.compareTo(other.priority)
-        }
     }
 
     // 写固定标签坐标指令
     class CommandCoordinateW(
         override val address: Byte,
         coordinateData: ByteArray
-    ): Command() {
-        override val priority = 0
-        override val data by lazy {
+    ) : Command(0) {
+        override val data: ByteArray by lazy {
             ByteArrayOutputStream()
                 .apply {
                     write(address.toInt())
@@ -184,9 +165,6 @@ sealed class Command:Comparable<Command>{
                     write(crc16(toByteArray()))
                 }
                 .toByteArray()
-        }
-        override fun compareTo(other: Command): Int {
-            return priority.compareTo(other.priority)
         }
     }
 }
@@ -211,40 +189,44 @@ internal class Device(
                 val temp = stream.read().toByte().toIntUnsigned()
                 val volL = stream.read().toByte().toIntUnsigned()
                 val volH = stream.read().toByte().toIntUnsigned()
-                sleep = (rssi + 1 == unk && unk + 1 == temp && temp + 1 == volL && volL + 1 == volH) ||
-                        (rssi == 0 && unk == 0 && temp == 0 && volL == 0 && volH == 0)
+                sleep = (rssi + 1 == unk
+                         && unk + 1 == temp
+                         && temp + 1 == volL
+                         && volL + 1 == volH)
+                        || (rssi == 0
+                            && unk == 0
+                            && temp == 0
+                            && volL == 0
+                            && volH == 0)
             }
     }
+
     // 打印
-    override fun toString(): String {
-        return "beacon${id}: ${voltage/1000.0}V"
-    }
+    override fun toString() =
+        "beacon${id}: ${voltage / 1000.0}V"
 }
 
 // 地图
-internal class Map(
-    pathName: String
-) {
+internal class Map(pathName: String) {
     var filled = false
     val submaps = mutableListOf<ByteArray>()
     val beacons = mutableListOf<Pair<Byte, ByteArray>>()
+
     init {
         File(pathName)
             .takeIf(File::exists)
             ?.readBytes()
             ?.takeIf { it.isNotEmpty() && it.size % 81 == 0 }
             ?.let {
-                for (i in it.indices step 81) {
+                for (i in it.indices step 81)
                     if (it[i] == 0.toByte())
                         submaps.add(it.copyOfRange(i + 1, i + 81))
                     else if (it[i] == 1.toByte())
-                        for (j in 1..80 step 14) {
+                        for (j in 1..80 step 14)
                             if (it[i + j].toIntUnsigned() > 0)
                                 beacons.add(Pair(it[i + j], it.copyOfRange(i + j + 1, i + j + 13)))
                             else
                                 break
-                        }
-                }
                 if (submaps.size > 0 && beacons.size > 0)
                     filled = true
             }
@@ -254,7 +236,7 @@ internal class Map(
 internal sealed class DataPackage {
     object Nothing : DataPackage()
     object Failed : DataPackage()
-    class Data(val type: Int, val payload: ByteArray) : DataPackage(){
+    class Data(val type: Int, val payload: ByteArray) : DataPackage() {
         operator fun component1() = type
         operator fun component2() = payload
     }
@@ -272,25 +254,21 @@ internal fun engine(): ParseEngine<Byte, DataPackage> =
                 headLen = 5
                 begin = i
                 break
-            }
-            else if (buffer[i] == 0xFF.toByte() && buffer[i + 1] == 0x03.toByte()) {    // 路由请求返回包
+            } else if (buffer[i] == 0xFF.toByte() && buffer[i + 1] == 0x03.toByte()) {    // 路由请求返回包
                 headLen = 3
                 begin = i
                 break
-            }
-            else if (buffer[i + 1] == 0x03.toByte() && buffer[i + 2] == 0x20.toByte()){ // 通过路由读标签状态返回包
+            } else if (buffer[i + 1] == 0x03.toByte() && buffer[i + 2] == 0x20.toByte()) { // 通过路由读标签状态返回包
                 headLen = 3
                 begin = i
                 break
             }
         }
-        if (headLen == 0) {
+        if (headLen == 0)
             return@ParseEngine ParseInfo(
-                nextHead = size - 2,
-                nextBegin = size,
-                result = DataPackage.Nothing
-            )
-        }
+                    nextHead = size - 2,
+                    nextBegin = size,
+                    result = DataPackage.Nothing)
         // 确定帧长度
         val `package` =
             (begin + headLen + 2)
@@ -298,19 +276,17 @@ internal fun engine(): ParseEngine<Byte, DataPackage> =
                 ?.let { it + buffer[begin + headLen - 1].toIntUnsigned() }
                 ?.takeIf { it <= size }
                 ?.let { buffer.subList(begin, it) }
-                ?: return@ParseEngine ParseInfo(
+            ?: return@ParseEngine ParseInfo(
                     nextHead = begin,
                     nextBegin = size,
-                    result = DataPackage.Nothing
-                )
+                    result = DataPackage.Nothing)
         // crc 校验
         val result =
             if (crc16Check(`package`)) {
                 begin += `package`.size
                 DataPackage.Data(
-                    `package`[2].toIntUnsigned(),
-                    `package`.subList(headLen, `package`.size - 2).toByteArray()
-                )
+                        `package`[2].toIntUnsigned(),
+                        `package`.subList(headLen, `package`.size - 2).toByteArray())
             } else {
                 begin += 2
                 DataPackage.Failed
