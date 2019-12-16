@@ -96,9 +96,7 @@ class SerialPortManager(
                     println(": failed")
                     return false
                 }
-                val result = actual.takeIf { it > 0 }
-                                 ?.let(buffer::take)
-                                 ?.let(certificator::invoke)
+                val result = certificator(buffer.take(actual))
                              ?: continue
                 if (result) break
                 else {

@@ -23,16 +23,21 @@ private fun parse(text: String): ParseInfo<Humiture?> {
     // 找前缀
     val head = text.indexOf(PREFIX.first()).takeUnless { it < 0 }
                ?: return ParseInfo(size, size, null)
-    if (!text.substring(head).startsWith(PREFIX))
-        return ParseInfo(head + 1, head + 1, null)
+    val maybe = text.substring(head)
+    when {
+        maybe.length < PREFIX.length ->
+            return ParseInfo(head, size, null)
+        !maybe.startsWith(PREFIX)    ->
+            return ParseInfo(head + 1, head + 1, null)
+    }
     // 找后缀
-    val tail = text.indexOf(POSTFIX)
-                   .takeIf { it > head + MIN_LENGTH }
-                   ?.let { it + POSTFIX.length }
+    val tail = maybe.indexOf(POSTFIX)
+                   .takeIf { it > MIN_LENGTH }
+                   ?.let { it + head + POSTFIX.length }
                ?: return ParseInfo(head, size, null)
     // 构造数据包
     val (t1, t2) =
-        text.substring(head + PREFIX.length, tail - POSTFIX.length)
+        maybe.substring(PREFIX.length, tail - head - POSTFIX.length)
             .split(INFIX)
             .takeIf { it.size == 2 }
         ?: return ParseInfo(head + PREFIX.length, tail, null)

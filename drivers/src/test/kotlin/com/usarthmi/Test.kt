@@ -19,25 +19,27 @@ fun main() {
         Thread.sleep(100L)
 
     runBlocking {
-        hmi.write("page main")
-        for (msg in hmiMessages) {
+        var t0 = System.currentTimeMillis()
+        var size = 0L
+        hmi.write("page index")
+        loop@ for (msg in hmiMessages) {
             println(msg)
             when (msg) {
-                "load path\n'" -> {
-                    hmi.write("b0.txt=\"记录\"")
-                    hmi.write("state.val=0")
-                    hmi.write("log.txt=\"正在运行\"")
-                }
-                "cancel"       -> {
-                    hmi.write("b0.txt=\"记录\"")
-                    hmi.write("state.val=0")
-                    hmi.write("log.txt=\"\"")
-                }
                 "record"       -> {
-                    hmi.write("b0.txt=\"保存\"")
-                    hmi.write("state.val=1")
-                    hmi.write("log.txt=\"正在记录\"")
+                    t0 = System.currentTimeMillis()
+                    hmi.write("page record")
                 }
+                "load path\n'" -> {
+                    hmi.write("page follow")
+                    hmi.write("size.txt=\"全程${size}点\"")
+                }
+                "shut down"    -> break@loop
+
+                "save path"    -> {
+                    size = (System.currentTimeMillis() - t0) / 200
+                    hmi.write("t0.txt=\"${size}点已保存\"")
+                }
+                "cancel"       -> hmi.write("page index")
             }
         }
     }
