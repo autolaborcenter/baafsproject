@@ -2,6 +2,7 @@ package com.marvelmind.modem
 
 import cn.autolabor.serialport.manager.SerialPortManager
 import com.marvelmind.mobilebeacon.MobileBeaconData
+import com.thermometer.Humiture
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.SimpleLogger
@@ -35,7 +36,7 @@ private constructor() {
          * @param block 配置参数
          */
         fun SerialPortManager.registerModem(
-            thermometer: ReceiveChannel<Stamped<Pair<Double, Double>>>,
+            humitures: ReceiveChannel<Stamped<Humiture>>,
             hedgehog: ReceiveChannel<Stamped<MobileBeaconData>>,
             exceptions: SendChannel<ExceptionMessage>,
             block: SerialPortModemBuilderDsl.() -> Unit = {}
@@ -48,7 +49,7 @@ private constructor() {
             }
             .run {
                 SerialPortModem(
-                        thermometer = thermometer,
+                        humitures = humitures,
                         hedgehog = hedgehog,
                         exceptions = exceptions,
                         portName = portName,

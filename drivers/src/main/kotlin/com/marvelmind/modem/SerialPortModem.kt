@@ -6,6 +6,7 @@ import com.marvelmind.dataEquals
 import com.marvelmind.mobilebeacon.MobileBeaconData
 import com.marvelmind.shortLEOfU
 import com.marvelmind.toIntUnsigned
+import com.thermometer.Humiture
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
@@ -24,7 +25,7 @@ import kotlin.math.roundToInt
  */
 class SerialPortModem
 internal constructor(
-    private val thermometer: ReceiveChannel<Stamped<Pair<Double, Double>>>,
+    private val humitures: ReceiveChannel<Stamped<Humiture>>,
     private val hedgehog: ReceiveChannel<Stamped<MobileBeaconData>>,
     private val exceptions: SendChannel<ExceptionMessage>,
 
@@ -53,10 +54,8 @@ internal constructor(
     private var dataLoggers = emptyArray<SimpleLogger>()
     // 原始距离
     private var rawDistances = IntArray(0)
-    // 温度
-    private var temperature = DEFAULT_VAL
-    // 湿度
-    private var humidity = DEFAULT_VAL
+    // 温湿度
+    private var humiture = Humiture(DEFAULT_VAL, DEFAULT_VAL)
     // 路由设置温度
     private var tempModem = DEFAULT_VAL.toInt()
     // 上一个定位数据字符串
@@ -64,7 +63,7 @@ internal constructor(
     // 认证串口时收到的beacon坐标数据
     private var beaconData = ByteArray(0)
     // submap编号(由于submap返回数据中没有编号，则在发送请求时记录编号)
-    private var submapNumer = -1
+    private var submapNumber = -1
     // device序号(用于对应收发)
     private var deviceIndex = -1
     // 数据请求队列
@@ -99,7 +98,7 @@ internal constructor(
     ) {
         // 定时请求配置(温度)
         val jobConfig = scope.launch(start = CoroutineStart.LAZY) {
-            while (temperature < DEFAULT_VAL + 1)
+            while (humiture.temperature < DEFAULT_VAL + 1)
                 delay(1000L)
             while (isActive) {
                 requestQueue.offer(CMD_CONFIG)
@@ -122,26 +121,21 @@ internal constructor(
                     lastLocation[index]?.let {
                         val record = buildString {
                             val (t, d) = it
-                            val (_, x, y, z, available, quality, rawDistance) = d
+                            val (_, x, y, z, available, _, rawDistance) = d
                             append("${t}\t")
                             append("${tempModem}\t")
-                            append("${temperature}\t")
-                            append("${humidity}\t")
+                            append("${humiture.temperature}\t")
+                            append("${humiture.humidity}\t")
                             append("${x}\t")
                             append("${y}\t")
                             append("${z}\t")
                             append("${if (available) 1 else 0}\t")
-                            append(quality ?: -1).append("\t")
+                            append("(quality ?: -1)\t")
                             rawDistance?.forEach { address, value ->
-                                append("${address.toIntUnsigned()}\t").append("${value}\t")
+                                append("${address.toIntUnsigned()}\t${value}\t")
                             } ?: run {
                                 append("-1\t-1\t-1\t-1\t")
                             }
-                            if (rawDistance != null)
-                                for ((address, distance) in rawDistance)
-                                    append("${address.toIntUnsigned()}\t").append("${distance}\t")
-                            else
-                                append("-1\t-1\t-1\t-1\t")
                             for (distance in rawDistances)
                                 append("${distance}\t")
                             for (i in rawDistances.indices)
@@ -161,9 +155,11 @@ internal constructor(
         scope.launch {
             while (isActive) {
                 requestQueue.poll().let {
-                    if (it !is Command.CommandRawDistanceR || requestQueue.element() !is Command.CommandRawDistanceR) {
+                    if (it !is Command.CommandRawDistanceR
+                        || requestQueue.element() !is Command.CommandRawDistanceR
+                    ) {
                         when (it) {
-                            is Command.CommandSubmapR -> submapNumer = it.address.toIntUnsigned()
+                            is Command.CommandSubmapR -> submapNumber = it.address.toIntUnsigned()
                             is Command.CommandStateR  -> deviceIndex = idList.indexOf(it.address)
                         }
                         toDevice.send(it.data.asList())
@@ -190,16 +186,14 @@ internal constructor(
         }
         // 接收温湿度
         scope.launch {
-            for ((_, p) in thermometer) {
-                temperature = p.first
-                humidity = p.second
-            }
+            for ((_, data) in humitures)
+                humiture = data
         }
         // 初始化
         scope.launch {
             // 确保读到地图
             while (!map.filled) {
-                log(logger, "reload mervelmind.map after 5s")
+                log(logger, "reload marvelmind.map after 5s")
                 delay(5000)
                 map = Map("marvelmind.map")
             }
@@ -207,7 +201,7 @@ internal constructor(
             checkBeaconCoordinate(beaconData)  // TODO beaconData要不要判空
                 .takeIf { it.isNotEmpty() }
                 ?.forEach { requestQueue.offer(it) }
-            // 检查submap
+            // 检查 submap
             for (i in map.submaps.indices)
                 requestQueue.offer(Command.CommandSubmapR(i.toByte()))
             // 初始化和标签数相关的量
@@ -236,10 +230,10 @@ internal constructor(
                     beaconData = payload.clone()
             }
             0x50 -> {   // submap
-                if (submapNumer >= 0) {
-                    checkSubmap(submapNumer.toByte(), payload)
+                if (submapNumber >= 0) {
+                    checkSubmap(submapNumber.toByte(), payload)
                         ?.let { cmdList.add(it) } // 写submap
-                    submapNumer = -1
+                    submapNumber = -1
                 }
             }
             0x20 -> {   // 标签状态(电压)
@@ -262,7 +256,7 @@ internal constructor(
                 }
             }
             0x30 -> {   // 标签配置(温度)
-                checkTemperature(payload, temperature)
+                checkTemperature(payload, humiture.temperature)
                     ?.let { cmdList.add(it) } // 写配置(温度)
             }
             0x28 -> {   // 原始距离

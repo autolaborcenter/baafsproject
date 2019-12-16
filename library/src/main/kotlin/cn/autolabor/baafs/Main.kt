@@ -18,8 +18,8 @@ import com.faselase.FaselaseLidarSetBuilderDsl.Companion.registerFaselaseLidarSe
 import com.faselase.LidarSet
 import com.marvelmind.mobilebeacon.MobileBeaconData
 import com.marvelmind.mobilebeacon.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
+import com.thermometer.Humiture
 import com.thermometer.SerialPortTemperXBuilderDsl.Companion.registerTemperX
-import com.thermometer.Temperature
 import com.usarthmi.UsartHmiBuilderDsl.Companion.registerUsartHmi
 import kotlinx.coroutines.*
 import org.mechdancer.*
@@ -71,7 +71,7 @@ fun main() {
 
     val beaconOnMap = channel<Stamped<Vector2D>>()
     val beaconData = channel<Stamped<MobileBeaconData>>()
-    val temperatures = channel<Stamped<Temperature>>()
+    val temperatures = channel<Stamped<Humiture>>()
 
     val globalOnRobot = channel<LocalPath>()
     val commandToSwitch = channel<ControlVariable>()

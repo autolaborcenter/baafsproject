@@ -3,12 +3,12 @@ package com.thermometer
 import cn.autolabor.serialport.parser.ParseEngine
 import cn.autolabor.serialport.parser.ParseEngine.ParseInfo
 
-data class Temperature(
+data class Humiture(
     val temperature: Double,
     val humidity: Double)
 
 internal fun engine() =
-    ParseEngine<Byte, Temperature?> { buffer ->
+    ParseEngine<Byte, Humiture?> { buffer ->
         parse(buffer.toByteArray().toString(Charsets.US_ASCII))
     }
 
@@ -18,7 +18,7 @@ private const val POSTFIX = " [%RH]<\r\n"
 
 private const val MIN_LENGTH = PREFIX.length + INFIX.length + 1
 
-private fun parse(text: String): ParseInfo<Temperature?> {
+private fun parse(text: String): ParseInfo<Humiture?> {
     val size = text.length
     // 找前缀
     val head = text.indexOf(PREFIX.first()).takeUnless { it < 0 }
@@ -44,5 +44,5 @@ private fun parse(text: String): ParseInfo<Temperature?> {
         t2.toDoubleOrNull()
         ?: return ParseInfo(tail, tail, null)
     // 成功
-    return ParseInfo(tail, tail, Temperature(temperature, humidity))
+    return ParseInfo(tail, tail, Humiture(temperature, humidity))
 }

@@ -13,7 +13,7 @@ import org.mechdancer.exceptions.ExceptionMessage
 @ObsoleteCoroutinesApi
 fun main() {
     // 话题
-    val temperatures = channel<Stamped<Temperature>>()
+    val temperatures = channel<Stamped<Humiture>>()
     val exceptions = channel<ExceptionMessage>()
     with(SerialPortManager(exceptions)) {
         registerTemperX(temperatures, exceptions)

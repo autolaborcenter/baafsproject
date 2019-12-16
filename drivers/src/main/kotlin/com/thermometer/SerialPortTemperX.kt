@@ -16,7 +16,7 @@ import org.mechdancer.exceptions.ExceptionMessage.Recovered
 
 class SerialPortTemperX
 internal constructor(
-    private val temperatures: SendChannel<Stamped<Temperature>>,
+    private val temperatures: SendChannel<Stamped<Humiture>>,
     private val exceptions: SendChannel<ExceptionMessage>,
 
     portName: String?,
@@ -68,14 +68,14 @@ internal constructor(
     }
 
     private fun CoroutineScope.parse(
-        temperature: Temperature?
+        humiture: Humiture?
     ): Boolean =
-        null != temperature?.also {
+        null != humiture?.also {
             launch {
-                temperatures.send(stamp(temperature))
+                temperatures.send(stamp(humiture))
                 exceptions.send(Recovered(dataTimeoutException))
             }
             dataWatchDog.feed()
-            logger?.log(temperature)
+            logger?.log(humiture)
         }
 }

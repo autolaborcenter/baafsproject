@@ -18,7 +18,7 @@ private constructor() {
 
     companion object {
         fun SerialPortManager.registerTemperX(
-            temperatures: SendChannel<Stamped<Temperature>>,
+            temperatures: SendChannel<Stamped<Humiture>>,
             exceptions: SendChannel<ExceptionMessage>,
             block: SerialPortTemperXBuilderDsl.() -> Unit = {}
         ) =
