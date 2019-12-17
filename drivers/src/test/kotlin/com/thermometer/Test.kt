@@ -13,14 +13,14 @@ import org.mechdancer.exceptions.ExceptionMessage
 @ObsoleteCoroutinesApi
 fun main() {
     // 话题
-    val temperatures = channel<Stamped<Humiture>>()
+    val humitures = channel<Stamped<Humiture>>()
     val exceptions = channel<ExceptionMessage>()
     with(SerialPortManager(exceptions)) {
-        registerTemperX(temperatures, exceptions)
+        registerTemperX(humitures, exceptions)
         while (true) {
             println(sync().takeUnless(Collection<*>::isEmpty) ?: break)
             Thread.sleep(100L)
         }
     }
-    runBlocking { temperatures.consumeEach(::println) }
+    runBlocking { humitures.consumeEach(::println) }
 }

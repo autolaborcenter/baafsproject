@@ -33,9 +33,9 @@ class UsartHmi(
         val CANCEL_FOLLOW = HMIPackage.Info(3, 5, 1)
 
         @Suppress("ObjectPropertyName", "NonAsciiCharacters", "Unused")
-        const val 字库大 = "等待连接记录运行关闭保存退出异常发现障碍离开路线其他"
+        const val 字库大 = "等待连接记录运行关闭保存退出正在异常发现障碍离开路线其他"
         @Suppress("ObjectPropertyName", "NonAsciiCharacters", "Unused")
-        const val 字库小 = "0123456789点已保存全程"
+        const val 字库小 = "0123456789点已保存"
     }
 
     override fun buildCertificator(): Certificator =

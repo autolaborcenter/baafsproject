@@ -16,7 +16,7 @@ fun main() {
     val hmi = manager.registerUsartHmi(hmiMessages)
 
     while (manager.sync().isNotEmpty())
-        Thread.sleep(100L)
+        Thread.sleep(200L)
 
     runBlocking {
         var t0 = System.currentTimeMillis()
@@ -33,7 +33,10 @@ fun main() {
                     hmi.write("page follow")
                     hmi.write("size.txt=\"全程${size}点\"")
                 }
-                "shut down"    -> break@loop
+                "shut down"    -> {
+                    hmi.write("page waiting")
+                    break@loop
+                }
 
                 "save path"    -> {
                     size = (System.currentTimeMillis() - t0) / 200
