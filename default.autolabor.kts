@@ -24,6 +24,7 @@ import com.usarthmi.UsartHmiBuilderDsl.Companion.registerUsartHmi
 import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.action.PathFollowerBuilderDsl.Companion.pathFollower
+import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
@@ -206,8 +207,9 @@ try {
                         lidarSet.frame
                             .takeUnless(Collection<*>::isEmpty)
                             ?.let { VectorGird(vector2DOf(.05, .05), it) }
-                            ?.getPoints { it.size > 2 }
+                            ?.getSamplePoints { it.size > 2 }
                             ?.flatten()
+                            ?.map(Vector::to2D)
                         ?: emptyList()
                     remote?.paintVectors("R 聚类", obstacleFrame)
                     obstacleFrame
@@ -236,11 +238,9 @@ try {
                 obstacles { obstacleFrame }
             }
         var isEnabled = false
-        var invokeTime = 0L
         // 启动循径模块
         launch {
             for (local in globalOnRobot) {
-                invokeTime = System.currentTimeMillis()
                 // 生成控制量
                 val target =
                     localPlanner
@@ -304,11 +304,8 @@ try {
             }
             launch {
                 while (isActive) {
-                    while (System.currentTimeMillis() - invokeTime > 2000L) {
-                        remote.paintVectors("R 雷达", lidarSet.frame)
-                        delay(100L)
-                    }
-                    delay(5000L)
+                    remote.paintVectors("R 雷达", lidarSet.frame)
+                    delay(500L)
                 }
             }
         }

@@ -24,6 +24,7 @@ import com.usarthmi.UsartHmiBuilderDsl.Companion.registerUsartHmi
 import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.action.PathFollowerBuilderDsl.Companion.pathFollower
+import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
@@ -82,15 +83,15 @@ fun main() {
     // 配置温度计
     val temperX =
         manager.registerTemperX(
-            temperatures = temperatures,
-            exceptions = exceptions
+                temperatures = temperatures,
+                exceptions = exceptions
         ) {
             period = 1000L
         }
     // 配置底盘
     val chassis: Chassis<ControlVariable> =
         manager.registerPM1Chassis(
-            robotOnOdometry = robotOnOdometry
+                robotOnOdometry = robotOnOdometry
         ) {
             odometryInterval = 40L
             maxAccelerate = .75
@@ -98,9 +99,9 @@ fun main() {
     // 配置定位标签
     val beacon: MobileBeacon =
         manager.registerMobileBeacon(
-            beaconOnMap = beaconOnMap,
-            beaconData = beaconData,
-            exceptions = exceptions
+                beaconOnMap = beaconOnMap,
+                beaconData = beaconData,
+                exceptions = exceptions
         ) {
             portName = "/dev/beacon"
             dataTimeout = 5000L
@@ -111,7 +112,7 @@ fun main() {
     // 配置雷达
     val lidarSet: LidarSet =
         manager.registerFaselaseLidarSet(
-            exceptions = exceptions
+                exceptions = exceptions
         ) {
             dataTimeout = 400L
             lidar(port = "/dev/pos3") {
@@ -163,9 +164,9 @@ fun main() {
             // 启动定位融合模块（粒子滤波器）
             val particleFilter =
                 startLocationFusion(
-                    robotOnOdometry = robotOnOdometry.outputs[0],
-                    beaconOnMap = beaconOnMap,
-                    robotOnMap = robotOnMap
+                        robotOnOdometry = robotOnOdometry.outputs[0],
+                        beaconOnMap = beaconOnMap,
+                        robotOnMap = robotOnMap
                 ) {
                     filter {
                         beaconOnRobot = vector2DOf(-.01, -.02)
@@ -178,8 +179,8 @@ fun main() {
             // 启动业务交互后台
             val business =
                 startBusiness(
-                    robotOnMap = robotOnMap,
-                    globalOnRobot = globalOnRobot
+                        robotOnMap = robotOnMap,
+                        globalOnRobot = globalOnRobot
                 ) {
                     localRadius = .5
                     pathInterval = .05
@@ -211,8 +212,9 @@ fun main() {
                             lidarSet.frame
                                 .takeUnless(Collection<*>::isEmpty)
                                 ?.let { VectorGird(vector2DOf(.05, .05), it) }
-                                ?.getPoints { it.size > 2 }
+                                ?.getSamplePoints { it.size > 2 }
                                 ?.flatten()
+                                ?.map(Vector::to2D)
                             ?: emptyList()
                         remote?.paintVectors("R 聚类", obstacleFrame)
                         obstacleFrame
@@ -241,11 +243,9 @@ fun main() {
                     obstacles { obstacleFrame }
                 }
             var isEnabled = false
-            var invokeTime = 0L
             // 启动循径模块
             launch {
                 for (local in globalOnRobot) {
-                    invokeTime = System.currentTimeMillis()
                     // 生成控制量
                     val target =
                         localPlanner
@@ -309,11 +309,8 @@ fun main() {
                 }
                 launch {
                     while (isActive) {
-                        while (System.currentTimeMillis() - invokeTime > 2000L) {
-                            remote.paintVectors("R 雷达", lidarSet.frame)
-                            delay(100L)
-                        }
-                        delay(5000L)
+                        remote.paintVectors("R 雷达", lidarSet.frame)
+                        delay(500L)
                     }
                 }
             }

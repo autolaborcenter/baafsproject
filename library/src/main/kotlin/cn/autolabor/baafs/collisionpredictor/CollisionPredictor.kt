@@ -44,7 +44,6 @@ internal constructor(
                 logger?.log("count = $count")
                 painter?.run {
                     paint("R 运动预测", outline)
-                    paintVectors("R 雷达", points)
                     paintVectors("R 碰撞", points.filter { it in outline })
                 }
             }

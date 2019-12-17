@@ -3,6 +3,7 @@ package com.usarthmi
 import cn.autolabor.serialport.manager.SerialPortManager
 import com.usarthmi.UsartHmiBuilderDsl.Companion.registerUsartHmi
 import kotlinx.coroutines.ObsoleteCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.channel
 import org.mechdancer.exceptions.ExceptionMessage
@@ -20,21 +21,21 @@ fun main() {
 
     runBlocking {
         var t0 = System.currentTimeMillis()
-        var size = 0L
-        hmi.write("page index")
+        var size: Long
+        hmi.page = UsartHmi.Page.Index
         loop@ for (msg in hmiMessages) {
             println(msg)
             when (msg) {
                 "record"       -> {
                     t0 = System.currentTimeMillis()
-                    hmi.write("page record")
+                    hmi.page = UsartHmi.Page.Record
                 }
                 "load path\n'" -> {
-                    hmi.write("page follow")
-                    hmi.write("size.txt=\"全程${size}点\"")
+                    hmi.page = UsartHmi.Page.Follow
                 }
                 "shut down"    -> {
-                    hmi.write("page waiting")
+                    hmi.page = UsartHmi.Page.Waiting
+                    delay(100L)
                     break@loop
                 }
 
@@ -42,7 +43,8 @@ fun main() {
                     size = (System.currentTimeMillis() - t0) / 200
                     hmi.write("t0.txt=\"${size}点已保存\"")
                 }
-                "cancel"       -> hmi.write("page index")
+                "cancel"       ->
+                    hmi.page = UsartHmi.Page.Index
             }
         }
     }
