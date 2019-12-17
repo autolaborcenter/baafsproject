@@ -20,6 +20,7 @@ import com.marvelmind.mobilebeacon.MobileBeaconData
 import com.marvelmind.mobilebeacon.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
 import com.thermometer.Humiture
 import com.thermometer.SerialPortTemperXBuilderDsl.Companion.registerTemperX
+import com.usarthmi.UsartHmi
 import com.usarthmi.UsartHmiBuilderDsl.Companion.registerUsartHmi
 import kotlinx.coroutines.*
 import org.mechdancer.*
@@ -147,7 +148,7 @@ sync@ while (true) {
 // 任务
 try {
     runBlocking(Dispatchers.Default) {
-        hmi.write("page main")
+        hmi.page = UsartHmi.Page.Index
         (chassis as? SerialPortChassis)?.unLock()
         // 启动服务
         println("staring data process modules...")
@@ -277,7 +278,7 @@ try {
                     val path = (business.function as Business.Functions.Following).planner
                     particleFilter.getOrSet(chassis.odometry, path.firstTarget)
                     path.painter = remote
-                    launch { hmi.write("log.txt=\"正在运行\"") }
+                    hmi.page = UsartHmi.Page.Follow
                     "${path.size} poses loaded from $name"
                 } catch (e: Exception) {
                     e.message
@@ -285,15 +286,12 @@ try {
             }
             this["cancel"] = {
                 runBlocking(coroutineContext) { business.cancel() }
-                launch { hmi.write("log.txt=\"\"") }
+                hmi.page = UsartHmi.Page.Index
                 "current mode: ${business.function?.toString() ?: "Idle"}"
             }
         }
         launch { while (isActive) parser.parseFromConsole() }
-        launch {
-            for (msg in msgFromHmi)
-                parser(msg)
-        }
+        launch { for (msg in msgFromHmi) parser(msg) }
         // 刷新固定显示
         if (remote != null) {
             launch {
