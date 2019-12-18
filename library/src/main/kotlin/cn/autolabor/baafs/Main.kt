@@ -245,7 +245,7 @@ fun main() {
 
                     obstacles { obstacleFrame }
                 }
-            var isEnabled = false
+            var isEnabled = true
             // 启动循径模块
             launch {
                 for (local in globalOnRobot) {
@@ -283,8 +283,17 @@ fun main() {
                     try {
                         runBlocking(coroutineContext) { business.startFollowing(name) }
                         val path = (business.function as Business.Functions.Following).planner
-                        particleFilter.getOrSet(chassis.odometry, path.firstTarget)
                         path.painter = remote
+                        if (!particleFilter.isConvergent) {
+                            val current = beacon.location.data
+                            path.asSequence()
+                                .take(20)
+                                .map { it to (it.p euclid current) }
+                                .minBy { (_, distance) -> distance }
+                                ?.takeIf { (_, distance) -> distance < .5 }
+                                ?.also { (pose, _) -> particleFilter.getOrSet(chassis.odometry, pose) }
+                            ?: throw RuntimeException("too far away from path node")
+                        }
                         hmi.page = UsartHmi.Page.Follow
                         "${path.size} poses loaded from $name"
                     } catch (e: Exception) {

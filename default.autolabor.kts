@@ -22,6 +22,7 @@ import com.thermometer.Humiture
 import com.thermometer.SerialPortTemperXBuilderDsl.Companion.registerTemperX
 import com.usarthmi.UsartHmi
 import com.usarthmi.UsartHmiBuilderDsl.Companion.registerUsartHmi
+import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.action.PathFollowerBuilderDsl.Companion.pathFollower
 import org.mechdancer.algebra.core.Vector
@@ -34,6 +35,8 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.console.parser.buildParser
+import org.mechdancer.console.parser.display
+import org.mechdancer.console.parser.feedback
 import org.mechdancer.core.Chassis
 import org.mechdancer.core.LocalPath
 import org.mechdancer.core.MobileBeacon
@@ -237,7 +240,7 @@ try {
 
                 obstacles { obstacleFrame }
             }
-        var isEnabled = false
+        var isEnabled = true
         // 启动循径模块
         launch {
             for (local in globalOnRobot) {
@@ -275,8 +278,17 @@ try {
                 try {
                     runBlocking(coroutineContext) { business.startFollowing(name) }
                     val path = (business.function as Business.Functions.Following).planner
-                    particleFilter.getOrSet(chassis.odometry, path.firstTarget)
                     path.painter = remote
+                    if (!particleFilter.isConvergent) {
+                        val current = beacon.location.data
+                        path.asSequence()
+                            .take(20)
+                            .map { it to (it.p euclid current) }
+                            .minBy { (_, distance) -> distance }
+                            ?.takeIf { (_, distance) -> distance < .5 }
+                            ?.also { (pose, _) -> particleFilter.getOrSet(chassis.odometry, pose) }
+                        ?: throw RuntimeException("too far away from path node")
+                    }
                     hmi.page = UsartHmi.Page.Follow
                     "${path.size} poses loaded from $name"
                 } catch (e: Exception) {
@@ -285,7 +297,7 @@ try {
             }
         }
         launch { while (isActive) parser.parseFromConsole() }
-        launch { for (msg in msgFromHmi) parser(msg) }
+        launch { for (msg in msgFromHmi) parser(msg).map(::feedback).forEach(::display) }
         // 刷新固定显示
         if (remote != null) {
             launch {

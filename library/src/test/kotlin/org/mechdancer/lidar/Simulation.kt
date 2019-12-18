@@ -11,7 +11,9 @@ import cn.autolabor.baafs.parser.registerBusinessParser
 import cn.autolabor.baafs.parser.registerExceptionServerParser
 import cn.autolabor.baafs.robotOutline
 import cn.autolabor.pm1.model.ChassisStructure
+import cn.autolabor.serialport.manager.SerialPortManager
 import com.faselase.LidarSet
+import com.usarthmi.UsartHmiBuilderDsl.Companion.registerUsartHmi
 import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.action.PathFollowerBuilderDsl.Companion.pathFollower
@@ -81,6 +83,12 @@ fun main() {
     val globalOnRobot = channel<LocalPath>()
     val exceptions = channel<ExceptionMessage>()
     val command = AtomicReference(Velocity.velocity(.0, .0))
+    val hmiMessages = channel<String>()
+
+    val manager = SerialPortManager(exceptions)
+    val hmi = manager.registerUsartHmi(hmiMessages)
+    manager.sync()
+
     runBlocking(Dispatchers.IO) {
         val exceptionServer =
             startExceptionServer(exceptions) {
@@ -208,7 +216,7 @@ fun main() {
                 }
             }
             registerExceptionServerParser(exceptionServer, this)
-            registerBusinessParser(business, this)
+            registerBusinessParser(business, hmi, this)
         }
         // 处理控制台
         launch { while (isActive) parser.parseFromConsole() }

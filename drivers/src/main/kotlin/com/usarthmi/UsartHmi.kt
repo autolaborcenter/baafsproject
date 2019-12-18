@@ -83,8 +83,8 @@ class UsartHmi(
                         Page.Record.pack  -> launch { if (page != Page.Record) toDevice.send(page.toPack()) }
                         Page.Follow.pack  -> launch { if (page != Page.Follow) toDevice.send(page.toPack()) }
                         RECORD            -> launch { msgFromHmi.send("record") }
-                        FOLLOW            -> launch { msgFromHmi.send("load path\n'") }
-                        SHUT_DOWN         -> launch { msgFromHmi.send("shut down") }
+                        FOLLOW            -> launch { msgFromHmi.send("load path") }
+                        SHUT_DOWN         -> launch { msgFromHmi.send("shutdown") }
                         SAVE_PATH         -> launch { msgFromHmi.send("save path") }
                         CANCEL_FOLLOW,
                         CANCEL_RECORD     -> launch { msgFromHmi.send("cancel") }
