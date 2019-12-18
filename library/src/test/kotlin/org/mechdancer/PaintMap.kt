@@ -22,9 +22,11 @@ fun main() {
         }
     }
 
-    while (true)
+    while (true) {
+        println(">> ")
         readLine()
             ?.let(parser::invoke)
             ?.map(::feedback)
             ?.forEach(::display)
+    }
 }

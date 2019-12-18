@@ -16,7 +16,6 @@ import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.action.PathFollowerBuilderDsl.Companion.pathFollower
 import org.mechdancer.algebra.core.Vector
-import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.function.vector.normalize
 import org.mechdancer.algebra.function.vector.times
 import org.mechdancer.algebra.function.vector.unaryMinus
@@ -90,15 +89,16 @@ fun main() {
         // 启动业务交互后台
         val business =
             startBusiness(
-                robotOnMap = robotOnMap.outputs[0],
-                globalOnRobot = globalOnRobot
+                    robotOnMap = robotOnMap.outputs[0],
+                    globalOnRobot = globalOnRobot
             ) {
-                localRadius = .5
+                localRadius = .3
                 pathInterval = .05
                 localFirst {
-                    it.p.norm() < localRadius
-                    && it.p.toAngle().asRadian() in -PI / 3..+PI / 3
-                    && it.d.asRadian() in -PI / 3..+PI / 3
+                    it.p.length < .01
+                    || (it.p.length < localRadius
+                        && it.p.toAngle().asRadian() in -PI / 3..+PI / 3
+                        && it.d.asRadian() in -PI / 3..+PI / 3)
                 }
             }
         var obstacleFrame = emptyList<Vector2D>()
