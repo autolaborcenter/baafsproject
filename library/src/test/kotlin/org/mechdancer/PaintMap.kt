@@ -23,7 +23,7 @@ fun main() {
     }
 
     while (true) {
-        println(">> ")
+        print(">> ")
         readLine()
             ?.let(parser::invoke)
             ?.map(::feedback)

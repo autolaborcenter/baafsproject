@@ -22,7 +22,6 @@ import com.thermometer.Humiture
 import com.thermometer.SerialPortTemperXBuilderDsl.Companion.registerTemperX
 import com.usarthmi.UsartHmi
 import com.usarthmi.UsartHmiBuilderDsl.Companion.registerUsartHmi
-import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.action.PathFollowerBuilderDsl.Companion.pathFollower
 import org.mechdancer.algebra.core.Vector
@@ -270,7 +269,7 @@ try {
             this["beacon"] = { beacon.location }
             registerExceptionServerParser(exceptionServer, this)
             registerParticleFilterParser(particleFilter, this)
-            registerBusinessParser(business, this)
+            registerBusinessParser(business, hmi, this)
             this["load @name"] = {
                 val name = get(1).toString()
                 try {
@@ -283,11 +282,6 @@ try {
                 } catch (e: Exception) {
                     e.message
                 }
-            }
-            this["cancel"] = {
-                runBlocking(coroutineContext) { business.cancel() }
-                hmi.page = UsartHmi.Page.Index
-                "current mode: ${business.function?.toString() ?: "Idle"}"
             }
         }
         launch { while (isActive) parser.parseFromConsole() }

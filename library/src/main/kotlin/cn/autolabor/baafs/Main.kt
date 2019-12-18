@@ -35,6 +35,8 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.console.parser.buildParser
+import org.mechdancer.console.parser.display
+import org.mechdancer.console.parser.feedback
 import org.mechdancer.core.Chassis
 import org.mechdancer.core.LocalPath
 import org.mechdancer.core.MobileBeacon
@@ -275,7 +277,7 @@ fun main() {
                 this["beacon"] = { beacon.location }
                 registerExceptionServerParser(exceptionServer, this)
                 registerParticleFilterParser(particleFilter, this)
-                registerBusinessParser(business, this)
+                registerBusinessParser(business, hmi, this)
                 this["load @name"] = {
                     val name = get(1).toString()
                     try {
@@ -289,14 +291,9 @@ fun main() {
                         e.message
                     }
                 }
-                this["cancel"] = {
-                    runBlocking(coroutineContext) { business.cancel() }
-                    hmi.page = UsartHmi.Page.Index
-                    "current mode: ${business.function?.toString() ?: "Idle"}"
-                }
             }
             launch { while (isActive) parser.parseFromConsole() }
-            launch { for (msg in msgFromHmi) parser(msg) }
+            launch { for (msg in msgFromHmi) parser(msg).map(::feedback).forEach(::display) }
             // 刷新固定显示
             if (remote != null) {
                 launch {
