@@ -4,6 +4,7 @@ import cn.autolabor.serialport.manager.Certificator
 import cn.autolabor.serialport.manager.SerialPortDeviceBase
 import com.marvelmind.mobilebeacon.BeaconPackage.*
 import com.marvelmind.mobilebeacon.BeaconPackage.Nothing
+import com.marvelmind.toIntUnsigned
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
@@ -36,7 +37,7 @@ internal constructor(
 
     delayLimit: Long,
     heightRange: ClosedFloatingPointRange<Double>
-) : SerialPortDeviceBase(NAME, 115200, 32, portName),
+) : SerialPortDeviceBase(NAME, 115200, 256, portName),
     MobileBeacon {
     // 协议解析引擎
     private val engine = engine()
@@ -88,6 +89,12 @@ internal constructor(
     ) {
         scope.launch {
             for (bytes in fromDevice) {
+//                bytes.joinToString(" ") { val s =Integer.toHexString(it.toIntUnsigned()).takeLast(2)
+//                    if (s.length == 1)
+//                        "0" + s
+//                    else
+//                        s
+//                }.let { println( it) }
                 val now = System.currentTimeMillis()
                 engine(bytes) { pack ->
                     when (pack) {

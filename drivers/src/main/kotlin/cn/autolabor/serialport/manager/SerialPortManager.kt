@@ -109,7 +109,7 @@ class SerialPortManager(
         // 开协程
         devices[this] =
             launchSingleThreadJob(device.tag) {
-                val toDriver = channel<List<Byte>>()
+                val toDriver = Channel<List<Byte>>()
                 device.setup(CoroutineScope(Dispatchers.IO),
                              fromDevice = toDriver,
                              toDevice =

@@ -89,10 +89,22 @@ internal fun engine(): ParseEngine<Byte, BeaconPackage> =
                 stream.read()
                 val payload = stream.readNBytes(`package`.size - 7)
                 when (code) {
-                    CODE_COORDINATE   -> payload.toResolutionCoordinate()
-                    CODE_RAW_DISTANCE -> payload.toRawDistance()
-                    CODE_QUALITY      -> payload.toQuality()
-                    else              -> Others(code)
+                    CODE_COORDINATE   -> {
+                        //println("CODE_COORDINATE")
+                        payload.toResolutionCoordinate()
+                        }
+                    CODE_RAW_DISTANCE -> {
+                        //println("CODE_RAW_DISTANCE")
+                        payload.toRawDistance()
+                        }
+                    CODE_QUALITY      -> {
+                        //println("CODE_QUALITY")
+                        payload.toQuality()
+                        }
+                    else              -> {
+                        //println("Others")
+                        Others(code)
+                        }
                 }
             } else {
                 begin += 2
@@ -121,10 +133,10 @@ private fun ByteArray.toRawDistance() =
         use { stream ->
             RawDistance(
                     address = stream.read().toByte(),
-                    d0 = Distance(stream.read().toByte(), stream.readIntLE()),
-                    d1 = Distance(stream.read().toByte(), stream.readIntLE()),
-                    d2 = Distance(stream.read().toByte(), stream.readIntLE()),
-                    d3 = Distance(stream.read().toByte(), stream.readIntLE()),
+                    d0 = Distance(stream.read().toByte(), stream.readIntLE()).also { stream.read() },
+                    d1 = Distance(stream.read().toByte(), stream.readIntLE()).also { stream.read() },
+                    d2 = Distance(stream.read().toByte(), stream.readIntLE()).also { stream.read() },
+                    d3 = Distance(stream.read().toByte(), stream.readIntLE()).also { stream.read() },
                     timeStamp = stream.readIntLE(),
                     delay = stream.readShortLE())
         }

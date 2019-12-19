@@ -8,13 +8,30 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 
 internal sealed class Command(
-    val priority: Int
+    private val priority: Int
 ) : Comparable<Command> {
     abstract val address: Byte  // 地址
     abstract val data: ByteArray
 
     override fun compareTo(other: Command) =
         priority.compareTo(other.priority)
+
+    // 读取版本指令
+    class CommandVersionR(
+        override val address: Byte
+    ) : Command(0) {
+        override val data: ByteArray by lazy {
+            ByteArrayOutputStream()
+                .apply {
+                    write(address.toInt())
+                    write(0x03)
+                    writeLE(0xFE00.toShort())
+                    writeLE(0x0000.toShort())
+                    write(crc16(toByteArray()))
+                }
+                .toByteArray()
+        }
+    }
 
     // 读取配置指令（温度）
     class CommandConfigR(
@@ -45,6 +62,7 @@ internal sealed class Command(
                     write(0x10)
                     writeLE(0x5000.toShort())
                     writeLE(0x0000.toShort())
+                    write(0x30)
                     write(configData)
                     write(crc16(toByteArray()))
                 }
@@ -203,7 +221,7 @@ internal class Device(
 
     // 打印
     override fun toString() =
-        "beacon${id}: ${voltage / 1000.0}V"
+        "beacon${id}:   ${voltage / 1000.0}V"
 }
 
 // 地图
@@ -211,7 +229,6 @@ internal class Map(pathName: String) {
     var filled = false
     val submaps = mutableListOf<ByteArray>()
     val beacons = mutableListOf<Pair<Byte, ByteArray>>()
-
     init {
         File(pathName)
             .takeIf(File::exists)
@@ -236,7 +253,7 @@ internal class Map(pathName: String) {
 internal sealed class DataPackage {
     object Nothing : DataPackage()
     object Failed : DataPackage()
-    class Data(val type: Int, val payload: ByteArray) : DataPackage() {
+    class Data(private val type: Int, private val payload: ByteArray) : DataPackage() {
         operator fun component1() = type
         operator fun component2() = payload
     }
@@ -250,7 +267,7 @@ internal fun engine(): ParseEngine<Byte, DataPackage> =
         // 找到一个帧头
         var begin = 0
         for (i in 0 until size - 2) {
-            if (buffer[i] == 0xFF.toByte() && buffer[i + 1] == 0x47.toByte()) {         // 广播包
+            if (buffer[i] == 0xFF.toByte() && buffer[i + 1] == 0x47.toByte()) {           // 广播包
                 headLen = 5
                 begin = i
                 break
@@ -266,7 +283,7 @@ internal fun engine(): ParseEngine<Byte, DataPackage> =
         }
         if (headLen == 0)
             return@ParseEngine ParseInfo(
-                    nextHead = size - 2,
+                    nextHead = if (size >= 2) size - 2 else 0,
                     nextBegin = size,
                     result = DataPackage.Nothing)
         // 确定帧长度

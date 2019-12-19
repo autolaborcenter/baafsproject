@@ -58,10 +58,10 @@ internal constructor(
     private var humiture = Humiture(DEFAULT_VAL, DEFAULT_VAL)
     // 路由设置温度
     private var tempModem = DEFAULT_VAL.toInt()
-    // 上一个定位数据字符串
+    // 上一个定位数据
     private var lastLocation = emptyArray<Stamped<MobileBeaconData>?>()
-    // 认证串口时收到的beacon坐标数据
-    private var beaconData = ByteArray(0)
+    // 路由版本（认证串口）
+    private var version = 0
     // submap编号(由于submap返回数据中没有编号，则在发送请求时记录编号)
     private var submapNumber = -1
     // device序号(用于对应收发)
@@ -74,16 +74,16 @@ internal constructor(
 
     override fun buildCertificator(): Certificator =
         object : CertificatorBase(CERT_TIMEOUT) {
-            override val activeBytes = byteArrayOf()
+            override val activeBytes = Command.CommandVersionR(0xFF.toByte()).data
             override fun invoke(bytes: Iterable<Byte>): Boolean? {
                 var result = false
                 engine(bytes) { pack ->
                     when (pack) {
-                        is DataPackage.Nothing -> logger?.log("nothing")
-                        is DataPackage.Failed  -> logger?.log("failed")
+                        DataPackage.Nothing ,
+                        DataPackage.Failed -> Unit
                         is DataPackage.Data    -> {
                             parse(pack)
-                            result = beaconData.isNotEmpty()
+                            result = version > 0
                         }
                     }
                 }
@@ -98,7 +98,7 @@ internal constructor(
     ) {
         // 定时请求配置(温度)
         val jobConfig = scope.launch(start = CoroutineStart.LAZY) {
-            while (humiture.temperature < DEFAULT_VAL + 1)
+            while (humiture.temperature < DEFAULT_VAL + 1 && isActive)
                 delay(1000L)
             while (isActive) {
                 requestQueue.offer(CMD_CONFIG)
@@ -121,7 +121,7 @@ internal constructor(
                     lastLocation[index]?.let {
                         val record = buildString {
                             val (t, d) = it
-                            val (_, x, y, z, available, _, rawDistance) = d
+                            val (_, x, y, z, available, quality, rawDistance) = d
                             append("${t}\t")
                             append("${tempModem}\t")
                             append("${humiture.temperature}\t")
@@ -130,20 +130,24 @@ internal constructor(
                             append("${y}\t")
                             append("${z}\t")
                             append("${if (available) 1 else 0}\t")
-                            append("(quality ?: -1)\t")
-                            rawDistance?.forEach { address, value ->
+                            quality?.let { append(it) }?:run {
+                                append(-1)
+                                println("no quality")
+                            }
+                            rawDistance?.forEach { (address, value) ->
                                 append("${address.toIntUnsigned()}\t${value}\t")
                             } ?: run {
-                                append("-1\t-1\t-1\t-1\t")
+                                repeat(8) { append("-1\t") }
+                                println("no rawDistance")
                             }
                             for (distance in rawDistances)
                                 append("${distance}\t")
                             for (i in rawDistances.indices)
                                 rawDistances[i] = -1
                         }
-                        log(dataLoggers[index], record)
-                        lastLocation[index] = Stamped(stamp, data)
+                        log(dataLoggers[index], record, LogType.WriteOnly)
                     }
+                    lastLocation[index] = Stamped(stamp, data)
                     requestQueue.offer(CMD_RAW_DIS)
                 } else
                     log(logger, "unknown hedgehog ${data.address.toIntUnsigned()}")
@@ -154,9 +158,9 @@ internal constructor(
         // 处理请求队列
         scope.launch {
             while (isActive) {
-                requestQueue.poll().let {
+                requestQueue.poll()?.let {
                     if (it !is Command.CommandRawDistanceR
-                        || requestQueue.element() !is Command.CommandRawDistanceR
+                        || requestQueue.peek() !is Command.CommandRawDistanceR
                     ) {
                         when (it) {
                             is Command.CommandSubmapR -> submapNumber = it.address.toIntUnsigned()
@@ -164,18 +168,21 @@ internal constructor(
                         }
                         toDevice.send(it.data.asList())
                     }
+                    else {
+                        log(logger, "CommandRawDistanceR abandon")
+                    }
                 }
                 delay(REQUEST_INTERVAL)
             }
         }
         // 接收串口数据
         scope.launch {
-            for (bytes in fromDevice)
+            for (bytes in fromDevice) {
                 engine(bytes) { pack ->
                     when (pack) {
-                        is DataPackage.Nothing -> logger?.log("nothing")
-                        is DataPackage.Failed  -> logger?.log("failed")
-                        is DataPackage.Data    ->
+                        DataPackage.Nothing ,
+                        DataPackage.Failed -> Unit
+                        is DataPackage.Data ->
                             launch {
                                 assert(parse(pack).all(requestQueue::offer))
                                 exceptions.send(Recovered(dataTimeoutException))
@@ -183,27 +190,36 @@ internal constructor(
                             }
                     }
                 }
+                if (!isActive)
+                    break
+            }
         }
         // 接收温湿度
         scope.launch {
-            for ((_, data) in humitures)
+            for ((_, data) in humitures) {
                 humiture = data
+                if (!isActive)
+                    break
+            }
         }
         // 初始化
         scope.launch {
             // 确保读到地图
             while (!map.filled) {
-                log(logger, "reload marvelmind.map after 5s")
+                log(logger, "retry loading marvelmind.map in 5s")
                 delay(5000)
                 map = Map("marvelmind.map")
             }
-            // 检查固定标签坐标
-            checkBeaconCoordinate(beaconData)  // TODO beaconData要不要判空
-                .takeIf { it.isNotEmpty() }
-                ?.forEach { requestQueue.offer(it) }
-            // 检查 submap
-            for (i in map.submaps.indices)
-                requestQueue.offer(Command.CommandSubmapR(i.toByte()))
+            // 设置固定标签坐标
+            for (item in map.beacons) {
+                requestQueue.offer(Command.CommandCoordinateW(item.first, item.second))
+                log(logger, "set coordinate of beacon${item.first.toIntUnsigned()}")
+            }
+            // 设置submap
+            for (i in map.submaps.indices) {
+                requestQueue.offer(Command.CommandSubmapW(i.toByte(), map.submaps[i]))
+                log(logger, "set submap${i}")
+            }
             // 初始化和标签数相关的量
             beaconIdList = ByteArray(map.beacons.size) { map.beacons[it].first }
             rawDistances = IntArray(beaconIdList.size) { -1 }
@@ -225,17 +241,16 @@ internal constructor(
         val cmdList = arrayListOf<Command>()
         val (type, payload) = pack
         when (type) {
-            0x12 -> {   // 固定标签坐标
-                if (beaconData.isEmpty())
-                    beaconData = payload.clone()
+            0x08 -> {   // 版本号
+                version = resolveVersion(payload)
             }
-            0x50 -> {   // submap
-                if (submapNumber >= 0) {
-                    checkSubmap(submapNumber.toByte(), payload)
-                        ?.let { cmdList.add(it) } // 写submap
-                    submapNumber = -1
-                }
-            }
+//            0x50 -> {   // submap
+//                if (submapNumber >= 0) {
+//                    checkSubmap(submapNumber.toByte(), payload)
+//                        ?.let { cmdList.add(it) } // 写submap
+//                    submapNumber = -1
+//                }
+//            }
             0x20 -> {   // 标签状态(电压)
                 if (deviceIndex >= 0) {
                     val index = deviceIndex
@@ -247,7 +262,7 @@ internal constructor(
                         log(logger, "wake beacon${devices[index].id.toIntUnsigned()}")
                     }
                     // 记录标签电压
-                    log(deviceLogger, devices[index].toString())
+                    log(deviceLogger, devices[index].toString(), LogType.WriteOnly)
 //                    // 前面获取失败的标签重试
 //                    for (i in 0 until index) {
 //                        if (devices[i].voltage == -1)
@@ -269,6 +284,7 @@ internal constructor(
     // 常量参数
     private companion object {
         const val NAME = "marvelmind modem"
+        const val DEVICE_TYPE_ID = 24.toByte()
         const val DEFAULT_VAL = -300.0
         const val CERT_TIMEOUT = 11000L
         const val REQUEST_INTERVAL = 50L
@@ -276,41 +292,19 @@ internal constructor(
         val CMD_RAW_DIS = Command.CommandRawDistanceR(0xFF.toByte())
     }
 
-    private fun contains(list: Array<Pair<Byte, ByteArray>>, item: Pair<Byte, ByteArray>): Boolean {
-        for ((a, b) in list) {
-            if (item.first == a && item.second.dataEquals(b))
-                return true
-        }
-        return false
-    }
-
-    // 检查固定标签坐标
-    private fun checkBeaconCoordinate(data: ByteArray): List<Command> {
-        val cmdList = arrayListOf<Command>()
-        val beacons = Array(data[0].toIntUnsigned()) {
-            Pair(data[14 * it + 1], data.copyOfRange(14 * it + 2, 14 * it + 14))
-        }
-        for (item in map.beacons) {
-            if (!contains(beacons, item)) {
-                cmdList.add(Command.CommandCoordinateW(item.first, item.second))
-            }
-        }
-        return cmdList
-    }
-
-    // 检查submap
-    private fun checkSubmap(address: Byte, data: ByteArray): Command? {
-        val index = address.toIntUnsigned()
-        if (index < map.submaps.size && !data.dataEquals(map.submaps[index]))
-            return Command.CommandSubmapW(address, map.submaps[index])
-        return null
+    // 解析版本号
+    private fun resolveVersion(data: ByteArray): Int {
+        val ver = data[0].toIntUnsigned() + data[1].toIntUnsigned() * 256
+        if (data[5] == DEVICE_TYPE_ID)
+            return if (ver > 0) ver else 1
+        return 0
     }
 
     // 检查温度
     private fun checkTemperature(data: ByteArray, temp: Double): Command? {
         tempModem = temp.roundToInt()
         val tempData = tempModem - 23
-        log(logger, "real temp = ${temp}, modem temp = ${data[20].toInt() + 23}")
+        log(logger, "modem temp now = ${data[20].toInt() + 23}, real temp now = ${temp}")
         if (tempData == data[20].toInt()) {
             return null
         }

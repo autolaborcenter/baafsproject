@@ -30,7 +30,7 @@ internal class MobileBeaconDataCollector {
                         z = a.z,
                         available = a.available,
                         quality = c?.qualityPercent,
-                        rawDistance = b?.toMap())
+                        rawDistance = b?.toList())
                 )
             }
         }
@@ -64,7 +64,7 @@ internal class MobileBeaconDataCollector {
                     z = a.z,
                     available = a.available,
                     quality = c.qualityPercent,
-                    rawDistance = b.toMap()))
+                    rawDistance = b.toList()))
         }
         return null
     }
@@ -73,7 +73,7 @@ internal class MobileBeaconDataCollector {
         fun Distance.toPair() =
             let { (address, value) -> address to value }
 
-        fun RawDistance.toMap() =
-            mapOf(d0.toPair(), d1.toPair(), d2.toPair(), d3.toPair())
+        fun RawDistance.toList() =
+            listOf(d0.toPair(), d1.toPair(), d2.toPair(), d3.toPair())
     }
 }

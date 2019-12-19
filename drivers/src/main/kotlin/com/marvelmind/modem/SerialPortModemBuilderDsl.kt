@@ -30,7 +30,7 @@ private constructor() {
 
     companion object {
         /**
-         * @param thermometer 输入温湿度数据
+         * @param humitures 输入温湿度数据
          * @param hedgehog 输入定位数据
          * @param exceptions 输出异常信息
          * @param block 配置参数
@@ -46,6 +46,7 @@ private constructor() {
                 require(tempInterval > 0)
                 require(stateInterval > 0)
                 require(dataTimeout > 0)
+                require(hedgeIdList.isNotEmpty())
             }
             .run {
                 SerialPortModem(
