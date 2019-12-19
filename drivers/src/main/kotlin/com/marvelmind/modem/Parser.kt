@@ -229,6 +229,7 @@ internal class Map(pathName: String) {
     var filled = false
     val submaps = mutableListOf<ByteArray>()
     val beacons = mutableListOf<Pair<Byte, ByteArray>>()
+
     init {
         File(pathName)
             .takeIf(File::exists)

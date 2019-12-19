@@ -25,7 +25,6 @@ import com.usarthmi.UsartHmiBuilderDsl.Companion.registerUsartHmi
 import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.action.PathFollowerBuilderDsl.Companion.pathFollower
-import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
@@ -50,7 +49,6 @@ import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.local.LocalPotentialFieldPlannerBuilderDsl.Companion.potentialFieldPlanner
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.presets.remoteHub
-import org.mechdancer.vectorgrid.VectorGird
 import kotlin.math.PI
 import kotlin.math.pow
 import kotlin.system.exitProcess
@@ -211,14 +209,7 @@ fun main() {
                     }
 
                     obstacles {
-                        obstacleFrame =
-                            lidarSet.frame
-                                .takeUnless(Collection<*>::isEmpty)
-                                ?.let { VectorGird(vector2DOf(.05, .05), it) }
-                                ?.getSamplePoints { it.size > 2 }
-                                ?.flatten()
-                                ?.map(Vector::to2D)
-                            ?: emptyList()
+                        obstacleFrame = lidarSet.frame.toGridOf(vector2DOf(.05, .05))
                         remote?.paintVectors("R 聚类", obstacleFrame)
                         obstacleFrame
                     }

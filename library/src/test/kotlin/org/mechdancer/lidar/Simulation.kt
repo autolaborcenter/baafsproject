@@ -5,6 +5,7 @@ import cn.autolabor.baafs.bussiness.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.baafs.bussiness.FollowFailedException
 import cn.autolabor.baafs.collisionpredictor.CollisionDetectedException
 import cn.autolabor.baafs.collisionpredictor.CollisionPredictorBuilderDsl.Companion.collisionPredictor
+import cn.autolabor.baafs.toGridOf
 import cn.autolabor.baafs.outlineFilter
 import cn.autolabor.baafs.parser.parseFromConsole
 import cn.autolabor.baafs.parser.registerBusinessParser
@@ -17,7 +18,6 @@ import com.usarthmi.UsartHmiBuilderDsl.Companion.registerUsartHmi
 import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.action.PathFollowerBuilderDsl.Companion.pathFollower
-import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.function.vector.normalize
 import org.mechdancer.algebra.function.vector.times
 import org.mechdancer.algebra.function.vector.unaryMinus
@@ -44,7 +44,6 @@ import org.mechdancer.lidar.Default.simulationLidar
 import org.mechdancer.local.LocalPotentialFieldPlannerBuilderDsl.Companion.potentialFieldPlanner
 import org.mechdancer.simulation.Chassis
 import org.mechdancer.simulation.speedSimulation
-import org.mechdancer.vectorgrid.VectorGird
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.PI
 import kotlin.math.pow
@@ -127,18 +126,7 @@ fun main() {
                 }
 
                 obstacles {
-                    val frame =
-                        lidarSet.frame
-                    val contourFrame =
-                        frame
-                            .takeUnless(Collection<*>::isEmpty)
-                            ?.let { VectorGird(vector2DOf(.05, .05), it) }
-                            ?.getSamplePoints { it.size > 2 }
-                            ?.flatten()
-                            ?.map(Vector::to2D)
-                        ?: emptyList()
-
-                    obstacleFrame = contourFrame
+                    obstacleFrame = lidarSet.frame.toGridOf(vector2DOf(.05, .05))
                     remote.paintVectors("R 聚类", obstacleFrame)
                     obstacleFrame
                 }
@@ -232,15 +220,7 @@ fun main() {
                 while (System.currentTimeMillis() - invokeTime > 2000L) {
                     val frame = lidarSet.frame
                     remote.paintVectors("R 雷达", frame)
-                    val contourFrame =
-                        frame
-                            .takeUnless(Collection<*>::isEmpty)
-                            ?.let { VectorGird(vector2DOf(.05, .05), it) }
-                            ?.getSamplePoints { it.size > 2 }
-                            ?.flatten()
-                            ?.map(Vector::to2D)
-                        ?: emptyList()
-                    remote.paintVectors("R 聚类", contourFrame)
+                    remote.paintVectors("R 聚类",  frame.toGridOf(vector2DOf(.05, .05)))
                     delay(200L)
                 }
                 delay(5000L)

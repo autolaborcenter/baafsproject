@@ -4,7 +4,6 @@ import cn.autolabor.serialport.manager.Certificator
 import cn.autolabor.serialport.manager.SerialPortDeviceBase
 import com.marvelmind.mobilebeacon.BeaconPackage.*
 import com.marvelmind.mobilebeacon.BeaconPackage.Nothing
-import com.marvelmind.toIntUnsigned
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel

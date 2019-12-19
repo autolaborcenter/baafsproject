@@ -7,4 +7,4 @@ data class MobileBeaconData(
     val z: Int,
     val available: Boolean,
     val quality: Byte?,
-    val rawDistance: List<Pair<Byte,Int>>?)
+    val rawDistance: List<Pair<Byte, Int>>?)

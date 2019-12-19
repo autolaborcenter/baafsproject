@@ -2,7 +2,6 @@ package com.marvelmind.modem
 
 import cn.autolabor.serialport.manager.Certificator
 import cn.autolabor.serialport.manager.SerialPortDeviceBase
-import com.marvelmind.dataEquals
 import com.marvelmind.mobilebeacon.MobileBeaconData
 import com.marvelmind.shortLEOfU
 import com.marvelmind.toIntUnsigned
@@ -79,9 +78,9 @@ internal constructor(
                 var result = false
                 engine(bytes) { pack ->
                     when (pack) {
-                        DataPackage.Nothing ,
-                        DataPackage.Failed -> Unit
-                        is DataPackage.Data    -> {
+                        DataPackage.Nothing,
+                        DataPackage.Failed  -> Unit
+                        is DataPackage.Data -> {
                             parse(pack)
                             result = version > 0
                         }
@@ -130,7 +129,7 @@ internal constructor(
                             append("${y}\t")
                             append("${z}\t")
                             append("${if (available) 1 else 0}\t")
-                            quality?.let { append(it) }?:run {
+                            quality?.let { append(it) } ?: run {
                                 append(-1)
                                 println("no quality")
                             }
@@ -167,8 +166,7 @@ internal constructor(
                             is Command.CommandStateR  -> deviceIndex = idList.indexOf(it.address)
                         }
                         toDevice.send(it.data.asList())
-                    }
-                    else {
+                    } else {
                         log(logger, "CommandRawDistanceR abandon")
                     }
                 }
@@ -180,8 +178,8 @@ internal constructor(
             for (bytes in fromDevice) {
                 engine(bytes) { pack ->
                     when (pack) {
-                        DataPackage.Nothing ,
-                        DataPackage.Failed -> Unit
+                        DataPackage.Nothing,
+                        DataPackage.Failed  -> Unit
                         is DataPackage.Data ->
                             launch {
                                 assert(parse(pack).all(requestQueue::offer))

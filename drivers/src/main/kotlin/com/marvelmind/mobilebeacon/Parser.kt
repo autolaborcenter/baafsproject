@@ -10,6 +10,7 @@ import com.marvelmind.readIntLE
 import com.marvelmind.readShortLE
 import com.marvelmind.toIntUnsigned
 import java.io.ByteArrayInputStream
+import java.io.InputStream
 
 private const val DestinationAddress = 0xff.toByte()
 private const val PacketType = 0x47.toByte()
@@ -92,19 +93,19 @@ internal fun engine(): ParseEngine<Byte, BeaconPackage> =
                     CODE_COORDINATE   -> {
                         //println("CODE_COORDINATE")
                         payload.toResolutionCoordinate()
-                        }
+                    }
                     CODE_RAW_DISTANCE -> {
                         //println("CODE_RAW_DISTANCE")
                         payload.toRawDistance()
-                        }
+                    }
                     CODE_QUALITY      -> {
                         //println("CODE_QUALITY")
                         payload.toQuality()
-                        }
+                    }
                     else              -> {
                         //println("Others")
                         Others(code)
-                        }
+                    }
                 }
             } else {
                 begin += 2
@@ -128,15 +129,18 @@ private fun ByteArray.toResolutionCoordinate() =
         }
     }.getOrDefault(Failed)
 
+private fun InputStream.readDistance() =
+    Distance(read().toByte(), readIntLE()).also { read() }
+
 private fun ByteArray.toRawDistance() =
     ByteArrayInputStream(this).runCatching {
         use { stream ->
             RawDistance(
                     address = stream.read().toByte(),
-                    d0 = Distance(stream.read().toByte(), stream.readIntLE()).also { stream.read() },
-                    d1 = Distance(stream.read().toByte(), stream.readIntLE()).also { stream.read() },
-                    d2 = Distance(stream.read().toByte(), stream.readIntLE()).also { stream.read() },
-                    d3 = Distance(stream.read().toByte(), stream.readIntLE()).also { stream.read() },
+                    d0 = stream.readDistance(),
+                    d1 = stream.readDistance(),
+                    d2 = stream.readDistance(),
+                    d3 = stream.readDistance(),
                     timeStamp = stream.readIntLE(),
                     delay = stream.readShortLE())
         }
