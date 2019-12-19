@@ -1,4 +1,4 @@
-package org.mechdancer.vectorgrid
+package org.mechdancer.datagrid
 
 val dimDelta = listOf(0, -1, +1)
 

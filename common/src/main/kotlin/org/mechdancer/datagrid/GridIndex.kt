@@ -1,4 +1,4 @@
-package org.mechdancer.vectorgrid
+package org.mechdancer.datagrid
 
 /** 网格序号 */
 interface GridIndex<G : GridIndex<G>> : List<Int> {

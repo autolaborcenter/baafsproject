@@ -1,8 +1,6 @@
-package org.mechdancer.vectorgrid
+package org.mechdancer.datagrid
 
-import org.mechdancer.algebra.core.Vector
-
-class VectorGird<T : Vector, G : GridIndex<G>>(
+class DataGird<T, G : GridIndex<G>>(
     list: Iterable<T>,
     private val indexOf: (T) -> G
 ) {

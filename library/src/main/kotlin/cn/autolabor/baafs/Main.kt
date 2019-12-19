@@ -18,6 +18,8 @@ import com.faselase.FaselaseLidarSetBuilderDsl.Companion.registerFaselaseLidarSe
 import com.faselase.LidarSet
 import com.marvelmind.mobilebeacon.MobileBeaconData
 import com.marvelmind.mobilebeacon.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
+import com.marvelmind.modem.SerialPortModem
+import com.marvelmind.modem.SerialPortModemBuilderDsl.Companion.registerModem
 import com.thermometer.Humiture
 import com.thermometer.SerialPortTemperXBuilderDsl.Companion.registerTemperX
 import com.usarthmi.UsartHmi
@@ -73,7 +75,7 @@ fun main() {
 
     val beaconOnMap = channel<Stamped<Vector2D>>()
     val beaconData = channel<Stamped<MobileBeaconData>>()
-    val temperatures = channel<Stamped<Humiture>>()
+    val humitures = channel<Stamped<Humiture>>()
 
     val globalOnRobot = channel<LocalPath>()
     val commandToSwitch = channel<ControlVariable>()
@@ -84,7 +86,7 @@ fun main() {
     // 配置温度计
     val temperX =
         manager.registerTemperX(
-                temperatures = temperatures,
+                temperatures = humitures,
                 exceptions = exceptions
         ) {
             period = 1000L
@@ -109,6 +111,15 @@ fun main() {
 
             delayLimit = 400L
             heightRange = -3.0..0.0
+        }
+    // 配置路由
+    val modem: SerialPortModem =
+        manager.registerModem(
+                humitures = humitures,
+                hedgehog = beaconData,
+                exceptions = exceptions
+        ) {
+            hedgeIdList = byteArrayOf(24)
         }
     // 配置雷达
     val lidarSet: LidarSet =
