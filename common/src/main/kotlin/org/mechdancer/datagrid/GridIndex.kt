@@ -1,7 +1,7 @@
 package org.mechdancer.datagrid
 
 /** 网格序号 */
-interface GridIndex<G : GridIndex<G>> : List<Int> {
+interface GridIndex<I : GridIndex<I>> : List<Int> {
     /** 邻域 */
-    val neighbors: Set<G>
+    val neighbors: Set<I>
 }

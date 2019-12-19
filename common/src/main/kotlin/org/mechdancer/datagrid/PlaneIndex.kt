@@ -1,5 +1,8 @@
 package org.mechdancer.datagrid
 
+import org.mechdancer.algebra.core.Vector
+import org.mechdancer.algebra.function.vector.div
+
 /** 平面格 */
 class PlaneIndex(values: List<Int>)
     : GridIndex<PlaneIndex>,
@@ -25,4 +28,9 @@ class PlaneIndex(values: List<Int>)
 
     override fun hashCode() =
         listHash()
+
+    companion object {
+        fun Vector.toPlaneIndex(block: Vector) =
+            PlaneIndex((this / block).toList().map(Number::toInt))
+    }
 }

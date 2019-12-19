@@ -24,7 +24,6 @@ import com.thermometer.Humiture
 import com.thermometer.SerialPortTemperXBuilderDsl.Companion.registerTemperX
 import com.usarthmi.UsartHmi
 import com.usarthmi.UsartHmiBuilderDsl.Companion.registerUsartHmi
-import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.action.PathFollowerBuilderDsl.Companion.pathFollower
 import org.mechdancer.algebra.function.vector.*
@@ -81,15 +80,15 @@ val hmi = manager.registerUsartHmi(msgFromHmi)
 // 配置温度计
 val temperX =
     manager.registerTemperX(
-        temperatures = humitures,
-        exceptions = exceptions
+            temperatures = humitures,
+            exceptions = exceptions
     ) {
         period = 1000L
     }
 // 配置底盘
 val chassis: Chassis<ControlVariable> =
     manager.registerPM1Chassis(
-        robotOnOdometry = robotOnOdometry
+            robotOnOdometry = robotOnOdometry
     ) {
         odometryInterval = 40L
         maxAccelerate = .75
@@ -97,9 +96,9 @@ val chassis: Chassis<ControlVariable> =
 // 配置定位标签
 val beacon: MobileBeacon =
     manager.registerMobileBeacon(
-        beaconOnMap = beaconOnMap,
-        beaconData = beaconData,
-        exceptions = exceptions
+            beaconOnMap = beaconOnMap,
+            beaconData = beaconData,
+            exceptions = exceptions
     ) {
         portName = "/dev/beacon"
         dataTimeout = 5000L
@@ -110,15 +109,15 @@ val beacon: MobileBeacon =
 // 配置路由
 val modem: SerialPortModem =
     manager.registerModem(
-        humitures = humitures,
-        hedgehog = beaconData
+            humitures = humitures,
+            hedgehog = beaconData
     ) {
         hedgeIdList = byteArrayOf(24)
     }
 // 配置雷达
 val lidarSet: LidarSet =
     manager.registerFaselaseLidarSet(
-        exceptions = exceptions
+            exceptions = exceptions
     ) {
         dataTimeout = 400L
         lidar(port = "/dev/pos3") {
@@ -170,9 +169,9 @@ try {
         // 启动定位融合模块（粒子滤波器）
         val particleFilter =
             startLocationFusion(
-                robotOnOdometry = robotOnOdometry.outputs[0],
-                beaconOnMap = beaconOnMap,
-                robotOnMap = robotOnMap
+                    robotOnOdometry = robotOnOdometry.outputs[0],
+                    beaconOnMap = beaconOnMap,
+                    robotOnMap = robotOnMap
             ) {
                 filter {
                     beaconOnRobot = vector2DOf(-.01, -.02)
@@ -185,8 +184,8 @@ try {
         // 启动业务交互后台
         val business =
             startBusiness(
-                robotOnMap = robotOnMap,
-                globalOnRobot = globalOnRobot
+                    robotOnMap = robotOnMap,
+                    globalOnRobot = globalOnRobot
             ) {
                 localRadius = .5
                 pathInterval = .05
@@ -282,13 +281,9 @@ try {
                     path.painter = remote
                     if (!particleFilter.isConvergent) {
                         val current = beacon.location.data
-                        path.asSequence()
-                            .take(20)
-                            .map { it to (it.p euclid current) }
-                            .minBy { (_, distance) -> distance }
-                            ?.takeIf { (_, distance) -> distance < .5 }
-                            ?.also { (pose, _) -> particleFilter.getOrSet(chassis.odometry, pose) }
-                        ?: throw RuntimeException("too far away from path node")
+                        particleFilter.getOrSet(
+                                chassis.odometry,
+                                path.firstOrNull { it.p euclid current < .5 } ?: path.first())
                     }
                     hmi.page = UsartHmi.Page.Follow
                     "${path.size} poses loaded from $name"

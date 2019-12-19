@@ -1,28 +1,20 @@
 package org.mechdancer.datagrid
 
-class DataGird<T, G : GridIndex<G>>(
-    list: Iterable<T>,
-    private val indexOf: (T) -> G
+class DataGird<T, I : GridIndex<I>>(
+    val grids: Map<I, List<T>>,
+    private val indexOf: (T) -> I
 ) {
-    val grids by lazy { list.groupBy(indexOf) }
     val regionMap by lazy { RegionMap(grids.keys) }
 
     /** 获取点对应的区域 */
     fun getRegion(key: T) =
         regionMap.run { indices[indexOf(key)]?.let { regions[it] } }
 
-    /** 获取满足条件的类中的点 */
-    fun getPoints(block: (Set<G>) -> Boolean) =
-        regionMap.regions
-            .mapNotNull { region ->
-                region.takeIf(block)?.flatMap(grids::getValue)
-            }
-
     /** 区域正反映射 */
-    class RegionMap<G : GridIndex<G>>
-    internal constructor(grids: Set<G>) {
+    class RegionMap<I : GridIndex<I>>
+    internal constructor(grids: Set<I>) {
         /** 区域号对应的点集 */
-        val regions: List<Set<G>> =
+        val regions: List<Set<I>> =
             sequence {
                 val rest = grids.toHashSet()
                 while (true) {
@@ -42,7 +34,7 @@ class DataGird<T, G : GridIndex<G>>(
             }.toList()
 
         /** 点到区域号的映射 */
-        val indices: Map<G, Int> =
+        val indices: Map<I, Int> =
             regions
                 .withIndex()
                 .flatMap { (i, set) -> set.map { it to i } }
@@ -51,5 +43,10 @@ class DataGird<T, G : GridIndex<G>>(
         private companion object {
             fun <T> MutableSet<T>.poll() = firstOrNull()?.also { remove(it) }
         }
+    }
+
+    companion object {
+        fun <T, I : GridIndex<I>> Iterable<T>.toDataGrid(block: (T) -> I) =
+            DataGird(groupBy(block), block)
     }
 }

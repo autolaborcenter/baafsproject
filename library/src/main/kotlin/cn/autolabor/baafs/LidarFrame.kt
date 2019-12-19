@@ -6,16 +6,12 @@ import org.mechdancer.algebra.function.vector.plus
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.listVectorOfZero
 import org.mechdancer.algebra.implement.vector.to2D
-import org.mechdancer.datagrid.DataGird
-import org.mechdancer.datagrid.PlaneIndex
+import org.mechdancer.datagrid.DataGird.Companion.toDataGrid
+import org.mechdancer.datagrid.PlaneIndex.Companion.toPlaneIndex
 
 fun List<Vector2D>.toGridOf(block: Vector2D) =
     takeUnless(Collection<*>::isEmpty)
-        ?.let { points ->
-            DataGird(points) {
-                PlaneIndex((it / block).toList().map(Number::toInt))
-            }
-        }
+        ?.toDataGrid { it.toPlaneIndex(block) }
         ?.run {
             regionMap.regions
                 .mapNotNull { region ->

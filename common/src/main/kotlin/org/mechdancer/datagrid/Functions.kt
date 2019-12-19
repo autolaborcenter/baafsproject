@@ -2,14 +2,14 @@ package org.mechdancer.datagrid
 
 val dimDelta = listOf(0, -1, +1)
 
-fun <G : GridIndex<G>> G.times3() =
+fun <I : GridIndex<I>> I.times3() =
     sequence { var i = 1; repeat(size) { yield(i); i *= 3 } }.toList().asReversed()
 
-fun <G : GridIndex<G>> G.rowView() =
+fun <I : GridIndex<I>> I.rowView() =
     joinToString(" ", "(", ")")
 
-fun <G : GridIndex<G>> G.elementEquals(others: G) =
+fun <I : GridIndex<I>> I.elementEquals(others: I) =
     this.zip(others) { a, b -> a == b }.all { it }
 
-fun <G : GridIndex<G>> G.listHash() =
+fun <I : GridIndex<I>> I.listHash() =
     reduce { code, it -> code.hashCode() * 31 + it.hashCode() }
