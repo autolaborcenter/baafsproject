@@ -10,12 +10,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.SimpleLogger
-import org.mechdancer.WatchDog
 import org.mechdancer.common.Stamped
-import org.mechdancer.exceptions.DataTimeoutException
-import org.mechdancer.exceptions.ExceptionMessage
-import org.mechdancer.exceptions.ExceptionMessage.Occurred
-import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import java.util.concurrent.PriorityBlockingQueue
 import kotlin.math.roundToInt
 
@@ -26,13 +21,11 @@ class SerialPortModem
 internal constructor(
     private val humitures: ReceiveChannel<Stamped<Humiture>>,
     private val hedgehog: ReceiveChannel<Stamped<MobileBeaconData>>,
-    private val exceptions: SendChannel<ExceptionMessage>,
 
     portName: String?,  // 定位路由串口号
 
     private val tempInterval: Long,     // 设置温度周期
     private val stateInterval: Long,    // 读标签状态周期(电压)
-    dataTimeout: Long,                  // 数据超时时间
 
     private val hedgeIdList: ByteArray, // 移动标签id列表
     private val logger: SimpleLogger?   // 运行日志
@@ -67,9 +60,6 @@ internal constructor(
     private var deviceIndex = -1
     // 数据请求队列
     private val requestQueue = PriorityBlockingQueue<Command>()
-    // 超时异常监控
-    private val dataTimeoutException = DataTimeoutException(NAME, dataTimeout)
-    private val dataWatchDog = WatchDog(timeout = dataTimeout) { exceptions.send(Occurred(dataTimeoutException)) }
 
     override fun buildCertificator(): Certificator =
         object : CertificatorBase(CERT_TIMEOUT) {
@@ -180,12 +170,7 @@ internal constructor(
                     when (pack) {
                         DataPackage.Nothing,
                         DataPackage.Failed  -> Unit
-                        is DataPackage.Data ->
-                            launch {
-                                assert(parse(pack).all(requestQueue::offer))
-                                exceptions.send(Recovered(dataTimeoutException))
-                                dataWatchDog.feed()
-                            }
+                        is DataPackage.Data -> launch { assert(parse(pack).all(requestQueue::offer)) }
                     }
                 }
                 if (!isActive)
@@ -208,16 +193,16 @@ internal constructor(
                 delay(5000)
                 map = Map("marvelmind.map")
             }
-            // 设置固定标签坐标
-            for (item in map.beacons) {
-                requestQueue.offer(Command.CommandCoordinateW(item.first, item.second))
-                log(logger, "set coordinate of beacon${item.first.toIntUnsigned()}")
-            }
-            // 设置submap
-            for (i in map.submaps.indices) {
-                requestQueue.offer(Command.CommandSubmapW(i.toByte(), map.submaps[i]))
-                log(logger, "set submap${i}")
-            }
+//            // 设置固定标签坐标
+//            for (item in map.beacons) {
+//                requestQueue.offer(Command.CommandCoordinateW(item.first, item.second))
+//                log(logger, "set coordinate of beacon${item.first.toIntUnsigned()}")
+//            }
+//            // 设置submap
+//            for (i in map.submaps.indices) {
+//                requestQueue.offer(Command.CommandSubmapW(i.toByte(), map.submaps[i]))
+//                log(logger, "set submap${i}")
+//            }
             // 初始化和标签数相关的量
             beaconIdList = ByteArray(map.beacons.size) { map.beacons[it].first }
             rawDistances = IntArray(beaconIdList.size) { -1 }
@@ -331,7 +316,7 @@ internal constructor(
     }
 
     // 日志
-    private fun log(logger: SimpleLogger?, text: String, type: LogType = LogType.WritePrint) {
+    private fun log(logger: SimpleLogger?, text: String, type: LogType = LogType.WriteOnly) {
         if (type == LogType.WriteOnly || type == LogType.WritePrint)
             logger?.log(text)
         if (type == LogType.PrintOnly || type == LogType.WritePrint)

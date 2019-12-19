@@ -24,16 +24,16 @@ fun main() = runBlocking {
     val manager = SerialPortManager(exceptions)
     // 配置温度计
     manager.registerTemperX(
-            temperatures = temperatures,
-            exceptions = exceptions
+        temperatures = temperatures,
+        exceptions = exceptions
     ) {
         period = 1000L
     }
     // 配置定位标签
     manager.registerMobileBeacon(
-            beaconOnMap = beaconOnMap,
-            beaconData = beaconData,
-            exceptions = exceptions
+        beaconOnMap = beaconOnMap,
+        beaconData = beaconData,
+        exceptions = exceptions
     ) {
         portName = "COM25"
         dataTimeout = 5000L
@@ -41,9 +41,8 @@ fun main() = runBlocking {
     }
     // 配置路由
     manager.registerModem(
-            humitures = temperatures,
-            hedgehog = beaconData,
-            exceptions = exceptions
+        humitures = temperatures,
+        hedgehog = beaconData
     ) {
         portName = "COM3"
         hedgeIdList = ByteArray(1) { 15 }
