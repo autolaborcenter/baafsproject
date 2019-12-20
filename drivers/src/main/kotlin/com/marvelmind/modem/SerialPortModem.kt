@@ -11,6 +11,7 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.SimpleLogger
 import org.mechdancer.common.Stamped
+import java.security.PrivateKey
 import java.util.concurrent.PriorityBlockingQueue
 import kotlin.math.roundToInt
 
@@ -146,21 +147,28 @@ internal constructor(
         }
         // 处理请求队列
         scope.launch {
+            var delayMs = REQUEST_INTERVAL_INIT
             while (isActive) {
                 requestQueue.poll()?.let {
                     if (it !is Command.CommandRawDistanceR
                         || requestQueue.peek() !is Command.CommandRawDistanceR
                     ) {
+                        val address = it.address.toIntUnsigned()
                         when (it) {
-                            is Command.CommandSubmapR -> submapNumber = it.address.toIntUnsigned()
+                            is Command.CommandSubmapR -> submapNumber = address
                             is Command.CommandStateR  -> deviceIndex = idList.indexOf(it.address)
+                            is Command.CommandAddSubmapW -> log(logger, "add submap${address}")
+                            is Command.CommandSubmapW -> log(logger, "set submap${address}")
+                            is Command.CommandWakeW -> log(logger, "wake beacon${address}")
+                            is Command.CommandCoordinateW -> log(logger, "set coordinate of beacon${address}")
                         }
                         toDevice.send(it.data.asList())
+                        delayMs = if (it.priority == 0) REQUEST_INTERVAL_INIT else REQUEST_INTERVAL
                     } else {
                         log(logger, "CommandRawDistanceR abandon")
                     }
                 }
-                delay(REQUEST_INTERVAL)
+                delay(delayMs)
             }
         }
         // 接收串口数据
@@ -193,16 +201,22 @@ internal constructor(
                 delay(5000)
                 map = Map("marvelmind.map")
             }
-//            // 设置固定标签坐标
-//            for (item in map.beacons) {
-//                requestQueue.offer(Command.CommandCoordinateW(item.first, item.second))
-//                log(logger, "set coordinate of beacon${item.first.toIntUnsigned()}")
-//            }
-//            // 设置submap
-//            for (i in map.submaps.indices) {
-//                requestQueue.offer(Command.CommandSubmapW(i.toByte(), map.submaps[i]))
-//                log(logger, "set submap${i}")
-//            }
+            var priority = 0
+            // 添加设置submap
+            for (i in map.submaps.indices) {
+                if (i > 0)
+                    requestQueue.offer(Command.CommandAddSubmapW(i.toByte(), priority++))
+                requestQueue.offer(Command.CommandSubmapW(i.toByte(), map.submaps[i], priority++))
+            }
+            // 唤醒固定标签并设置坐标
+            for (item in map.beacons)
+                requestQueue.offer(Command.CommandWakeW(item.first, priority++))
+            // 设置固定标签坐标
+            for (item in map.beacons)
+                requestQueue.offer(Command.CommandCoordinateW(item.first, item.second, priority++))
+            // 唤醒移动标签
+            for (id in hedgeIdList)
+                requestQueue.offer(Command.CommandWakeW(id, priority++))
             // 初始化和标签数相关的量
             beaconIdList = ByteArray(map.beacons.size) { map.beacons[it].first }
             rawDistances = IntArray(beaconIdList.size) { -1 }
@@ -241,8 +255,7 @@ internal constructor(
                     devices[index].parse(payload)
                     if (devices[index].sleep) {
                         // 唤醒标签
-                        cmdList.add(Command.CommandWakeW(devices[index].id))
-                        log(logger, "wake beacon${devices[index].id.toIntUnsigned()}")
+                        cmdList.add(Command.CommandWakeW(devices[index].id, 100))
                     }
                     // 记录标签电压
                     log(deviceLogger, devices[index].toString(), LogType.WriteOnly)
@@ -270,6 +283,7 @@ internal constructor(
         const val DEVICE_TYPE_ID = 24.toByte()
         const val DEFAULT_VAL = -300.0
         const val CERT_TIMEOUT = 11000L
+        const val REQUEST_INTERVAL_INIT = 500L
         const val REQUEST_INTERVAL = 50L
         val CMD_CONFIG = Command.CommandConfigR(0xFF.toByte())
         val CMD_RAW_DIS = Command.CommandRawDistanceR(0xFF.toByte())
@@ -316,7 +330,7 @@ internal constructor(
     }
 
     // 日志
-    private fun log(logger: SimpleLogger?, text: String, type: LogType = LogType.WriteOnly) {
+    private fun log(logger: SimpleLogger?, text: String, type: LogType = LogType.WritePrint) {
         if (type == LogType.WriteOnly || type == LogType.WritePrint)
             logger?.log(text)
         if (type == LogType.PrintOnly || type == LogType.WritePrint)
