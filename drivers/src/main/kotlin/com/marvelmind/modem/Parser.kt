@@ -267,8 +267,19 @@ internal class Map(pathName: String) {
             ?.takeIf { it.isNotEmpty() && it.size % 81 == 0 }
             ?.let {
                 for (i in it.indices step 81)
-                    if (it[i] == 0.toByte())
+                    if (it[i] == 0.toByte()) {
                         submaps.add(it.copyOfRange(i + 1, i + 81))
+                        // 处理mirror情况
+                        val mirror = (submaps.last()[1].toIntUnsigned() and 0x20) == 0x20
+                        val num = submaps.last()[28].toIntUnsigned()
+                        if (mirror && num in 1..8) {
+                            for (j in 0 until num) {
+                                val y = -shortLEOf(submaps.last()[31 + 4 * j], submaps.last()[31 + 4 * j + 1])
+                                submaps.last()[31 + 4 * j] = (y.toInt() and 0xFF).toByte()
+                                submaps.last()[31 + 4 * j + 1] = ((y.toInt() shr 8) and 0xFF).toByte()
+                            }
+                        }
+                    }
                     else if (it[i] == 1.toByte())
                         for (j in 1..80 step 14)
                             if (it[i + j].toIntUnsigned() > 0)
@@ -345,4 +356,3 @@ internal fun engine(): ParseEngine<Byte, DataPackage> =
         // 找到下一个帧头
         return@ParseEngine ParseInfo(begin, begin, result)
     }
-
