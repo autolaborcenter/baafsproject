@@ -6,11 +6,16 @@
       <w>certificator</w>
       <w>debuger</w>
       <w>faselase</w>
+      <w>humiture</w>
+      <w>humitures</w>
       <w>lidar</w>
       <w>marvelmind</w>
       <w>odometry</w>
       <w>pathfollower</w>
       <w>schmitt</w>
+      <w>submap</w>
+      <w>temperx</w>
+      <w>usart</w>
     </words>
   </dictionary>
 </component>

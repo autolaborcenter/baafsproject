@@ -1,14 +1,16 @@
 package org.mechdancer
 
+import kotlinx.coroutines.ObsoleteCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
+@ObsoleteCoroutinesApi
 fun main() = runBlocking {
     val channel = YChannel<Int>()
     launch {
         for (i in 1..100) {
-            channel.input.send(i)
+            channel.send(i)
             delay(500L)
         }
     }

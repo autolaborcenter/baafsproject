@@ -1,35 +1,53 @@
 package com.thermometer
 
-private const val PacketHead = "Temp-Inner:"
-private const val PacketLenMin = 33
+import cn.autolabor.serialport.parser.ParseEngine
+import cn.autolabor.serialport.parser.ParseEngine.ParseInfo
 
-internal sealed class TempPackage {
-    object Nothing : TempPackage()
-    object Failed : TempPackage()
-    data class Data(val temp: Double, val humi: Double) : TempPackage()
-}
+data class Humiture(
+    val temperature: Double,
+    val humidity: Double)
 
-/** 温度计解析器 */
-internal fun engine(): (List<Byte>, (TempPackage) -> Unit) -> Unit {
-    return { buffer, packet ->
-        val text = String(buffer.toByteArray(), Charsets.US_ASCII)
-        if (!text.startsWith(PacketHead))
-            packet(TempPackage.Nothing)
-        else if (text.length < PacketLenMin)
-            packet(TempPackage.Failed)
-        else {
-            try {
-                val idx1 = text.indexOf(':') + 1
-                val idx2 = text.indexOf("[C]") - 1
-                val idx3 = text.indexOf(',') + 1
-                val idx4 = text.indexOf("[%") - 1
-                val temp = text.substring(idx1, idx2).toDouble()
-                val humi = text.substring(idx3, idx4).toDouble()
-                packet(TempPackage.Data(temp, humi))
-            }
-            catch(e: Throwable) {
-                packet(TempPackage.Failed)
-            }
-        }
+internal fun engine() =
+    ParseEngine<Byte, Humiture?> { buffer ->
+        parse(buffer.toByteArray().toString(Charsets.US_ASCII))
     }
+
+private const val PREFIX = "Temp-Inner:"
+private const val INFIX = " [C],"
+private const val POSTFIX = " [%RH]<\r\n"
+
+private const val MIN_LENGTH = PREFIX.length + INFIX.length + 1
+
+private fun parse(text: String): ParseInfo<Humiture?> {
+    val size = text.length
+    // 找前缀
+    val head = text.indexOf(PREFIX.first()).takeUnless { it < 0 }
+               ?: return ParseInfo(size, size, null)
+    val maybe = text.substring(head)
+    when {
+        maybe.length < PREFIX.length ->
+            return ParseInfo(head, size, null)
+        !maybe.startsWith(PREFIX)    ->
+            return ParseInfo(head + 1, head + 1, null)
+    }
+    // 找后缀
+    val tail = maybe.indexOf(POSTFIX)
+                   .takeIf { it > MIN_LENGTH }
+                   ?.let { it + head + POSTFIX.length }
+               ?: return ParseInfo(head, size, null)
+    // 构造数据包
+    val (t1, t2) =
+        maybe.substring(PREFIX.length, tail - head - POSTFIX.length)
+            .split(INFIX)
+            .takeIf { it.size == 2 }
+        ?: return ParseInfo(head + PREFIX.length, tail, null)
+    // 解析数字
+    val temperature =
+        t1.toDoubleOrNull()
+        ?: return ParseInfo(tail, tail, null)
+    val humidity =
+        t2.toDoubleOrNull()
+        ?: return ParseInfo(tail, tail, null)
+    // 成功
+    return ParseInfo(tail, tail, Humiture(temperature, humidity))
 }

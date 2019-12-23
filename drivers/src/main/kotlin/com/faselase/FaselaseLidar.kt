@@ -1,22 +1,18 @@
 package com.faselase
 
 import cn.autolabor.serialport.manager.Certificator
-import cn.autolabor.serialport.manager.OpenCondition.Certain
-import cn.autolabor.serialport.manager.OpenCondition.None
-import cn.autolabor.serialport.manager.SerialPortDevice
-import cn.autolabor.serialport.manager.durationFrom
+import cn.autolabor.serialport.manager.SerialPortDeviceBase
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
 import org.mechdancer.WatchDog
 import org.mechdancer.common.Polar
 import org.mechdancer.common.Stamped
+import org.mechdancer.exceptions.DataTimeoutException
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
-import org.mechdancer.exceptions.device.DataTimeoutException
 import kotlin.math.PI
 
 /**
@@ -26,41 +22,35 @@ internal class FaselaseLidar(
     private val exceptions: SendChannel<ExceptionMessage>,
 
     portName: String?,
-    override val tag: String,
+    tag: String,
 
     dataTimeout: Long
-) : SerialPortDevice {
-    override val openCondition = portName?.let(::Certain) ?: None
-    override val baudRate = 460800
-    override val bufferSize = 64
-
+) : SerialPortDeviceBase(tag, 460800, 64, portName) {
     // 解析
     private val engine = engine()
     // 缓存
     private val queue = PolarFrameCollectorQueue()
+
     // 访问
     val frame get() = queue.get()
 
-    private val dataTimeoutException = DataTimeoutException(this.tag, dataTimeout)
+    private val dataTimeoutException =
+        DataTimeoutException(this.tag, dataTimeout)
     private val dataWatchDog =
-        WatchDog(GlobalScope, dataTimeout)
+        WatchDog(timeout = dataTimeout)
         { exceptions.send(Occurred(dataTimeoutException)) }
 
-    override fun buildCertificator(): Certificator? =
-        object : Certificator {
-            override val activeBytes = ACTIVE_BYTES
+    private companion object {
+        val ACTIVE_BYTES = "#SF 10\r\n".toByteArray(Charsets.US_ASCII)
+    }
 
-            private val t0 = System.currentTimeMillis()
+    override fun buildCertificator(): Certificator =
+        object : CertificatorBase(5000L) {
+            override val activeBytes get() = ACTIVE_BYTES
             override fun invoke(bytes: Iterable<Byte>): Boolean? {
                 var result = false
-                engine(bytes) { pack ->
-                    result = result || parse(pack)
-                }
-                return when {
-                    result                   -> true
-                    durationFrom(t0) > 5000L -> false
-                    else                     -> null
-                }
+                engine(bytes) { result = parse(it) || result }
+                return passOrTimeout(result)
             }
         }
 
@@ -102,8 +92,4 @@ internal class FaselaseLidar(
                 true
             }
         }
-
-    private companion object {
-        val ACTIVE_BYTES = "#SF 10\r\n".toByteArray(Charsets.US_ASCII)
-    }
 }

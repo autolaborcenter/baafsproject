@@ -2,10 +2,7 @@ package com.faselase
 
 import cn.autolabor.serialport.manager.SerialPortManager
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.registerFaselaseLidarSet
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.channel
@@ -26,6 +23,7 @@ private fun Polygon.transform(pose: Odometry): Polygon {
     return Polygon(vertex.map { tf(it).to2D() })
 }
 
+@ObsoleteCoroutinesApi
 fun main() {
     val remote = remoteHub("测试雷达组").apply {
         openAllNetworks()
@@ -76,7 +74,8 @@ fun main() {
                 p !in robotOutline
             }
         }
-    while (manager.sync() > 0);
+    while (manager.sync().isNotEmpty())
+        Thread.sleep(100L)
     runBlocking {
         while (true) {
             val points = lidarSet.frame

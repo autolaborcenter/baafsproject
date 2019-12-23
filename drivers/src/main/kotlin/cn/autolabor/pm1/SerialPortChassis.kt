@@ -6,9 +6,10 @@ import cn.autolabor.autocan.engine
 import cn.autolabor.pm1.model.*
 import cn.autolabor.pm1.model.ControlVariable.Physical
 import cn.autolabor.serialport.manager.Certificator
-import cn.autolabor.serialport.manager.OpenCondition
-import cn.autolabor.serialport.manager.SerialPortDevice
+import cn.autolabor.serialport.manager.SerialPortDeviceBase
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.Channel.Factory.UNLIMITED
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.ClampMatcher
@@ -31,6 +32,8 @@ import kotlin.math.max
 class SerialPortChassis internal constructor(
     private val robotOnOdometry: SendChannel<Stamped<Odometry>>,
 
+    portName: String?,
+
     wheelEncodersPulsesPerRound: Int,
     rudderEncoderPulsesPerRound: Int,
 
@@ -45,14 +48,8 @@ class SerialPortChassis internal constructor(
     maxW: Angle,
     optimizeWidth: Angle,
     maxAccelerate: Double
-) : Chassis<ControlVariable>,
-    SerialPortDevice {
-
-    override val tag = "PM1 chassis"
-    override val openCondition = OpenCondition.None
-    override val baudRate = 115200
-    override val bufferSize = 64
-
+) : SerialPortDeviceBase("PM1 chassis", 115200, 64, portName),
+    Chassis<ControlVariable> {
     // 解析引擎
     private val engine = engine()
     // 无状态计算模型
@@ -73,8 +70,12 @@ class SerialPortChassis internal constructor(
     private val controlWatchDog =
         WatchDog(GlobalScope, 10 * odometryInterval)
         { enabled = false }
-    private var lastPhysical = Physical.static
+    private var lastPhysical =
+        Physical.static
+    private var externalCommands =
+        Channel<ByteArray>(UNLIMITED)
 
+    /** 驱动使能 */
     var enabled = false
         set(value) {
             if (!value) lastPhysical = lastPhysical.copy(speed = .0)
@@ -96,8 +97,12 @@ class SerialPortChassis internal constructor(
     override fun predict(target: ControlVariable) =
         predictor.predict(target, lastPhysical)
 
-    override fun buildCertificator() =
-        object : Certificator {
+    suspend fun unLock() {
+        externalCommands.send(releaseStop)
+    }
+
+    override fun buildCertificator(): Certificator =
+        object : CertificatorBase(1000L) {
             override val activeBytes =
                 sequenceOf(CanNode.ECU().currentPositionTx,
                            CanNode.TCU(0).currentPositionTx,
@@ -108,7 +113,6 @@ class SerialPortChassis internal constructor(
                     .toList()
                     .toByteArray()
 
-            private val t0 = System.currentTimeMillis()
             private var left = false
             private var right = false
             private var rudder = false
@@ -141,11 +145,7 @@ class SerialPortChassis internal constructor(
                         }
                     }
                 }
-                return when {
-                    System.currentTimeMillis() - t0 > 1000L -> false
-                    left && right && rudder && battery      -> true
-                    else                                    -> null
-                }
+                return passOrTimeout(left && right && rudder && battery)
             }
         }
 
@@ -177,6 +177,10 @@ class SerialPortChassis internal constructor(
                     .also { toDevice.send(it) }
                 delay(max(1, flags.min()!! - now + 1))
             }
+        }
+        scope.launch {
+            for (pack in externalCommands)
+                toDevice.send(pack.asList())
         }
         scope.launch {
             val serial = mutableListOf<Byte>()
@@ -291,6 +295,8 @@ class SerialPortChassis internal constructor(
     }
 
     private companion object {
+        val releaseStop = CanNode.EveryNode.releaseStop.pack(data = byteArrayOf(0xff.toByte()))
+
         fun PM1Pack.WithData.getState() =
             when (data[0]) {
                 0x01.toByte() -> CanNode.State.Normal

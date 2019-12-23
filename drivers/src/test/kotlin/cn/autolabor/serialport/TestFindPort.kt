@@ -2,19 +2,20 @@ package cn.autolabor.serialport
 
 import com.faselase.LidarPack
 import com.fazecast.jSerialComm.SerialPort
-import com.marvelmind.BeaconPackage
+import com.marvelmind.mobilebeacon.BeaconPackage
+import com.marvelmind.mobilebeacon.engine
 
 object MarvelmindTest {
     @JvmStatic
     fun Array<String>.main() {
         SerialPortFinder.findSerialPort(
-                candidates = SerialPort.getCommPorts().toList(),
-                engine = com.marvelmind.engine()
+            candidates = SerialPort.getCommPorts().toList(),
+            engine = engine()
         ) {
             baudRate = 115200
             timeoutMs = 1000
             bufferSize = 32
-            condition { it is BeaconPackage.Data && it.code == 0x11 }
+            condition { it is BeaconPackage.Coordinate }
         }.descriptivePortName.let(::println)
     }
 }

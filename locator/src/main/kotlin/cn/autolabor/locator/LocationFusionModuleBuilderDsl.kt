@@ -13,7 +13,6 @@ import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.paint
 import org.mechdancer.paintPose
-import org.mechdancer.paintPoses
 import org.mechdancer.remote.presets.RemoteHub
 
 @BuilderDslMarker
@@ -75,12 +74,7 @@ class LocationFusionModuleBuilderDsl private constructor() {
                             .also { robotOnMap.send(it) }
                             .also { (_, data) ->
                                 logger?.log(data.p.x, data.p.y, data.d.asRadian())
-                                painter?.run {
-                                    paintPose("粒子滤波", data)
-                                    with(filter.particles) {
-                                        paintPoses("粒子群", map { (p, _) -> p })
-                                    }
-                                }
+                                painter?.run { paintPose("粒子滤波", data) }
                             }
                     }
                 }.invokeOnCompletion { robotOnMap.close() }

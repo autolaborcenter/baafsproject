@@ -1,25 +1,29 @@
 package org.mechdancer.lidar
 
-import cn.autolabor.baafs.CollisionDetectedException
-import cn.autolabor.baafs.CollisionPredictorBuilderDsl.Companion.collisionPredictor
+import cn.autolabor.baafs.bussiness.Business
+import cn.autolabor.baafs.bussiness.BusinessBuilderDsl.Companion.startBusiness
+import cn.autolabor.baafs.bussiness.FollowFailedException
+import cn.autolabor.baafs.collisionpredictor.CollisionDetectedException
+import cn.autolabor.baafs.collisionpredictor.CollisionPredictorBuilderDsl.Companion.collisionPredictor
+import cn.autolabor.baafs.toGridOf
 import cn.autolabor.baafs.outlineFilter
 import cn.autolabor.baafs.parser.parseFromConsole
 import cn.autolabor.baafs.parser.registerBusinessParser
 import cn.autolabor.baafs.parser.registerExceptionServerParser
 import cn.autolabor.baafs.robotOutline
-import cn.autolabor.business.BusinessBuilderDsl.Companion.startBusiness
-import cn.autolabor.business.FollowFailedException
-import cn.autolabor.localplanner.PotentialFieldLocalPlannerBuilderDsl.Companion.potentialFieldLocalPlanner
-import cn.autolabor.pathfollower.PathFollowerBuilderDsl.Companion.pathFollower
 import cn.autolabor.pm1.model.ChassisStructure
+import cn.autolabor.serialport.manager.SerialPortManager
 import com.faselase.LidarSet
+import com.usarthmi.UsartHmiBuilderDsl.Companion.registerUsartHmi
 import kotlinx.coroutines.*
 import org.mechdancer.*
-import org.mechdancer.algebra.function.vector.norm
+import org.mechdancer.action.PathFollowerBuilderDsl.Companion.pathFollower
 import org.mechdancer.algebra.function.vector.normalize
 import org.mechdancer.algebra.function.vector.times
 import org.mechdancer.algebra.function.vector.unaryMinus
+import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
+import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
@@ -27,6 +31,7 @@ import org.mechdancer.common.Velocity
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.common.toTransformation
 import org.mechdancer.console.parser.buildParser
+import org.mechdancer.core.LocalPath
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
@@ -36,6 +41,7 @@ import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.lidar.Default.commands
 import org.mechdancer.lidar.Default.remote
 import org.mechdancer.lidar.Default.simulationLidar
+import org.mechdancer.local.LocalPotentialFieldPlannerBuilderDsl.Companion.potentialFieldPlanner
 import org.mechdancer.simulation.Chassis
 import org.mechdancer.simulation.speedSimulation
 import java.util.concurrent.atomic.AtomicReference
@@ -58,6 +64,7 @@ private const val frequency = 50L
 private val lidarSampler = Sampler(20.0)
 private val odometrySampler = Sampler(20.0)
 
+@ObsoleteCoroutinesApi
 @ExperimentalCoroutinesApi
 fun main() {
     val dt = 1000 / frequency
@@ -72,10 +79,16 @@ fun main() {
 
     // 话题
     val robotOnMap = YChannel<Stamped<Odometry>>()
-    val globalOnRobot = channel<Pair<Sequence<Odometry>, Double>>()
+    val globalOnRobot = channel<LocalPath>()
     val exceptions = channel<ExceptionMessage>()
     val command = AtomicReference(Velocity.velocity(.0, .0))
-    runBlocking(Dispatchers.Default) {
+    val hmiMessages = channel<String>()
+
+    val manager = SerialPortManager(exceptions)
+    val hmi = manager.registerUsartHmi(hmiMessages)
+    manager.sync()
+
+    runBlocking(Dispatchers.IO) {
         val exceptionServer =
             startExceptionServer(exceptions) {
                 exceptionOccur { command.set(Velocity.velocity(.0, .0)) }
@@ -86,18 +99,19 @@ fun main() {
                     robotOnMap = robotOnMap.outputs[0],
                     globalOnRobot = globalOnRobot
             ) {
-                localRadius = .5
+                localRadius = .3
                 pathInterval = .05
                 localFirst {
-                    it.p.norm() < localRadius
-                    && it.p.toAngle().asRadian() in -PI / 3..+PI / 3
-                    && it.d.asRadian() in -PI / 3..+PI / 3
+                    it.p.length < .01
+                    || (it.p.length < localRadius
+                        && it.p.toAngle().asRadian() in -PI / 3..+PI / 3
+                        && it.d.asRadian() in -PI / 3..+PI / 3)
                 }
-                painter = remote
             }
+        var obstacleFrame = emptyList<Vector2D>()
         // 局部规划器（势场法）
         val localPlanner =
-            potentialFieldLocalPlanner {
+            potentialFieldPlanner {
                 repelWeight = .5
                 stepLength = .05
 
@@ -109,6 +123,12 @@ fun main() {
                 repel {
                     if (it.length > radius) vector2DOfZero()
                     else -it.normalize().to2D() * (it.length.pow(-2) - r0)
+                }
+
+                obstacles {
+                    obstacleFrame = lidarSet.frame.toGridOf(vector2DOf(.05, .05))
+                    remote.paintVectors("R 聚类", obstacleFrame)
+                    obstacleFrame
                 }
             }
         // 循径器（虚拟光感法）
@@ -124,12 +144,13 @@ fun main() {
             }
         // 碰撞预警模块
         val predictor =
-            collisionPredictor(lidarSet = lidarSet,
-                               robotOutline = robotOutline) {
+            collisionPredictor(robotOutline = robotOutline) {
                 countToContinue = 4
                 countToStop = 6
                 predictingTime = 1000L
                 painter = remote
+
+                obstacles { obstacleFrame }
             }
         var isEnabled = false
         var invokeTime = 0L
@@ -137,24 +158,19 @@ fun main() {
         // 启动循径模块
         launch {
             val struct = ChassisStructure(.465, .105, .105, .355)
-            for ((global, progress) in globalOnRobot) {
+            for (local in globalOnRobot) {
                 invokeTime = System.currentTimeMillis()
                 // 生成控制量
                 val target =
-                    if (progress == 1.0) {
-                        exceptions.send(Recovered(FollowFailedException))
+                    localPlanner
+                        .plan(local)
+                        .let { pathFollower.plan(it) }
+                        ?.also { exceptions.send(Recovered(FollowFailedException)) }
+                        ?.let(struct::toVelocity)
+                        ?.let { (v, w) -> Velocity.velocity(v, w.asRadian()) }
+                    ?: run {
+                        exceptions.send(Occurred(FollowFailedException))
                         Velocity.velocity(.0, .0)
-                    } else {
-                        localPlanner
-                            .modify(global, lidarSet.frame)
-                            .let(pathFollower::invoke)
-                            ?.also { exceptions.send(Recovered(FollowFailedException)) }
-                            ?.let(struct::toVelocity)
-                            ?.let { (v, w) -> Velocity.velocity(v, w.asRadian()) }
-                        ?: run {
-                            exceptions.send(Occurred(FollowFailedException))
-                            Velocity.velocity(.0, .0)
-                        }
                     }
                 // 急停
                 if (predictor.predict { target.toDeltaOdometry(it / 1000.0) })
@@ -176,25 +192,36 @@ fun main() {
         val parser = buildParser {
             this["coroutines"] = { coroutineContext[Job]?.children?.count() }
             this["\'"] = { isEnabled = !isEnabled; if (isEnabled) "enabled" else "disabled" }
+            this["load @name"] = {
+                val name = get(1).toString()
+                try {
+                    runBlocking(coroutineContext) { business.startFollowing(name) }
+                    val path = (business.function as Business.Functions.Following).planner
+                    path.painter = remote
+                    "${path.size} poses loaded from $name"
+                } catch (e: Exception) {
+                    e.message
+                }
+            }
             registerExceptionServerParser(exceptionServer, this)
-            registerBusinessParser(business, this)
+            registerBusinessParser(business, hmi, this)
         }
         // 处理控制台
         launch { while (isActive) parser.parseFromConsole() }
         // 刷新固定显示
         launch {
-            val o = obstacles.flatMap { it.vertex }
             while (isActive) {
                 remote.paint("R 机器人轮廓", robotOutline)
-                remote.paintVectors("障碍物", o)
                 delay(5000L)
             }
         }
         launch {
             while (isActive) {
                 while (System.currentTimeMillis() - invokeTime > 2000L) {
-                    remote.paintVectors("R 雷达", lidarSet.frame)
-                    delay(100L)
+                    val frame = lidarSet.frame
+                    remote.paintVectors("R 雷达", frame)
+                    remote.paintVectors("R 聚类",  frame.toGridOf(vector2DOf(.05, .05)))
+                    delay(200L)
                 }
                 delay(5000L)
             }
@@ -210,7 +237,7 @@ fun main() {
             remote.paintRobot(actual.data)
             remote.paintPose("实际", actual.data)
             if (odometrySampler.trySample(t))
-                robotOnMap.input.send(actual)
+                robotOnMap.send(actual)
             // 激光雷达采样
             if (lidarSampler.trySample(t)) {
                 val robotToMap = actual.data.toTransformation()

@@ -3,13 +3,15 @@ package cn.autolabor.serialport.manager
 import cn.autolabor.serialport.manager.OpenCondition.Certain
 import com.fazecast.jSerialComm.SerialPort
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.channels.actor
+import kotlinx.coroutines.channels.consumeEach
 import org.mechdancer.channel
+import org.mechdancer.exceptions.DeviceOfflineException
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
-import org.mechdancer.exceptions.device.DeviceOfflineException
-import java.util.concurrent.Executors
 
 /** 串口管理器 */
 class SerialPortManager(
@@ -27,8 +29,9 @@ class SerialPortManager(
             waitingListNormal.add(device)
     }
 
+    @ObsoleteCoroutinesApi
     @Synchronized
-    fun sync(): Int {
+    fun sync(): Collection<String> {
         println("---- sync serial ports ----")
         // 处理确定名字的目标串口
         waitingListCertain
@@ -37,7 +40,8 @@ class SerialPortManager(
                 val port = SerialPort.getCommPort(name)
                 port.certificate(device)
             }
-        if (waitingListNormal.isEmpty()) return waitingListCertain.size
+        if (waitingListNormal.isEmpty())
+            return waitingListCertain.map { it.tag }
         // 找到所有串口
         val ports =
             SerialPort.getCommPorts()
@@ -64,9 +68,10 @@ class SerialPortManager(
                         .firstOrNull { it.certificate(device) }
                         ?.also { ports.remove(it) }
             }
-        return waitingListCertain.size + waitingListNormal.size
+        return (waitingListCertain + waitingListNormal).map { it.tag }
     }
 
+    @ObsoleteCoroutinesApi
     private fun SerialPort.certificate(device: SerialPortDevice): Boolean {
         print("searching ${device.tag} on $systemPortName -> $descriptivePortName")
         // 设置串口
@@ -85,11 +90,14 @@ class SerialPortManager(
             val activate = certificator.activeBytes
             writeBytes(activate, activate.size.toLong())
             while (true) {
-                val result =
-                    buffer
-                        .take(readBytes(buffer, buffer.size.toLong()))
-                        .let(certificator::invoke)
-                    ?: continue
+                val actual = readBytes(buffer, buffer.size.toLong())
+                if (actual < 0) {
+                    closePort()
+                    println(": failed")
+                    return false
+                }
+                val result = certificator(buffer.take(actual))
+                             ?: continue
                 if (result) break
                 else {
                     closePort()
@@ -100,16 +108,14 @@ class SerialPortManager(
         }
         // 开协程
         devices[this] =
-            launchSingleThreadJob {
-                val fromDriver = channel<List<Byte>>()
-                val toDriver = channel<List<Byte>>()
+            launchSingleThreadJob(device.tag) {
+                val toDriver = Channel<List<Byte>>()
                 device.setup(CoroutineScope(Dispatchers.IO),
-                             toDevice = fromDriver,
-                             fromDevice = toDriver)
-                launch(Dispatchers.IO) {
-                    for (bytes in fromDriver)
-                        writeBytes(bytes.toByteArray(), bytes.size.toLong())
-                }
+                             fromDevice = toDriver,
+                             toDevice =
+                             actor(context = Dispatchers.IO, capacity = Channel.CONFLATED)
+                             { consumeEach { writeBytes(it.toByteArray(), it.size.toLong()) } })
+
                 val offlineException = DeviceOfflineException(device.tag)
                 while (isActive) {
                     readOrReboot(buffer, 100L)
@@ -126,8 +132,9 @@ class SerialPortManager(
     }
 
     private companion object {
-        fun launchSingleThreadJob(block: suspend CoroutineScope.() -> Unit) =
-            GlobalScope.launch(Executors.newSingleThreadExecutor().asCoroutineDispatcher(), block = block)
+        @ObsoleteCoroutinesApi
+        fun launchSingleThreadJob(tag: String, block: suspend CoroutineScope.() -> Unit) =
+            GlobalScope.launch(newSingleThreadContext(tag), block = block)
 
         /**
          * 从串口读取，并在超时时自动重启串口

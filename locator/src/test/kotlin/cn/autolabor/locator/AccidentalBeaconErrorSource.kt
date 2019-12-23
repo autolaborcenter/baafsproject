@@ -9,7 +9,7 @@ import kotlin.math.PI
 import kotlin.random.Random
 
 /** 偶发定位异常 */
-class AccidentalBeaconErrorSource(
+internal class AccidentalBeaconErrorSource(
     private val pStart: Double,
     private val pStop: Double,
     private val range: Double

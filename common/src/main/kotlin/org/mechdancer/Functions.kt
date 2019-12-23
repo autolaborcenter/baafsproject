@@ -29,8 +29,8 @@ fun average(a: Pair<Odometry, Double>,
     val (p0, d0) = x0
     val (p1, d1) = x1
     return Odometry(
-            p = averageVectors(listOf(p0 to r0, p1 to r1)),
-            d = averageVectors(listOf(d0.toVector() to r0, d1.toVector() to r1)).toAngle())
+        p = averageVectors(listOf(p0 to r0, p1 to r1)),
+        d = averageVectors(listOf(d0.toVector() to r0, d1.toVector() to r1)).toAngle())
 }
 
 /** 数值积分 */

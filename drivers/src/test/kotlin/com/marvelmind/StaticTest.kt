@@ -1,7 +1,9 @@
 package com.marvelmind
 
 import cn.autolabor.serialport.manager.SerialPortManager
-import com.marvelmind.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
+import com.marvelmind.mobilebeacon.MobileBeaconData
+import com.marvelmind.mobilebeacon.SerialPortMobileBeaconBuilderDsl.Companion.registerMobileBeacon
+import kotlinx.coroutines.ObsoleteCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
@@ -14,13 +16,16 @@ import kotlin.math.sqrt
 // 此测试用于计算静止状态下的定位标签位置方差
 // 也可用于测试数据是否出现中断
 
+@ObsoleteCoroutinesApi
 fun main() {
     // 话题
     val beaconOnMap = channel<Stamped<Vector2D>>()
+    val beaconData = channel<Stamped<MobileBeaconData>>()
     val exceptions = channel<ExceptionMessage>()
     with(SerialPortManager(exceptions)) {
-        registerMobileBeacon(beaconOnMap, exceptions)
-        while (sync() > 0);
+        registerMobileBeacon(beaconOnMap, beaconData, exceptions)
+        while (sync().isNotEmpty())
+            Thread.sleep(100L)
     }
     runBlocking {
         val list = mutableListOf<Vector2D>()
