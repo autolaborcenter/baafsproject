@@ -45,7 +45,7 @@ fun main() = runBlocking {
         hedgehog = beaconData
     ) {
         portName = "COM3"
-        hedgeIdList = ByteArray(1) { 15 }
+        hedgeIdList = ByteArray(1) { 24 }
     }
     // 连接串口设备
     sync@ while (true) {

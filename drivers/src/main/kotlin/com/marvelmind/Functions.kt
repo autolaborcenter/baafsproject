@@ -89,3 +89,13 @@ internal fun ByteArray.dataEquals(other: ByteArray): Boolean {
     }
     return true
 }
+
+// 按十六进制转换字节数组
+internal fun ByteArray.toHexString()  =
+    this.joinToString(" ") {
+        val s =Integer.toHexString(it.toIntUnsigned()).takeLast(2).toUpperCase()
+        if (s.length == 1)
+            "0$s"
+        else
+            s
+    }

@@ -2,8 +2,10 @@ package com.marvelmind.modem
 
 import cn.autolabor.serialport.manager.Certificator
 import cn.autolabor.serialport.manager.SerialPortDeviceBase
+import com.marvelmind.dataEquals
 import com.marvelmind.mobilebeacon.MobileBeaconData
 import com.marvelmind.shortLEOfU
+import com.marvelmind.toHexString
 import com.marvelmind.toIntUnsigned
 import com.thermometer.Humiture
 import kotlinx.coroutines.*
@@ -57,6 +59,8 @@ internal constructor(
     private var version = 0
     // submap编号(由于submap返回数据中没有编号，则在发送请求时记录编号)
     private var submapNumber = -1
+    // submap验证记录
+    private var submapOkList = mutableListOf<Byte>()
     // device序号(用于对应收发)
     private var deviceIndex = -1
     // 数据请求队列
@@ -147,7 +151,7 @@ internal constructor(
         }
         // 处理请求队列
         scope.launch {
-            var delayMs = REQUEST_INTERVAL_INIT
+            var delayMs = REQUEST_INTERVAL
             while (isActive) {
                 requestQueue.poll()?.let {
                     if (it !is Command.CommandRawDistanceR
@@ -163,7 +167,13 @@ internal constructor(
                             is Command.CommandCoordinateW -> log(logger, "set coordinate of beacon${address}")
                         }
                         toDevice.send(it.data.asList())
-                        delayMs = if (it.priority == 0) REQUEST_INTERVAL_INIT else REQUEST_INTERVAL
+                        delayMs =
+                            if (it is Command.CommandSubmapR)
+                                REQUEST_INTERVAL * 4L
+                            else if (it.priority == 0 && it !is Command.CommandVersionR)
+                                REQUEST_INTERVAL * 10L
+                            else
+                                REQUEST_INTERVAL
                     } else {
                         log(logger, "CommandRawDistanceR abandon")
                     }
@@ -202,11 +212,17 @@ internal constructor(
                 map = Map("marvelmind.map")
             }
             var priority = 0
+            // 读取submap
+//            for (i in map.submaps.indices)
+//                requestQueue.offer(Command.CommandSubmapR(i.toByte(), priority++))
+//            delay(REQUEST_INTERVAL * 4L * map.submaps.size)
             // 添加设置submap
             for (i in map.submaps.indices) {
-                if (i > 0)
-                    requestQueue.offer(Command.CommandAddSubmapW(i.toByte(), priority++))
-                requestQueue.offer(Command.CommandSubmapW(i.toByte(), map.submaps[i], priority++))
+                if (!submapOkList.contains(i.toByte())) {
+                    if (i > 0)
+                        requestQueue.offer(Command.CommandAddSubmapW(i.toByte(), priority++))
+                    requestQueue.offer(Command.CommandSubmapW(i.toByte(), map.submaps[i], priority++))
+                }
             }
             // 唤醒固定标签并设置坐标
             for (item in map.beacons)
@@ -241,13 +257,14 @@ internal constructor(
             0x08 -> {   // 版本号
                 version = resolveVersion(payload)
             }
-//            0x50 -> {   // submap
-//                if (submapNumber >= 0) {
-//                    checkSubmap(submapNumber.toByte(), payload)
-//                        ?.let { cmdList.add(it) } // 写submap
-//                    submapNumber = -1
-//                }
-//            }
+            0x50 -> {   // submap
+                if (submapNumber >= 0) {
+                    println("submapNumber$submapNumber")
+                    if (checkSubmap(submapNumber.toByte(), payload))
+                        submapOkList.add(submapNumber.toByte())
+                    submapNumber = -1
+                }
+            }
             0x20 -> {   // 标签状态(电压)
                 if (deviceIndex >= 0) {
                     val index = deviceIndex
@@ -283,7 +300,6 @@ internal constructor(
         const val DEVICE_TYPE_ID = 24.toByte()
         const val DEFAULT_VAL = -300.0
         const val CERT_TIMEOUT = 11000L
-        const val REQUEST_INTERVAL_INIT = 500L
         const val REQUEST_INTERVAL = 50L
         val CMD_CONFIG = Command.CommandConfigR(0xFF.toByte())
         val CMD_RAW_DIS = Command.CommandRawDistanceR(0xFF.toByte())
@@ -295,6 +311,12 @@ internal constructor(
         if (data[5] == DEVICE_TYPE_ID)
             return if (ver > 0) ver else 1
         return 0
+    }
+
+    // 检查submap
+    private fun checkSubmap(address: Byte, data: ByteArray): Boolean {
+        val index = address.toIntUnsigned()
+        return (index < map.submaps.size && data.dataEquals(map.submaps[index]))
     }
 
     // 检查温度
