@@ -163,6 +163,8 @@ fun main() {
     // 任务
     try {
         runBlocking(Dispatchers.Default) {
+            hmi.page = UsartHmi.Page.Prepare
+            beaconOnMap.receive()
             hmi.page = UsartHmi.Page.Index
             (chassis as? SerialPortChassis)?.unLock()
             // 启动服务
@@ -289,7 +291,7 @@ fun main() {
                             val current = beacon.location.data
                             particleFilter.getOrSet(
                                     chassis.odometry,
-                                    path.firstOrNull { it.p euclid current < .5 } ?: path.first())
+                                    path.firstOrNull { it.p euclid current < .2 } ?: path.first())
                         }
                         hmi.page = UsartHmi.Page.Follow
                         "${path.size} poses loaded from $name"

@@ -19,7 +19,8 @@ class UsartHmi(
         Waiting("waiting", PAGE_WAITING),
         Index("index", PAGE_INDEX),
         Record("record", PAGE_RECORD),
-        Follow("follow", PAGE_FOLLOW);
+        Follow("follow", PAGE_FOLLOW),
+        Prepare("prepare", PAGE_PREPARE);
 
         fun toPack() = "page $text".toCommand()
     }
@@ -36,6 +37,7 @@ class UsartHmi(
         val PAGE_INDEX = HMIPackage.Info(1, 0, 0.toByte())
         val PAGE_RECORD = HMIPackage.Info(2, 0, 0.toByte())
         val PAGE_FOLLOW = HMIPackage.Info(3, 0, 0.toByte())
+        val PAGE_PREPARE = HMIPackage.Info(4, 0, 0.toByte())
 
         val pageClock = setOf(PAGE_WAITING, PAGE_INDEX, PAGE_RECORD, PAGE_FOLLOW)
 
@@ -49,7 +51,7 @@ class UsartHmi(
         val CANCEL_FOLLOW = HMIPackage.Info(3, 5, 1)
 
         @Suppress("ObjectPropertyName", "NonAsciiCharacters", "Unused")
-        const val 字库大 = "等待连接记录运行关闭保存退出正在异常发现障碍离开路线其他"
+        const val 字库大 = "等待定位初始化连接记录运行关闭保存退出正在异常发现障碍离开路线其他"
         @Suppress("ObjectPropertyName", "NonAsciiCharacters", "Unused")
         const val 字库小 = "0123456789点已保存"
 
@@ -82,6 +84,7 @@ class UsartHmi(
                         Page.Index.pack   -> launch { if (page != Page.Index) toDevice.send(page.toPack()) }
                         Page.Record.pack  -> launch { if (page != Page.Record) toDevice.send(page.toPack()) }
                         Page.Follow.pack  -> launch { if (page != Page.Follow) toDevice.send(page.toPack()) }
+                        Page.Prepare.pack -> launch { if (page != Page.Prepare) toDevice.send(page.toPack()) }
                         RECORD            -> launch { msgFromHmi.send("record") }
                         FOLLOW            -> launch { msgFromHmi.send("load path") }
                         SHUT_DOWN         -> launch { msgFromHmi.send("shutdown") }

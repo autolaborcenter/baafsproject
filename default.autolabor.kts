@@ -24,6 +24,7 @@ import com.thermometer.Humiture
 import com.thermometer.SerialPortTemperXBuilderDsl.Companion.registerTemperX
 import com.usarthmi.UsartHmi
 import com.usarthmi.UsartHmiBuilderDsl.Companion.registerUsartHmi
+import kotlinx.coroutines.*
 import org.mechdancer.*
 import org.mechdancer.action.PathFollowerBuilderDsl.Companion.pathFollower
 import org.mechdancer.algebra.function.vector.*
@@ -157,6 +158,8 @@ sync@ while (true) {
 // 任务
 try {
     runBlocking(Dispatchers.Default) {
+        hmi.page = UsartHmi.Page.Prepare
+        beaconOnMap.receive()
         hmi.page = UsartHmi.Page.Index
         (chassis as? SerialPortChassis)?.unLock()
         // 启动服务
@@ -283,7 +286,7 @@ try {
                         val current = beacon.location.data
                         particleFilter.getOrSet(
                                 chassis.odometry,
-                                path.firstOrNull { it.p euclid current < .5 } ?: path.first())
+                                path.firstOrNull { it.p euclid current < .2 } ?: path.first())
                     }
                     hmi.page = UsartHmi.Page.Follow
                     "${path.size} poses loaded from $name"
