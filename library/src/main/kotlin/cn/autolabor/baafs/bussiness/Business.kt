@@ -44,7 +44,7 @@ class Business internal constructor(
         }
         current?.job?.cancelAndJoin()
         val global = globals.get()
-                     ?: throw IllegalArgumentException("no path named \"$name\"")
+            ?: throw IllegalArgumentException("no path named \"$name\"")
         function = Following(scope, robotOnMap, globalOnRobot, name, global)
             .apply { job.invokeOnCompletion { function = null } }
     }
@@ -81,8 +81,8 @@ class Business internal constructor(
                 list += robotOnMap.receive().data
                 for ((_, pose) in robotOnMap)
                     synchronized(list) {
-                        list.last()
-                            .takeIf { it.p euclid pose.p > pathInterval }
+                        list.lastOrNull()
+                            ?.takeIf { it.p euclid pose.p > pathInterval }
                             ?.also { list += pose }
                     }
             }

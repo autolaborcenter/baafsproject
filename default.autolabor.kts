@@ -158,8 +158,8 @@ sync@ while (true) {
 // 任务
 try {
     runBlocking(Dispatchers.Default) {
-        hmi.page = UsartHmi.Page.Prepare
-        beaconOnMap.receive()
+//        hmi.page = UsartHmi.Page.Prepare
+//        beaconOnMap.receive()
         hmi.page = UsartHmi.Page.Index
         (chassis as? SerialPortChassis)?.unLock()
         // 启动服务

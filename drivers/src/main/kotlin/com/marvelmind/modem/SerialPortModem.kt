@@ -124,15 +124,11 @@ internal constructor(
                             append("${y}\t")
                             append("${z}\t")
                             append("${if (available) 1 else 0}\t")
-                            quality?.let { append(it) } ?: run {
-                                append(-1)
-                                println("no quality")
-                            }
+                            append("${quality?:-1}\t")
                             rawDistance?.forEach { (address, value) ->
                                 append("${address.toIntUnsigned()}\t${value}\t")
                             } ?: run {
                                 repeat(8) { append("-1\t") }
-                                println("no rawDistance")
                             }
                             for (distance in rawDistances)
                                 append("${distance}\t")
@@ -161,10 +157,10 @@ internal constructor(
                         when (it) {
                             is Command.CommandSubmapR -> submapNumber = address
                             is Command.CommandStateR  -> deviceIndex = idList.indexOf(it.address)
-                            is Command.CommandAddSubmapW -> log(logger, "add submap${address}")
-                            is Command.CommandSubmapW -> log(logger, "set submap${address}")
-                            is Command.CommandWakeW -> log(logger, "wake beacon${address}")
-                            is Command.CommandCoordinateW -> log(logger, "set coordinate of beacon${address}")
+                            is Command.CommandAddSubmapW -> log(logger, "add submap${address}", LogType.WritePrint)
+                            is Command.CommandSubmapW -> log(logger, "set submap${address}", LogType.WritePrint)
+                            is Command.CommandWakeW -> log(logger, "wake beacon${address}", LogType.WritePrint)
+                            is Command.CommandCoordinateW -> log(logger, "set coordinate of beacon${address}", LogType.WritePrint)
                         }
                         toDevice.send(it.data.asList())
                         delayMs =
@@ -259,7 +255,7 @@ internal constructor(
             }
             0x50 -> {   // submap
                 if (submapNumber >= 0) {
-                    println("submapNumber$submapNumber")
+                    //println("submapNumber$submapNumber")
                     if (checkSubmap(submapNumber.toByte(), payload))
                         submapOkList.add(submapNumber.toByte())
                     submapNumber = -1
@@ -352,7 +348,7 @@ internal constructor(
     }
 
     // 日志
-    private fun log(logger: SimpleLogger?, text: String, type: LogType = LogType.WritePrint) {
+    private fun log(logger: SimpleLogger?, text: String, type: LogType = LogType.WriteOnly) {
         if (type == LogType.WriteOnly || type == LogType.WritePrint)
             logger?.log(text)
         if (type == LogType.PrintOnly || type == LogType.WritePrint)
