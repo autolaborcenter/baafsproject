@@ -26,6 +26,7 @@ class UsartHmi(
     }
 
     var page = Page.Waiting
+    var mask: Page? = null
 
     suspend fun write(msg: String) {
         output.send(msg)
@@ -68,6 +69,8 @@ class UsartHmi(
             }
         }
 
+    private fun target() = (mask ?: page).toPack()
+
     override fun setup(
         scope: CoroutineScope,
         toDevice: SendChannel<List<Byte>>,
@@ -80,11 +83,11 @@ class UsartHmi(
                     when (it) {
                         HMIPackage.Nothing,
                         HMIPackage.Failed -> Unit
-                        Page.Waiting.pack -> launch { if (page != Page.Waiting) toDevice.send(page.toPack()) }
-                        Page.Index.pack   -> launch { if (page != Page.Index) toDevice.send(page.toPack()) }
-                        Page.Record.pack  -> launch { if (page != Page.Record) toDevice.send(page.toPack()) }
-                        Page.Follow.pack  -> launch { if (page != Page.Follow) toDevice.send(page.toPack()) }
-                        Page.Prepare.pack -> launch { if (page != Page.Prepare) toDevice.send(page.toPack()) }
+                        Page.Waiting.pack -> launch { if (page != Page.Waiting) toDevice.send(target()) }
+                        Page.Index.pack   -> launch { if (page != Page.Index) toDevice.send(target()) }
+                        Page.Record.pack  -> launch { if (page != Page.Record) toDevice.send(target()) }
+                        Page.Follow.pack  -> launch { if (page != Page.Follow) toDevice.send(target()) }
+                        Page.Prepare.pack -> launch { if (page != Page.Prepare) toDevice.send(target()) }
                         RECORD            -> launch { msgFromHmi.send("record") }
                         FOLLOW            -> launch { msgFromHmi.send("load path") }
                         SHUT_DOWN         -> launch { msgFromHmi.send("shutdown") }
@@ -95,5 +98,4 @@ class UsartHmi(
                 }
         }
     }
-
 }

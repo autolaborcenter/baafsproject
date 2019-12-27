@@ -23,6 +23,7 @@ import com.marvelmind.modem.SerialPortModemBuilderDsl.Companion.registerModem
 import com.thermometer.Humiture
 import com.thermometer.SerialPortTemperXBuilderDsl.Companion.registerTemperX
 import com.usarthmi.UsartHmi
+import com.usarthmi.UsartHmi.Page.Prepare
 import com.usarthmi.UsartHmiBuilderDsl.Companion.registerUsartHmi
 import kotlinx.coroutines.*
 import org.mechdancer.*
@@ -42,6 +43,7 @@ import org.mechdancer.core.Chassis
 import org.mechdancer.core.LocalPath
 import org.mechdancer.core.MobileBeacon
 import org.mechdancer.exceptions.ApplicationException
+import org.mechdancer.exceptions.DeviceOfflineException
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
@@ -86,15 +88,15 @@ fun main() {
     // 配置温度计
     val temperX =
         manager.registerTemperX(
-                temperatures = humitures,
-                exceptions = exceptions
+            temperatures = humitures,
+            exceptions = exceptions
         ) {
             period = 1000L
         }
     // 配置底盘
     val chassis: Chassis<ControlVariable> =
         manager.registerPM1Chassis(
-                robotOnOdometry = robotOnOdometry
+            robotOnOdometry = robotOnOdometry
         ) {
             odometryInterval = 40L
             maxAccelerate = .75
@@ -102,9 +104,9 @@ fun main() {
     // 配置定位标签
     val beacon: MobileBeacon =
         manager.registerMobileBeacon(
-                beaconOnMap = beaconOnMap,
-                beaconData = beaconData,
-                exceptions = exceptions
+            beaconOnMap = beaconOnMap,
+            beaconData = beaconData,
+            exceptions = exceptions
         ) {
             portName = "/dev/beacon"
             dataTimeout = 5000L
@@ -115,15 +117,15 @@ fun main() {
     // 配置路由
     val modem: SerialPortModem =
         manager.registerModem(
-                humitures = humitures,
-                hedgehog = beaconData
+            humitures = humitures,
+            hedgehog = beaconData
         ) {
             hedgeIdList = byteArrayOf(24)
         }
     // 配置雷达
     val lidarSet: LidarSet =
         manager.registerFaselaseLidarSet(
-                exceptions = exceptions
+            exceptions = exceptions
         ) {
             dataTimeout = 400L
             lidar(port = "/dev/pos3") {
@@ -143,18 +145,22 @@ fun main() {
         }
     // 配置温度计
     // 连接串口设备
+    val screenOnline: Boolean
     sync@ while (true) {
         val remain = manager.sync()
         when {
             remain.isEmpty()                 -> {
                 println("Every devices are ready.")
+                screenOnline = true
                 break@sync
             }
             remain.singleOrNull() == hmi.tag -> {
                 println("Screen offline.")
+                screenOnline = false
                 break@sync
             }
             else                             -> {
+                Thread.sleep(100L)
                 println("There are still $remain devices offline, press ENTER to sync again.")
                 readLine()
             }
@@ -163,8 +169,6 @@ fun main() {
     // 任务
     try {
         runBlocking(Dispatchers.Default) {
-            hmi.page = UsartHmi.Page.Prepare
-            beaconOnMap.receive()
             hmi.page = UsartHmi.Page.Index
             (chassis as? SerialPortChassis)?.unLock()
             // 启动服务
@@ -174,12 +178,21 @@ fun main() {
                 startExceptionServer(exceptions) {
                     exceptionOccur { chassis.target = ControlVariable.Physical.static }
                 }
+            launch {
+                while (true) {
+                    if (exceptionServer.get().any { it is DeviceOfflineException })
+                        hmi.mask = Prepare
+                    else
+                        hmi.mask = null
+                    delay(500L)
+                }
+            }
             // 启动定位融合模块（粒子滤波器）
             val particleFilter =
                 startLocationFusion(
-                        robotOnOdometry = robotOnOdometry.outputs[0],
-                        beaconOnMap = beaconOnMap,
-                        robotOnMap = robotOnMap
+                    robotOnOdometry = robotOnOdometry.outputs[0],
+                    beaconOnMap = beaconOnMap,
+                    robotOnMap = robotOnMap
                 ) {
                     filter {
                         beaconOnRobot = vector2DOf(-.01, -.02)
@@ -192,8 +205,8 @@ fun main() {
             // 启动业务交互后台
             val business =
                 startBusiness(
-                        robotOnMap = robotOnMap,
-                        globalOnRobot = globalOnRobot
+                    robotOnMap = robotOnMap,
+                    globalOnRobot = globalOnRobot
                 ) {
                     localRadius = .5
                     pathInterval = .05
@@ -290,8 +303,8 @@ fun main() {
                         if (!particleFilter.isConvergent) {
                             val current = beacon.location.data
                             particleFilter.getOrSet(
-                                    chassis.odometry,
-                                    path.firstOrNull { it.p euclid current < .2 } ?: path.first())
+                                chassis.odometry,
+                                path.firstOrNull { it.p euclid current < .2 } ?: path.first())
                         }
                         hmi.page = UsartHmi.Page.Follow
                         "${path.size} poses loaded from $name"
@@ -300,8 +313,10 @@ fun main() {
                     }
                 }
             }
-            launch { while (isActive) parser.parseFromConsole() }
-            launch { for (msg in msgFromHmi) parser(msg).map(::feedback).forEach(::display) }
+            if (screenOnline)
+                launch { for (msg in msgFromHmi) parser(msg).map(::feedback).forEach(::display) }
+            else
+                launch { while (isActive) parser.parseFromConsole() }
             // 刷新固定显示
             if (remote != null) {
                 launch {
