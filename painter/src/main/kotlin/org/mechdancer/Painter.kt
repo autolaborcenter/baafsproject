@@ -1,6 +1,5 @@
 package org.mechdancer
 
-import org.mechdancer.FrameType.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.common.Odometry
 import org.mechdancer.common.shape.Polygon
@@ -14,19 +13,21 @@ import org.mechdancer.remote.resources.Networks
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 
-private object PaintCommand : Command {
-    override val id = 6.toByte()
-}
-
+/** 生成网络连接信息字符串 */
 fun RemoteHub.networksInfo() =
     with(components) {
         "${must<Name>().field} opened ${must<Networks>().view.size} networks on ${must<MulticastSockets>().address}"
     }
 
-/**
- * 画任意内容
- */
-fun RemoteHub.paint(
+private const val DIR_MASK = 0b0100
+private const val FRAME_MASK = 0b1000
+
+private object PaintCommand : Command {
+    override val id = 6.toByte()
+}
+
+// 画任意内容
+private fun RemoteHub.paint(
     topic: String,
     block: ByteArrayOutputStream.() -> Unit
 ) {
@@ -39,25 +40,16 @@ fun RemoteHub.paint(
         .let { broadcast(PaintCommand, it) }
 }
 
-enum class FrameType(val value: Int) {
-    OneFloat(0),
-    OneDouble(1),
-    TwoFloat(2),
-    TwoDouble(3),
-    ThreeFloat(4),
-    ThreeDouble(5)
-}
-
 /**
  * 画一维信号
  */
 fun RemoteHub.paint(
     topic: String,
-    value: Double
+    value: Number
 ) = paint(topic) {
     DataOutputStream(this).apply {
         writeByte(1)
-        writeDouble(value)
+        writeFloat(value.toFloat())
     }
 }
 
@@ -66,13 +58,13 @@ fun RemoteHub.paint(
  */
 fun RemoteHub.paint(
     topic: String,
-    x: Double,
-    y: Double
+    x: Number,
+    y: Number
 ) = paint(topic) {
     DataOutputStream(this).apply {
         writeByte(2)
-        writeDouble(x)
-        writeDouble(y)
+        writeFloat(x.toFloat())
+        writeFloat(y.toFloat())
     }
 }
 
@@ -81,15 +73,15 @@ fun RemoteHub.paint(
  */
 fun RemoteHub.paint(
     topic: String,
-    x: Double,
-    y: Double,
-    theta: Double
+    x: Number,
+    y: Number,
+    theta: Number
 ) = paint(topic) {
     DataOutputStream(this).apply {
-        writeByte(3)
-        writeDouble(x)
-        writeDouble(y)
-        writeDouble(theta)
+        writeByte(2 or DIR_MASK)
+        writeFloat(x.toFloat())
+        writeFloat(y.toFloat())
+        writeFloat(theta.toFloat())
     }
 }
 
@@ -97,78 +89,20 @@ fun RemoteHub.paint(
 fun RemoteHub.paintPose(
     topic: String,
     pose: Odometry
-) = paint(topic) {
-    DataOutputStream(this).apply {
-        writeByte(3)
-        writeDouble(pose.p.x)
-        writeDouble(pose.p.y)
-        writeDouble(pose.d.asRadian())
-    }
-}
-
-/**
- * 画单帧一维信号
- */
-fun RemoteHub.paintFrame1(
-    topic: String,
-    list: List<Double>
-) = paint(topic) {
-    DataOutputStream(this).apply {
-        writeByte(0)
-        writeByte(OneDouble.value)
-        list.forEach(this::writeDouble)
-    }
-}
+) = paint(topic, pose.p.x, pose.p.y, pose.d.asRadian())
 
 /**
  * 画单帧二维信号
  */
 fun RemoteHub.paintFrame2(
     topic: String,
-    list: List<Pair<Double, Double>>
+    list: Iterable<Pair<Number, Number>>
 ) = paint(topic) {
     DataOutputStream(this).apply {
-        writeByte(0)
-        writeByte(TwoDouble.value)
+        writeByte(2 or FRAME_MASK)
         for ((x, y) in list) {
-            writeDouble(x)
-            writeDouble(y)
-        }
-    }
-}
-
-/**
- * 画单帧位姿信号
- */
-fun RemoteHub.paintFrame3(
-    topic: String,
-    list: List<Triple<Double, Double, Double>>
-) = paint(topic) {
-    DataOutputStream(this).apply {
-        writeByte(0)
-        writeByte(ThreeDouble.value)
-        for ((x, y, theta) in list) {
-            writeDouble(x)
-            writeDouble(y)
-            writeDouble(theta)
-        }
-    }
-}
-
-/**
- * 画单帧位姿信号
- */
-fun RemoteHub.paintPoses(
-    topic: String,
-    list: List<Odometry>
-) = paint(topic) {
-    DataOutputStream(this).apply {
-        writeByte(0)
-        writeByte(ThreeDouble.value)
-        for ((p, d) in list) {
-            writeDouble(p.x)
-            writeDouble(p.y)
-            writeDouble(d.asRadian())
+            writeFloat(x.toFloat())
+            writeFloat(y.toFloat())
         }
     }
 }
@@ -178,14 +112,30 @@ fun RemoteHub.paintPoses(
  */
 fun RemoteHub.paintVectors(
     topic: String,
-    list: Collection<Vector2D>
+    list: Iterable<Vector2D>
 ) = paint(topic) {
     DataOutputStream(this).apply {
-        writeByte(0)
-        writeByte(TwoDouble.value)
+        writeByte(2 or FRAME_MASK)
         for ((x, y) in list) {
-            writeDouble(x)
-            writeDouble(y)
+            writeFloat(x.toFloat())
+            writeFloat(y.toFloat())
+        }
+    }
+}
+
+/**
+ * 画单帧位姿信号
+ */
+fun RemoteHub.paintPoses(
+    topic: String,
+    list: Iterable<Odometry>
+) = paint(topic) {
+    DataOutputStream(this).apply {
+        writeByte(2 or FRAME_MASK or DIR_MASK)
+        for ((p, d) in list) {
+            writeFloat(p.x.toFloat())
+            writeFloat(p.y.toFloat())
+            writeFloat(d.asRadian().toFloat())
         }
     }
 }
@@ -195,15 +145,14 @@ fun RemoteHub.paint(
     shape: Polygon
 ) = paint(topic) {
     DataOutputStream(this).apply {
-        writeByte(0)
-        writeByte(TwoDouble.value)
+        writeByte(2 or FRAME_MASK)
         for ((x, y) in shape.vertex) {
-            writeDouble(x)
-            writeDouble(y)
+            writeFloat(x.toFloat())
+            writeFloat(y.toFloat())
         }
         with(shape.vertex.first()) {
-            writeDouble(x)
-            writeDouble(y)
+            writeFloat(x.toFloat())
+            writeFloat(y.toFloat())
         }
     }
 }
