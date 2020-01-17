@@ -3,23 +3,23 @@ package cn.autolabor.locator
 import org.mechdancer.algebra.function.vector.euclid
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.average
-import org.mechdancer.common.Odometry
+import org.mechdancer.geometry.transformation.Pose2D
 import kotlin.math.tanh
 
 /** 位姿推断器 */
 data class Visionary(
-    val markOnOdometry: Odometry,
-    val expectation: Odometry,
+    val markOnOdometry: Pose2D,
+    val expectation: Pose2D,
     val reliability: Double
 ) {
     /** 从新的里程推断位姿 */
-    fun infer(odometry: Odometry) =
+    fun infer(odometry: Pose2D) =
         expectation plusDelta (odometry minusState markOnOdometry)
 
     /** 融合一对新的关系 */
     fun fusion(
-        newMarkOnOdometry: Odometry,
-        newExpectation: Odometry,
+        newMarkOnOdometry: Pose2D,
+        newExpectation: Pose2D,
         odometryReliableRange: Double,
         filterReliableRange: Double
     ): Visionary {
@@ -36,8 +36,8 @@ data class Visionary(
         val r1 = (1 - r0 * gauss1.p(conjecture.p euclid newExpectation.p))
         // 生成新的推断关系
         return Visionary(
-                newMarkOnOdometry,
-                average(conjecture to r0, newExpectation to r1),
-                tanh(2 * r1 / (r0 + r1)))
+            newMarkOnOdometry,
+            average(conjecture to r0, newExpectation to r1),
+            tanh(2 * r1 / (r0 + r1)))
     }
 }

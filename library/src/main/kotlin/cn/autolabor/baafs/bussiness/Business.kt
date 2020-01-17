@@ -9,19 +9,19 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
 import org.mechdancer.algebra.function.vector.euclid
-import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.core.LocalPath
+import org.mechdancer.geometry.transformation.Pose2D
 import org.mechdancer.global.GlobalPathPlanner
 
 /** 业务模块 */
 class Business internal constructor(
     private val scope: CoroutineScope,
-    private val robotOnMap: ReceiveChannel<Stamped<Odometry>>,
+    private val robotOnMap: ReceiveChannel<Stamped<Pose2D>>,
     private val globalOnRobot: SendChannel<LocalPath>,
 
     private val pathInterval: Double,
-    localFirst: (Odometry) -> Boolean
+    localFirst: (Pose2D) -> Boolean
 ) {
     /** 当前业务功能 */
     var function: Functions? = null
@@ -44,7 +44,7 @@ class Business internal constructor(
         }
         current?.job?.cancelAndJoin()
         val global = globals.get()
-            ?: throw IllegalArgumentException("no path named \"$name\"")
+                     ?: throw IllegalArgumentException("no path named \"$name\"")
         function = Following(scope, robotOnMap, globalOnRobot, name, global)
             .apply { job.invokeOnCompletion { function = null } }
     }
@@ -72,11 +72,11 @@ class Business internal constructor(
         /** 录制路径 */
         class Recording internal constructor(
             scope: CoroutineScope,
-            robotOnMap: ReceiveChannel<Stamped<Odometry>>,
+            robotOnMap: ReceiveChannel<Stamped<Pose2D>>,
             private val globals: PathManager,
             pathInterval: Double
         ) : Functions() {
-            private val list = mutableListOf<Odometry>()
+            private val list = mutableListOf<Pose2D>()
             override val job = scope.launch {
                 list += robotOnMap.receive().data
                 for ((_, pose) in robotOnMap)
@@ -101,7 +101,7 @@ class Business internal constructor(
         /** 循径 */
         class Following internal constructor(
             scope: CoroutineScope,
-            private val robotOnMap: ReceiveChannel<Stamped<Odometry>>,
+            private val robotOnMap: ReceiveChannel<Stamped<Pose2D>>,
             private val globalOnRobot: SendChannel<LocalPath>,
             val pathName: String,
             val planner: GlobalPathPlanner

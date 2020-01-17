@@ -4,10 +4,11 @@ import cn.autolabor.pm1.model.ControlVariable.Physical
 import cn.autolabor.pm1.model.ControlVariable.Wheels
 import org.mechdancer.algebra.function.vector.times
 import org.mechdancer.algebra.implement.vector.vector2DOf
-import org.mechdancer.common.Odometry
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
+import org.mechdancer.geometry.transformation.Pose2D
+import org.mechdancer.geometry.transformation.pose2D
 import kotlin.math.*
 
 /** 机器人机械结构（计算模型） */
@@ -17,14 +18,14 @@ data class ChassisStructure(
     val rightRadius: Double,
     val length: Double
 ) {
-    fun toDeltaOdometry(dl: Angle, dr: Angle): Odometry {
+    fun toDeltaOdometry(dl: Angle, dr: Angle): Pose2D {
         val l = dl.asRadian() * leftRadius
         val r = dr.asRadian() * rightRadius
         val length = (r + l) / 2
         return when (val theta = (r - l) / width) {
-            .0   -> Odometry.pose(length, 0)
-            else -> Odometry(p = vector2DOf(sin(theta), (1 - cos(theta))) * (length / theta),
-                             d = theta.toRad())
+            .0   -> pose2D(length, 0)
+            else -> Pose2D(p = vector2DOf(sin(theta), (1 - cos(theta))) * (length / theta),
+                           d = theta.toRad())
         }
     }
 

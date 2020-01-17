@@ -14,12 +14,13 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.ClampMatcher
 import org.mechdancer.WatchDog
-import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.core.Chassis
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
+import org.mechdancer.geometry.transformation.Pose2D
+import org.mechdancer.geometry.transformation.pose2D
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
@@ -30,7 +31,7 @@ import kotlin.math.max
  * 机器人底盘
  */
 class SerialPortChassis internal constructor(
-    private val robotOnOdometry: SendChannel<Stamped<Odometry>>,
+    private val robotOnOdometry: SendChannel<Stamped<Pose2D>>,
 
     portName: String?,
 
@@ -82,7 +83,7 @@ class SerialPortChassis internal constructor(
             field = value
         }
 
-    override var odometry = Stamped(0L, Odometry.pose())
+    override var odometry = Stamped(0L, pose2D())
         private set
 
     override var target: ControlVariable =

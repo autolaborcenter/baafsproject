@@ -1,18 +1,19 @@
 package org.mechdancer.action
 
 import org.mechdancer.annotations.BuilderDslMarker
-import org.mechdancer.common.Odometry
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.common.shape.Shape
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toDegree
+import org.mechdancer.geometry.transformation.Pose2D
+import org.mechdancer.geometry.transformation.pose2D
 import org.mechdancer.remote.presets.RemoteHub
 import kotlin.math.PI
 
 @BuilderDslMarker
 class PathFollowerBuilderDsl
 private constructor() {
-    var sensorPose: Odometry = Odometry.pose(.275, 0)
+    var sensorPose: Pose2D = pose2D(.275, 0)
     var lightRange: Shape = Circle(.3)
     var minTipAngle: Angle = 60.toDegree()
     var minTurnAngle: Angle = 15.toDegree()

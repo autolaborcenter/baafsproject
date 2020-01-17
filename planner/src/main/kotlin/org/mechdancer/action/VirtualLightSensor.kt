@@ -7,13 +7,13 @@ import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.annotations.DebugTemporary
 import org.mechdancer.annotations.DebugTemporary.Operation.DELETE
-import org.mechdancer.common.Odometry
 import org.mechdancer.common.shape.AnalyticalShape
 import org.mechdancer.common.shape.Polygon
 import org.mechdancer.common.shape.Shape
-import org.mechdancer.common.toTransformation
-import org.mechdancer.common.transform
 import org.mechdancer.geometry.angle.toVector
+import org.mechdancer.geometry.transformation.Pose2D
+import org.mechdancer.geometry.transformation.toTransformation
+import org.mechdancer.geometry.transformation.transform
 
 /**
  * 虚拟光感
@@ -22,7 +22,7 @@ import org.mechdancer.geometry.angle.toVector
  * @param lightRange 光斑形状
  */
 class VirtualLightSensor(
-    onRobot: Odometry,
+    onRobot: Pose2D,
     private val lightRange: Shape
 ) {
     private val lightVertex = when (lightRange) {
@@ -44,8 +44,8 @@ class VirtualLightSensor(
      * 从目标路径获取兴趣区段
      * 获取到的列表中点位于传感器坐标系
      */
-    fun shine(path: Sequence<Odometry>): List<Odometry> {
-        var first: Odometry? = null
+    fun shine(path: Sequence<Pose2D>): List<Pose2D> {
+        var first: Pose2D? = null
         return path.onEach { if (first == null) first = it }
                    .map { pose -> pose to robotToSensor(pose.p).to2D() }
                    .dropWhile { (_, p) ->
@@ -59,7 +59,7 @@ class VirtualLightSensor(
     }
 
     /** 虚拟光值计算 */
-    operator fun invoke(path: List<Odometry>): Double {
+    operator fun invoke(path: List<Pose2D>): Double {
         // 转化路径到传感器坐标系并约束局部路径
         val local = path.map { robotToSensor.transform(it) }
         // 处理路径丢失情况
@@ -80,7 +80,7 @@ class VirtualLightSensor(
 
     private companion object {
         // 查找与边缘交点
-        fun List<Vector2D>.indexNear(pose: Odometry, reverse: Boolean): Int {
+        fun List<Vector2D>.indexNear(pose: Pose2D, reverse: Boolean): Int {
             val (p, d) = pose
             val dir = d.toVector()
             val references = mapIndexed { i, v -> i to v - p }

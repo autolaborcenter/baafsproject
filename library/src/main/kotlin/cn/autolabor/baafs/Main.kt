@@ -33,7 +33,6 @@ import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
-import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.console.parser.buildParser
@@ -50,6 +49,8 @@ import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.startExceptionServer
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toDegree
+import org.mechdancer.geometry.transformation.Pose2D
+import org.mechdancer.geometry.transformation.pose2D
 import org.mechdancer.local.LocalPotentialFieldPlannerBuilderDsl.Companion.potentialFieldPlanner
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.presets.remoteHub
@@ -72,8 +73,8 @@ fun main() {
     val exceptions = channel<ExceptionMessage>()
 
     val msgFromHmi = channel<String>()
-    val robotOnOdometry = YChannel<Stamped<Odometry>>()
-    val robotOnMap = channel<Stamped<Odometry>>()
+    val robotOnOdometry = YChannel<Stamped<Pose2D>>()
+    val robotOnMap = channel<Stamped<Pose2D>>()
 
     val beaconOnMap = channel<Stamped<Vector2D>>()
     val beaconData = channel<Stamped<MobileBeaconData>>()
@@ -130,12 +131,12 @@ fun main() {
             dataTimeout = 400L
             lidar(port = "/dev/pos3") {
                 tag = "front lidar"
-                pose = Odometry.pose(.113, 0, PI / 2)
+                pose = pose2D(.113, 0, PI / 2)
                 inverse = false
             }
             lidar(port = "/dev/pos4") {
                 tag = "back lidar"
-                pose = Odometry.pose(-.138, 0, PI / 2)
+                pose = pose2D(-.138, 0, PI / 2)
                 inverse = false
             }
             val wonder = vector2DOf(+.12, -.14)
@@ -242,7 +243,7 @@ fun main() {
             // 循径器（虚拟光感法）
             val pathFollower =
                 pathFollower {
-                    sensorPose = Odometry.pose(x = .3)
+                    sensorPose = pose2D(x = .3)
                     lightRange = Circle(.3, 32)
                     minTipAngle = 60.toDegree()
                     minTurnAngle = 15.toDegree()

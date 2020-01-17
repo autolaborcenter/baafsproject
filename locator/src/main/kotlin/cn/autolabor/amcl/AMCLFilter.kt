@@ -6,13 +6,11 @@ import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.Vector3D
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
-import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
-import org.mechdancer.common.toPose
-import org.mechdancer.common.toTransformation
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.adjust
-import org.mechdancer.geometry.transformation.Transformation
+import org.mechdancer.geometry.angle.toRad
+import org.mechdancer.geometry.transformation.*
 import kotlin.math.*
 import kotlin.random.Random
 
@@ -28,8 +26,8 @@ class AMCLFilter(
     private val alpha3: Double = 0.03, // 线速度对线速度影响
     private val alpha4: Double = 0.01, // 角速度对线速度影响
     private val weightSigma: Double = 0.1
-) : Mixer<Stamped<Odometry>, Stamped<Vector2D>, Stamped<Odometry>> {
-    private val matcher = ClampMatcher<Stamped<Odometry>, Stamped<Vector2D>>(true)
+) : Mixer<Stamped<Pose2D>, Stamped<Vector2D>, Stamped<Pose2D>> {
+    private val matcher = ClampMatcher<Stamped<Pose2D>, Stamped<Vector2D>>(true)
 
     val pf = PFInfo(minSamples = minCount, maxSamples = maxCount)
 
@@ -38,17 +36,17 @@ class AMCLFilter(
     private var initPosition = vector2DOfZero()
     private var initCov = vector2DOfZero()
 
-    private var lastUpdateOdom = Odometry.pose()
+    private var lastUpdateOdom = pose2D()
     private var odom2baselinkTrans =
-        Stamped(-1L, Odometry.pose().toTransformation())
+        Stamped(-1L, pose2D().toTransformation())
     private var map2odomTrans =
-        Stamped(-1L, Odometry.pose().toTransformation())
+        Stamped(-1L, pose2D().toTransformation())
 
     private fun Double.adjust() = Angle(this).adjust().value
-    private fun Vector3D.toTrans() = Transformation.fromPose(Vector2D(this.x, this.y), Angle(this.z))
-    private fun Transformation.toPoseVec(): Vector3D = this.toPose().let { Vector3D(it.p.x, it.p.y, it.d.value) }
+    private fun Vector3D.toTrans() = Pose2D(Vector2D(x, y), z.toRad()).toTransformation()
+    private fun Transformation.toPoseVec(): Vector3D = toPose2D().let { Vector3D(it.p.x, it.p.y, it.d.value) }
 
-    override fun measureMaster(item: Stamped<Odometry>): Stamped<Odometry>? {
+    override fun measureMaster(item: Stamped<Pose2D>): Stamped<Pose2D>? {
         val (t, pose) = item
         matcher.add1(item)
         synchronized(pf) {
@@ -76,8 +74,8 @@ class AMCLFilter(
         }
     }
 
-    override fun get(item: Stamped<Odometry>): Stamped<Odometry>? {
-        return Stamped(item.time, (map2odomTrans.data * item.data.toTransformation()).toPose())
+    override fun get(item: Stamped<Pose2D>): Stamped<Pose2D>? {
+        return Stamped(item.time, (map2odomTrans.data * item.data.toTransformation()).toPose2D())
     }
 
     private fun initRandSample(mean: Vector2D, std: Vector2D) =
@@ -88,7 +86,7 @@ class AMCLFilter(
     private fun initSample(pf: PFInfo, positionMean: Vector2D, cov: Vector2D, tagPosition: Vector2D): Unit {
         pf.set.kdTree.clear()
         val std = Vector2D(sqrt(cov.x), sqrt(cov.y))
-        val tagPositionInverse = Transformation.fromPose(-tagPosition, Angle(0.0))
+        val tagPositionInverse = Pose2D(-tagPosition, Angle(0.0)).toTransformation()
         repeat(pf.maxSamples) {
             val sample =
                 (initRandSample(positionMean, std).toTrans() * tagPositionInverse)
@@ -120,13 +118,13 @@ class AMCLFilter(
     private fun needResample() =
         (++resampleCount == 2).also { if (it) resampleCount = 0 }
 
-    private fun needUpdate(odom: Odometry): Boolean {
+    private fun needUpdate(odom: Pose2D): Boolean {
         val (p, d) = odom.minusState(lastUpdateOdom)
         return p.norm() > dThresh || abs(d.adjust().value) > aThresh
     }
 
     // 每个粒子按照运动模型演变
-    private fun updateAction(odom: Odometry) {
+    private fun updateAction(odom: Pose2D) {
         val diff = odom.minusState(lastUpdateOdom)
         val deltaTrans = diff.p.norm(2)
         val deltaRot1 = if (deltaTrans < 0.01) 0.0 else atan2(diff.p.y, diff.p.x)
@@ -136,19 +134,19 @@ class AMCLFilter(
         pf.set.samples = pf.set.samples.map { (v, w) ->
             val deltaRot1Hat =
                 (deltaRot1 - randomGaussian(
-                        sqrt(alpha1 * deltaRot1Noise * deltaRot1Noise
-                             + alpha2 * deltaTrans * deltaTrans)
+                    sqrt(alpha1 * deltaRot1Noise * deltaRot1Noise
+                         + alpha2 * deltaTrans * deltaTrans)
                 )).adjust()
             val deltaTransHat =
                 deltaTrans - randomGaussian(
-                        sqrt(alpha3 * deltaTrans * deltaTrans
-                             + alpha4 * deltaRot1Noise * deltaRot1Noise
-                             + alpha4 * deltaRot2Noise * deltaRot2Noise)
+                    sqrt(alpha3 * deltaTrans * deltaTrans
+                         + alpha4 * deltaRot1Noise * deltaRot1Noise
+                         + alpha4 * deltaRot2Noise * deltaRot2Noise)
                 )
             val deltaRot2Hat =
                 (deltaRot2 - randomGaussian(
-                        sqrt(alpha1 * deltaRot2Noise * deltaRot2Noise
-                             + alpha2 * deltaTrans * deltaTrans)
+                    sqrt(alpha1 * deltaRot2Noise * deltaRot2Noise
+                         + alpha2 * deltaTrans * deltaTrans)
                 )).adjust()
 
             Vector3D(x = v.x + deltaTransHat * cos(v.z + deltaRot1Hat),
@@ -160,12 +158,12 @@ class AMCLFilter(
     // 根据观测修改每个粒子权重
     private fun updateWeight(pf: PFInfo, position: Stamped<Vector2D>): Unit {
         // println("updateWeight")
-        val tagPosition = Transformation.fromPose(tagPosition, Angle(0.0))
+        val tagPosition = Pose2D(tagPosition, Angle(0.0)).toTransformation()
         val p1 = 1 / sqrt(2 * PI) / weightSigma
         val p2 = -1.0 / 2 / (weightSigma * weightSigma)
         var totalWeight = 0.0
         for (sample in pf.set.samples) {
-            val diff = (sample.particle.toTrans() * tagPosition).toPose().p - position.data
+            val diff = (sample.particle.toTrans() * tagPosition).toPose2D().p - position.data
             val p = p1 * exp((diff.x * diff.x + diff.y * diff.y) * p2)
             sample.weight *= p
             totalWeight += sample.weight
@@ -243,8 +241,8 @@ class AMCLFilter(
             ?.takeIf { it.value.weight > 0 }
             ?.apply {
                 map2odomTrans = Stamped(
-                        System.currentTimeMillis(),
-                        this.value.mean.toTrans() * lastUpdateOdom.toTransformation().inverse())
+                    System.currentTimeMillis(),
+                    this.value.mean.toTrans() * lastUpdateOdom.toTransformation().inverse())
             }
     }
 

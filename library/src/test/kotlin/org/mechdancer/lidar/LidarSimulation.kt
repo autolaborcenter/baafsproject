@@ -4,12 +4,12 @@ import cn.autolabor.baafs.outlineFilter
 import com.faselase.LidarSet
 import kotlinx.coroutines.*
 import org.mechdancer.algebra.implement.vector.to2D
-import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.shape.Circle
-import org.mechdancer.common.toTransformation
+import org.mechdancer.geometry.transformation.pose2D
+import org.mechdancer.geometry.transformation.toTransformation
 import org.mechdancer.lidar.Default.commands
 import org.mechdancer.lidar.Default.remote
 import org.mechdancer.lidar.Default.simulationLidar
@@ -22,15 +22,15 @@ import kotlin.math.PI
 
 private val obstacles =
     List(10) { i ->
-        listOf(Circle(.14, 32).sample().transform(Odometry.pose(i * .3, +.5)),
-               Circle(.14, 32).sample().transform(Odometry.pose(i * .3, -.5)))
+        listOf(Circle(.14, 32).sample().transform(pose2D(i * .3, +.5)),
+               Circle(.14, 32).sample().transform(pose2D(i * .3, -.5)))
     }.flatten()
 
 @ExperimentalCoroutinesApi
 fun main() = runBlocking(Dispatchers.Default) {
-    val chassis = Chassis(Stamped(0L, Odometry.pose()))
-    val front = simulationLidar(Odometry.pose(x = +.113))
-    val back = simulationLidar(Odometry.pose(x = -.138))
+    val chassis = Chassis(Stamped(0L, pose2D()))
+    val front = simulationLidar(pose2D(x = +.113))
+    val back = simulationLidar(pose2D(x = -.138))
     val lidarSet =
         LidarSet(mapOf(front::frame to front.toRobot,
                        back::frame to back.toRobot)

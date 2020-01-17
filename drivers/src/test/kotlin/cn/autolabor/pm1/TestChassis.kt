@@ -5,13 +5,13 @@ import cn.autolabor.serialport.manager.SerialPortManager
 import kotlinx.coroutines.ObsoleteCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.channel
-import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.exceptions.ExceptionMessage
+import org.mechdancer.geometry.transformation.Pose2D
 
 @ObsoleteCoroutinesApi
 fun main() {
-    val robotOnOdometry = channel<Stamped<Odometry>>()
+    val robotOnOdometry = channel<Stamped<Pose2D>>()
     val exceptions = channel<ExceptionMessage>()
     with(SerialPortManager(exceptions)) {
         registerPM1Chassis(robotOnOdometry)

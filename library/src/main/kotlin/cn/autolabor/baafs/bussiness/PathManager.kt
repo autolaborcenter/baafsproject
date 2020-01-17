@@ -1,6 +1,7 @@
 package cn.autolabor.baafs.bussiness
 
-import org.mechdancer.common.Odometry
+import org.mechdancer.geometry.transformation.Pose2D
+import org.mechdancer.geometry.transformation.pose2D
 import org.mechdancer.global.GlobalPathPlanner
 import org.mechdancer.global.GlobalPlannerBuilderDsl.Companion.pathPlanner
 import java.io.File
@@ -8,7 +9,7 @@ import java.io.File
 /**
  * 全局路径管理
  */
-class PathManager(private val localFirst: (Odometry) -> Boolean) {
+class PathManager(private val localFirst: (Pose2D) -> Boolean) {
     private val globals = mutableMapOf<String, GlobalPathPlanner>()
 
     /** 强制从文件中读取路径，并设置进度 */
@@ -18,7 +19,7 @@ class PathManager(private val localFirst: (Odometry) -> Boolean) {
             ?.readLines()
             ?.map {
                 val numbers = it.split(',').map(String::toDouble)
-                Odometry.pose(numbers[0], numbers[1], numbers[2])
+                pose2D(numbers[0], numbers[1], numbers[2])
             }
             ?.toList()
             ?.let {
@@ -38,7 +39,7 @@ class PathManager(private val localFirst: (Odometry) -> Boolean) {
         globals[pathName] ?: refresh(pathName)
 
     /** 将路径存储到文件 */
-    fun save(fileName: String, path: List<Odometry>) =
+    fun save(fileName: String, path: List<Pose2D>) =
         path.joinToString("\n") { (p, d) -> "${p.x},${p.y},${d.asRadian()}" }
             .let { File(fileName).writeText(it) }
 

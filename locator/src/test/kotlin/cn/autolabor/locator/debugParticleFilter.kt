@@ -4,7 +4,7 @@ import cn.autolabor.locator.ParticleFilterDebugerBuilderDsl.Companion.debugParti
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.mechdancer.algebra.function.vector.euclid
 import org.mechdancer.algebra.implement.vector.vector2DOf
-import org.mechdancer.common.Odometry
+import org.mechdancer.geometry.transformation.pose2D
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
 import org.mechdancer.simulation.displayOnConsole
@@ -15,7 +15,7 @@ fun main() = debugParticleFilter {
     // 仿真配置
     speed = 2
     frequency = 50L
-    origin = Odometry.pose(3, 4, PI)
+    origin = pose2D(3, 4, PI)
     // 里程计配置
     odometryFrequency = 20.0
     leftWheel = vector2DOf(0, +.21)

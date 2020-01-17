@@ -3,13 +3,13 @@ package org.mechdancer.global
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.mechdancer.algebra.function.vector.dot
-import org.mechdancer.common.Odometry
-import org.mechdancer.common.toTransformation
-import org.mechdancer.common.transform
 import org.mechdancer.core.GlobalPlanner
 import org.mechdancer.core.LocalPath
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toVector
+import org.mechdancer.geometry.transformation.Pose2D
+import org.mechdancer.geometry.transformation.toTransformation
+import org.mechdancer.geometry.transformation.transform
 import org.mechdancer.paintPoses
 import org.mechdancer.remote.presets.RemoteHub
 import java.util.concurrent.locks.ReentrantReadWriteLock
@@ -21,11 +21,11 @@ import kotlin.math.min
 /** 已知路径全局规划器 */
 class GlobalPathPlanner
 internal constructor(
-    path: List<Odometry>,
+    path: List<Pose2D>,
     minTip: Angle,
     private val searchCount: Int,
-    private val localFirst: (Odometry) -> Boolean
-) : GlobalPlanner, List<Odometry> by path {
+    private val localFirst: (Pose2D) -> Boolean
+) : GlobalPlanner, List<Pose2D> by path {
     // 当前位置
     private var index = 0
     // 允许搜索全部路径
@@ -74,7 +74,7 @@ internal constructor(
     /** 画图 */
     var painter: RemoteHub? = null
 
-    override suspend fun plan(pose: Odometry): LocalPath {
+    override suspend fun plan(pose: Pose2D): LocalPath {
         val onRobot = pose.toTransformation().inverse()::transform
         return lock.write {
             // 若路径已全部完成

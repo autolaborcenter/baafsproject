@@ -8,13 +8,14 @@ import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.channel
-import org.mechdancer.common.Odometry
 import org.mechdancer.common.Velocity
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.common.shape.Polygon
-import org.mechdancer.common.toTransformation
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
+import org.mechdancer.geometry.transformation.Pose2D
+import org.mechdancer.geometry.transformation.pose2D
+import org.mechdancer.geometry.transformation.toTransformation
 import org.mechdancer.lidar.Default.cover
 import org.mechdancer.lidar.Default.remote
 import org.mechdancer.networksInfo
@@ -55,7 +56,7 @@ internal object Default {
 
     // 机器人内的遮挡
     val cover =
-        listOf(Circle(.07).sample().transform(Odometry.pose(-.36)),
+        listOf(Circle(.07).sample().transform(pose2D(-.36)),
                listOf(vector2DOf(-.10, +.26),
                       vector2DOf(-.10, +.20),
                       vector2DOf(-.05, +.20),
@@ -65,21 +66,21 @@ internal object Default {
                ).mirror().let(::Polygon))
 
     // 构造仿真雷达
-    fun simulationLidar(onRobot: Odometry) =
+    fun simulationLidar(onRobot: Pose2D) =
         SimulationLidar(
-                lidar = Lidar(.15..8.0, 3600.toDegree(), 2E-4)
-                    .apply { initialize(.0, Odometry.pose(), 0.toRad()) },
-                onRobot = onRobot,
-                cover = cover,
-                errorSigma = 1E-2)
+            lidar = Lidar(.15..8.0, 3600.toDegree(), 2E-4)
+                .apply { initialize(.0, pose2D(), 0.toRad()) },
+            onRobot = onRobot,
+            cover = cover,
+            errorSigma = 1E-2)
 }
 
-internal fun Polygon.transform(pose: Odometry): Polygon {
+internal fun Polygon.transform(pose: Pose2D): Polygon {
     val tf = pose.toTransformation()
     return Polygon(vertex.map { tf(it).to2D() })
 }
 
-internal fun RemoteHub.paintRobot(robotOnMap: Odometry) {
+internal fun RemoteHub.paintRobot(robotOnMap: Pose2D) {
     // 绘制机器人外轮廓和遮挡物
     cover
         .map { it.transform(robotOnMap) }

@@ -5,10 +5,11 @@ import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.algebra.implement.matrix.builder.toDiagonalMatrix
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.annotations.BuilderDslMarker
-import org.mechdancer.common.Odometry
-import org.mechdancer.common.toTransformation
 import org.mechdancer.exceptions.ExceptionMessage
+import org.mechdancer.geometry.transformation.Pose2D
 import org.mechdancer.geometry.transformation.Transformation
+import org.mechdancer.geometry.transformation.pose2D
+import org.mechdancer.geometry.transformation.toTransformation
 
 /**
  * 砝石雷达系构建器
@@ -23,7 +24,7 @@ class FaselaseLidarSetBuilderDsl private constructor() {
 
     data class FaselaseLidarConfig internal constructor(
         var tag: String? = null,
-        var pose: Odometry = Odometry.pose(),
+        var pose: Pose2D = pose2D(),
         var inverse: Boolean = false)
 
     fun lidar(block: FaselaseLidarConfig.() -> Unit) {
@@ -62,10 +63,10 @@ class FaselaseLidarSetBuilderDsl private constructor() {
                     .map { (portName, config) ->
                         val lidar =
                             FaselaseLidar(
-                                    exceptions = exceptions,
-                                    portName = portName,
-                                    tag = config.tag ?: "Lidar${i++}",
-                                    dataTimeout = dataTimeout
+                                exceptions = exceptions,
+                                portName = portName,
+                                tag = config.tag ?: "Lidar${i++}",
+                                dataTimeout = dataTimeout
                             ).also(manager::register)
                         val tf = config.pose.toTransformation()
                         lidar to if (config.inverse) tf * mirror else tf

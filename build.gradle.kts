@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
 buildscript {
     repositories {
         mavenCentral()
@@ -32,12 +30,17 @@ allprojects {
         testImplementation("junit", "junit", "+")
         testImplementation(kotlin("test-junit"))
     }
-    tasks.withType<KotlinCompile> {
-        kotlinOptions { jvmTarget = "1.8" }
-    }
-    tasks.withType<JavaCompile> {
-        sourceCompatibility = "1.8"
-        targetCompatibility = "1.8"
+    tasks {
+        compileKotlin {
+            kotlinOptions.jvmTarget = "1.8"
+        }
+        compileTestKotlin {
+            kotlinOptions.jvmTarget = "1.8"
+        }
+        withType<JavaCompile> {
+            sourceCompatibility = "1.8"
+            targetCompatibility = "1.8"
+        }
     }
     // 源码导出任务
     with("sourcesJar") {
@@ -55,7 +58,7 @@ allprojects {
 subprojects {
     dependencies {
         // 子项目自动依赖重要数学和定义库
-        implementation(files("../libs/linearalgebra-0.2.6-dev-2.jar"))
+        implementation(files("../libs/linearalgebra-0.2.7-dev-1.jar"))
         implementation(files("../libs/simulator-0.0.3.jar"))
     }
 }

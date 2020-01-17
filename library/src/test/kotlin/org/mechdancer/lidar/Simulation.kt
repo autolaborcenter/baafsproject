@@ -5,12 +5,12 @@ import cn.autolabor.baafs.bussiness.BusinessBuilderDsl.Companion.startBusiness
 import cn.autolabor.baafs.bussiness.FollowFailedException
 import cn.autolabor.baafs.collisionpredictor.CollisionDetectedException
 import cn.autolabor.baafs.collisionpredictor.CollisionPredictorBuilderDsl.Companion.collisionPredictor
-import cn.autolabor.baafs.toGridOf
 import cn.autolabor.baafs.outlineFilter
 import cn.autolabor.baafs.parser.parseFromConsole
 import cn.autolabor.baafs.parser.registerBusinessParser
 import cn.autolabor.baafs.parser.registerExceptionServerParser
 import cn.autolabor.baafs.robotOutline
+import cn.autolabor.baafs.toGridOf
 import cn.autolabor.pm1.model.ChassisStructure
 import cn.autolabor.serialport.manager.SerialPortManager
 import com.faselase.LidarSet
@@ -25,11 +25,9 @@ import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
-import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity
 import org.mechdancer.common.shape.Circle
-import org.mechdancer.common.toTransformation
 import org.mechdancer.console.parser.buildParser
 import org.mechdancer.core.LocalPath
 import org.mechdancer.exceptions.ExceptionMessage
@@ -38,6 +36,9 @@ import org.mechdancer.exceptions.ExceptionMessage.Recovered
 import org.mechdancer.exceptions.ExceptionServerBuilderDsl.Companion.startExceptionServer
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toDegree
+import org.mechdancer.geometry.transformation.Pose2D
+import org.mechdancer.geometry.transformation.pose2D
+import org.mechdancer.geometry.transformation.toTransformation
 import org.mechdancer.lidar.Default.commands
 import org.mechdancer.lidar.Default.remote
 import org.mechdancer.lidar.Default.simulationLidar
@@ -52,9 +53,9 @@ private val pot = Circle(.14, 32).sample()
 
 private val obstacles =
     List(10) { i ->
-        listOf(pot.transform(Odometry.pose(i * .3, +.5)),
-               pot.transform(Odometry.pose(i * .3, -.5)),
-               pot.transform(Odometry.pose(i * .3, 1.5)))
+        listOf(pot.transform(pose2D(i * .3, +.5)),
+               pot.transform(pose2D(i * .3, -.5)),
+               pot.transform(pose2D(i * .3, 1.5)))
     }.flatten()
 
 private const val T0 = 0L
@@ -69,16 +70,16 @@ private val odometrySampler = Sampler(20.0)
 fun main() {
     val dt = 1000 / frequency
 
-    val chassis = Chassis(Stamped(T0, Odometry.pose()))
-    val front = simulationLidar(Odometry.pose(x = +.113))
-    val back = simulationLidar(Odometry.pose(x = -.138))
+    val chassis = Chassis(Stamped(T0, pose2D()))
+    val front = simulationLidar(pose2D(x = +.113))
+    val back = simulationLidar(pose2D(x = -.138))
     val lidarSet =
         LidarSet(mapOf(front::frame to front.toRobot,
                        back::frame to back.toRobot)
         ) { it !in outlineFilter }
 
     // 话题
-    val robotOnMap = YChannel<Stamped<Odometry>>()
+    val robotOnMap = YChannel<Stamped<Pose2D>>()
     val globalOnRobot = channel<LocalPath>()
     val exceptions = channel<ExceptionMessage>()
     val command = AtomicReference(Velocity.velocity(.0, .0))
@@ -96,8 +97,8 @@ fun main() {
         // 启动业务交互后台
         val business =
             startBusiness(
-                    robotOnMap = robotOnMap.outputs[0],
-                    globalOnRobot = globalOnRobot
+                robotOnMap = robotOnMap.outputs[0],
+                globalOnRobot = globalOnRobot
             ) {
                 localRadius = .3
                 pathInterval = .05
@@ -134,7 +135,7 @@ fun main() {
         // 循径器（虚拟光感法）
         val pathFollower =
             pathFollower {
-                sensorPose = Odometry.pose(x = .3)
+                sensorPose = pose2D(x = .3)
                 lightRange = Circle(.3, 32)
                 minTipAngle = 60.toDegree()
                 minTurnAngle = 15.toDegree()
@@ -220,7 +221,7 @@ fun main() {
                 while (System.currentTimeMillis() - invokeTime > 2000L) {
                     val frame = lidarSet.frame
                     remote.paintVectors("R 雷达", frame)
-                    remote.paintVectors("R 聚类",  frame.toGridOf(vector2DOf(.05, .05)))
+                    remote.paintVectors("R 聚类", frame.toGridOf(vector2DOf(.05, .05)))
                     delay(200L)
                 }
                 delay(5000L)

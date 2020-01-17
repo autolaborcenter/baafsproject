@@ -1,10 +1,11 @@
 package cn.autolabor.pm1.model
 
 import org.mechdancer.average
-import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toRad
+import org.mechdancer.geometry.transformation.Pose2D
+import org.mechdancer.geometry.transformation.pose2D
 
 internal class Predictor(
     private val structure: ChassisStructure,
@@ -26,14 +27,14 @@ internal class Predictor(
 
     fun predict(target: ControlVariable,
                 current: ControlVariable.Physical
-    ): (Long) -> Odometry {
+    ): (Long) -> Pose2D {
         val physical = when (target) {
             is ControlVariable.Physical -> target
             is ControlVariable.Wheels   -> target.let(structure::toPhysical)
             is ControlVariable.Velocity -> target.let(structure::toPhysical)
         }
         var sn = current
-        val cache = mutableListOf(Stamped(0L, Odometry.pose()))
+        val cache = mutableListOf(Stamped(0L, pose2D()))
         return { tt: Long ->
             when {
                 tt <= 0                 ->
@@ -49,7 +50,7 @@ internal class Predictor(
                     }
                 }
                 else                    -> {
-                    var result: Odometry? = null
+                    var result: Pose2D? = null
                     while (result == null) {
                         // 保存上一时刻状态
                         val (`tn-1`, `pn-1`) = cache.last()

@@ -6,12 +6,13 @@ import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
-import org.mechdancer.common.Odometry
-import org.mechdancer.common.toTransformation
 import org.mechdancer.core.LocalPath
 import org.mechdancer.core.LocalPlanner
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toVector
+import org.mechdancer.geometry.transformation.Pose2D
+import org.mechdancer.geometry.transformation.pose2D
+import org.mechdancer.geometry.transformation.toTransformation
 import java.util.*
 import kotlin.math.max
 
@@ -44,7 +45,7 @@ internal constructor(
                     val iter = path.path.iterator()
                     val attractPoints = iter.consume()?.let { mutableListOf(it) } ?: return@sequence
                     val list: Queue<Vector2D> = LinkedList()
-                    var pose = Odometry.pose()
+                    var pose = pose2D()
                     while (true) {
                         val poseToRobot = pose.toTransformation()
                         val robotToPose = poseToRobot.inverse()
@@ -64,7 +65,7 @@ internal constructor(
                         val fa =
                             attractPoints
                                 .asSequence()
-                                .map(Odometry::p)
+                                .map(Pose2D::p)
                                 .map(Vector::normalize)
                                 .map(Vector::to2D)
                                 .toList()
@@ -86,8 +87,8 @@ internal constructor(
                         // 计算合力（方向），落入局部势垒则直接前进
                         val f = (fa + fr).takeIf { it.length > 1E-6 }?.normalize()?.to2D() ?: vector2DOf(1, 0)
                         // 步进
-                        pose = Odometry(p = p0 + f * stepLength,
-                                        d = attractPoints.sumByVector2D { it.d.toVector() }.toAngle())
+                        pose = Pose2D(p = p0 + f * stepLength,
+                                      d = attractPoints.sumByVector2D { it.d.toVector() }.toAngle())
                         if (list.any { (it euclid pose.p) < .01 }) break
                         if (list.size >= lookAhead) list.poll()
                         list.offer(pose.p)

@@ -9,9 +9,9 @@ import kotlinx.coroutines.launch
 import org.mechdancer.SimpleLogger
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.annotations.BuilderDslMarker
-import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
-import org.mechdancer.geometry.angle.Angle
+import org.mechdancer.geometry.transformation.Pose2D
+import org.mechdancer.geometry.transformation.pose2D
 import org.mechdancer.paint
 import org.mechdancer.paintPose
 import org.mechdancer.paintPoses
@@ -35,9 +35,9 @@ class AMCLFusionModuleBuilderDsl private constructor() {
          */
         @ExperimentalCoroutinesApi
         fun CoroutineScope.startLocationFusion(
-            robotOnOdometry: ReceiveChannel<Stamped<Odometry>>,
+            robotOnOdometry: ReceiveChannel<Stamped<Pose2D>>,
             beaconOnMap: ReceiveChannel<Stamped<Vector2D>>,
-            robotOnMap: SendChannel<Stamped<Odometry>>,
+            robotOnMap: SendChannel<Stamped<Pose2D>>,
             block: AMCLFusionModuleBuilderDsl.() -> Unit = {}
         ) {
             AMCLFusionModuleBuilderDsl()
@@ -65,12 +65,7 @@ class AMCLFusionModuleBuilderDsl private constructor() {
                                     painter?.run {
                                         paintPose("粒子滤波", data)
                                         with(filter.pf.set.samples) {
-                                            paintPoses(
-                                                    "粒子群",
-                                                    map { (p, _) ->
-                                                        Odometry(Vector2D(p.x, p.y),
-                                                                 Angle(p.z))
-                                                    }.take(200))
+                                            paintPoses("粒子群", map { (p, _) -> pose2D(p.x, p.y, p.z) }.take(200))
                                         }
                                     }
                                 }

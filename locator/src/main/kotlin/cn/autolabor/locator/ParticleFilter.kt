@@ -9,14 +9,14 @@ import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.annotations.DebugTemporary
 import org.mechdancer.annotations.DebugTemporary.Operation.DELETE
 import org.mechdancer.average
-import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
-import org.mechdancer.common.toTransformation
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.geometry.angle.toVector
-import org.mechdancer.geometry.transformation.Transformation
+import org.mechdancer.geometry.transformation.Pose2D
+import org.mechdancer.geometry.transformation.pose2D
+import org.mechdancer.geometry.transformation.toTransformation
 import org.mechdancer.simulation.random.Normal
 import kotlin.math.*
 
@@ -43,19 +43,19 @@ class ParticleFilter(
     private val maxAge: Int,
     private val sigma: Double,
     private val predicate: Schmitt<FusionQuality>
-) : Mixer<Stamped<Odometry>, Stamped<Vector2D>, Stamped<Odometry>> {
+) : Mixer<Stamped<Pose2D>, Stamped<Vector2D>, Stamped<Pose2D>> {
     // 无状态计算模型
     private val gauss = Gauss(.0, maxInconsistency / 3)
     // 匹配器
-    private val matcher = ClampMatcher<Stamped<Odometry>, Stamped<Vector2D>>(true)
+    private val matcher = ClampMatcher<Stamped<Pose2D>, Stamped<Vector2D>>(true)
     // 匹配步进状态
-    private var stepMemory: Pair<Vector2D, Odometry>? = null
+    private var stepMemory: Pair<Vector2D, Pose2D>? = null
     // 融合步进状态
-    private lateinit var updatingMemory: Odometry
+    private lateinit var updatingMemory: Pose2D
     // 粒子群：位姿 - 寿命
-    private var particles = emptyList<Pair<Odometry, Int>>()
+    private var particles = emptyList<Pair<Pose2D, Int>>()
     // 预测器
-    private var visionary = Visionary(Odometry.pose(), Odometry.pose(), .0)
+    private var visionary = Visionary(pose2D(), pose2D(), .0)
 
     // 过程记录器
     @DebugTemporary(DELETE)
@@ -66,7 +66,7 @@ class ParticleFilter(
     // 是否收敛
     val isConvergent get() = predicate.state
     // 最后一次查询结果
-    var lastQuery: Stamped<Odometry>? = null
+    var lastQuery: Stamped<Pose2D>? = null
         private set
 
     // 过程参数渗透
@@ -76,7 +76,7 @@ class ParticleFilter(
         val particleWeight: Double,
         val quality: FusionQuality)
 
-    override fun measureMaster(item: Stamped<Odometry>) =
+    override fun measureMaster(item: Stamped<Pose2D>) =
         matcher.add1(item).let {
             update()
             get(item)
@@ -87,12 +87,12 @@ class ParticleFilter(
             update()
         }
 
-    override operator fun get(item: Stamped<Odometry>): Stamped<Odometry> {
+    override operator fun get(item: Stamped<Pose2D>): Stamped<Pose2D> {
         val (t, p) = item
         return Stamped(t, visionary.infer(p)).also { lastQuery = it }
     }
 
-    fun getOrSet(item: Stamped<Odometry>, target: Odometry): Stamped<Odometry> {
+    fun getOrSet(item: Stamped<Pose2D>, target: Pose2D): Stamped<Pose2D> {
         val (_, p) = item
         if (!isConvergent) updateVisionary(p, target)
         return get(item)
@@ -100,14 +100,14 @@ class ParticleFilter(
 
     // 更新预测器
     private fun updateVisionary(
-        newMarkOnOdometry: Odometry,
-        newExpectation: Odometry
+        newMarkOnOdometry: Pose2D,
+        newExpectation: Pose2D
     ) {
         visionary = visionary.fusion(
-                newMarkOnOdometry,
-                newExpectation,
-                2.0,
-                maxInconsistency)
+            newMarkOnOdometry,
+            newExpectation,
+            2.0,
+            maxInconsistency)
     }
 
     @Synchronized
@@ -157,7 +157,7 @@ class ParticleFilter(
                 // 计算每个粒子对应的信标坐标
                 val limitedMaxAge =
                     max(3, (maxAge * particles.qualityBy(maxAge, maxInconsistency).direction).roundToInt())
-                val beacons = particles.map { (p, _) -> Odometry(p.toTransformation()(locatorOnRobot).to2D(), p.d) }
+                val beacons = particles.map { (p, _) -> Pose2D(p.toTransformation()(locatorOnRobot).to2D(), p.d) }
                 val distances = beacons.map { (p, _) -> p euclid measure }
                 val ages = particles.zip(distances) { (_, age), distance ->
                     if (distance < maxInconsistency) min(limitedMaxAge, age + 1) else age - 1
@@ -204,10 +204,10 @@ class ParticleFilter(
                 @DebugTemporary(DELETE)
                 synchronized(stepFeedbacks) {
                     val msg = Stamped(
-                            t, StepState(
-                            measureWeight = measureWeight,
-                            particleWeight = weightsSum,
-                            quality = quality.data))
+                        t, StepState(
+                        measureWeight = measureWeight,
+                        particleWeight = weightsSum,
+                        quality = quality.data))
                     for (callback in stepFeedbacks)
                         callback(msg)
                 }
@@ -215,23 +215,23 @@ class ParticleFilter(
     }
 
     private fun robotPoseBy(p: Vector2D, d: Angle) =
-        Odometry(Transformation.fromPose(p, d)(-locatorOnRobot).to2D(), d)
+        Pose2D(Pose2D(p, d).toTransformation()(-locatorOnRobot).to2D(), d)
 
     // 重新初始化
-    private fun initialize(t: Long, measure: Vector2D, state: Odometry) {
+    private fun initialize(t: Long, measure: Vector2D, state: Pose2D) {
         updatingMemory = state
         quality = Stamped(t, FusionQuality.zero)
         visionary = visionary.copy(reliability = .0)
         val step = 2 * PI / count
         particles = List(count) {
             val d = (it * step).toRad()
-            val p = Transformation.fromPose(measure, d)(-locatorOnRobot).to2D()
-            Odometry(p, d) to 0
+            val p = Pose2D(measure, d).toTransformation()(-locatorOnRobot).to2D()
+            Pose2D(p, d) to 0
         }
     }
 
     private companion object {
-        fun List<Pair<Odometry, Int>>.qualityBy(
+        fun List<Pair<Pose2D, Int>>.qualityBy(
             maxAge: Int,
             maxInconsistent: Double
         ): FusionQuality {
@@ -247,9 +247,9 @@ class ParticleFilter(
             val size = size
             val eP = location / size
             return FusionQuality(
-                    age = ageSum.toDouble() / (size * maxAge),
-                    location = max(.0, 1 - sumByDouble { (pose, _) -> pose.p euclid eP } / (size * maxInconsistent)),
-                    direction = direction.norm() / size
+                age = ageSum.toDouble() / (size * maxAge),
+                location = max(.0, 1 - sumByDouble { (pose, _) -> pose.p euclid eP } / (size * maxInconsistent)),
+                direction = direction.norm() / size
             )
         }
     }

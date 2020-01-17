@@ -13,12 +13,13 @@ import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.annotations.BuilderDslMarker
 import org.mechdancer.channel
-import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.filters.Differential
-import org.mechdancer.common.toPose
-import org.mechdancer.common.toTransformation
 import org.mechdancer.geometry.angle.toRad
+import org.mechdancer.geometry.transformation.Pose2D
+import org.mechdancer.geometry.transformation.pose2D
+import org.mechdancer.geometry.transformation.toPose2D
+import org.mechdancer.geometry.transformation.toTransformation
 import org.mechdancer.newRandomDriving
 import org.mechdancer.paintPose
 import org.mechdancer.remote.presets.RemoteHub
@@ -38,7 +39,7 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
     // 仿真器工作频率
     var frequency = 50L
     // 机器人起始位姿
-    var origin = Odometry.pose()
+    var origin = pose2D()
     // 里程计配置
     var odometryFrequency = 20.0
     var leftWheel = vector2DOf(0, +.2)
@@ -103,14 +104,14 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
     }
 
     // 数据分析方法
-    private var analyzer: (t: Long, actual: Odometry, odometry: Odometry) -> Unit =
+    private var analyzer: (t: Long, actual: Pose2D, odometry: Pose2D) -> Unit =
         { t, actual, odometry ->
             displayOnConsole(
                 "时间" to t / 1000.0,
                 "误差" to (actual.p - odometry.p).norm())
         }
 
-    fun analyze(block: (Long, Odometry, Odometry) -> Unit) {
+    fun analyze(block: (Long, Pose2D, Pose2D) -> Unit) {
         analyzer = block
     }
 
@@ -134,18 +135,18 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                 .run {
                     // 机器人机械结构
                     val robot = StructBuilderDSL.struct(Chassis(Stamped(T0, origin))) {
-                        Encoder(Key.Left) asSub { pose = Odometry(leftWheel, 0.toRad()) }
-                        Encoder(Key.Right) asSub { pose = Odometry(rightWheel, 0.toRad()) }
-                        BEACON_TAG asSub { pose = Odometry(beaconOnRobot, 0.toRad()) }
+                        Encoder(Key.Left) asSub { pose = Pose2D(leftWheel, 0.toRad()) }
+                        Encoder(Key.Right) asSub { pose = Pose2D(rightWheel, 0.toRad()) }
+                        BEACON_TAG asSub { pose = Pose2D(beaconOnRobot, 0.toRad()) }
                     }
                     // 编码器在机器人上的位姿
                     val encodersOnRobot =
                         robot.devices
-                            .mapNotNull { (device, tf) -> (device as? Encoder)?.to(tf.toPose()) }
+                            .mapNotNull { (device, tf) -> (device as? Encoder)?.to(tf.toPose2D()) }
                             .toMap()
                     // 定位标签在机器人上的位姿
                     val beaconOnRobot =
-                        robot.devices[BEACON_TAG]!!.toPose().p
+                        robot.devices[BEACON_TAG]!!.toPose2D().p
 
                     // 标签延时队列
                     val beaconQueue: Queue<Stamped<Vector2D>> = LinkedList<Stamped<Vector2D>>()
@@ -157,7 +158,7 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                     var beaconTimes = 0L
 
                     // 差动里程计
-                    val odometry = DifferentialOdometry(wheelsWidthMeasure, Stamped(T0, Odometry.pose()))
+                    val odometry = DifferentialOdometry(wheelsWidthMeasure, Stamped(T0, pose2D()))
                     // 里程计周期
                     val odometryPeriod = 1000L / odometryFrequency
                     // 里程计采样计数
@@ -171,9 +172,9 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                     var actual = robot.what.odometry
 
                     // 话题
-                    val robotOnOdometry = channel<Stamped<Odometry>>()
+                    val robotOnOdometry = channel<Stamped<Pose2D>>()
                     val beaconOnMap = channel<Stamped<Vector2D>>()
-                    val robotOnMap = channel<Stamped<Odometry>>()
+                    val robotOnMap = channel<Stamped<Pose2D>>()
                     runBlocking {
                         // 任务
                         startLocationFusion(

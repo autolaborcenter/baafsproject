@@ -1,9 +1,9 @@
 package org.mechdancer
 
 import org.mechdancer.algebra.implement.vector.Vector2D
-import org.mechdancer.common.Odometry
 import org.mechdancer.common.shape.Polygon
 import org.mechdancer.dependency.must
+import org.mechdancer.geometry.transformation.Pose2D
 import org.mechdancer.remote.presets.RemoteHub
 import org.mechdancer.remote.protocol.writeEnd
 import org.mechdancer.remote.resources.Command
@@ -88,7 +88,7 @@ fun RemoteHub.paint(
 /** 画位姿信号 */
 fun RemoteHub.paintPose(
     topic: String,
-    pose: Odometry
+    pose: Pose2D
 ) = paint(topic, pose.p.x, pose.p.y, pose.d.asRadian())
 
 /**
@@ -128,7 +128,7 @@ fun RemoteHub.paintVectors(
  */
 fun RemoteHub.paintPoses(
     topic: String,
-    list: Iterable<Odometry>
+    list: Iterable<Pose2D>
 ) = paint(topic) {
     DataOutputStream(this).apply {
         writeByte(2 or FRAME_MASK or DIR_MASK)

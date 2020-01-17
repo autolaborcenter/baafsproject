@@ -9,8 +9,8 @@ import kotlinx.coroutines.launch
 import org.mechdancer.SimpleLogger
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.annotations.BuilderDslMarker
-import org.mechdancer.common.Odometry
 import org.mechdancer.common.Stamped
+import org.mechdancer.geometry.transformation.Pose2D
 import org.mechdancer.paint
 import org.mechdancer.paintPose
 import org.mechdancer.remote.presets.RemoteHub
@@ -33,9 +33,9 @@ class LocationFusionModuleBuilderDsl private constructor() {
          */
         @ExperimentalCoroutinesApi
         fun CoroutineScope.startLocationFusion(
-            robotOnOdometry: ReceiveChannel<Stamped<Odometry>>,
+            robotOnOdometry: ReceiveChannel<Stamped<Pose2D>>,
             beaconOnMap: ReceiveChannel<Stamped<Vector2D>>,
-            robotOnMap: SendChannel<Stamped<Odometry>>,
+            robotOnMap: SendChannel<Stamped<Pose2D>>,
             block: LocationFusionModuleBuilderDsl.() -> Unit = {}
         ) = LocationFusionModuleBuilderDsl()
             .apply(block)

@@ -4,10 +4,10 @@ import cn.autolabor.pm1.model.ControlVariable.Physical
 import org.mechdancer.algebra.function.vector.dot
 import org.mechdancer.algebra.function.vector.plus
 import org.mechdancer.algebra.function.vector.times
-import org.mechdancer.common.Odometry
 import org.mechdancer.core.ActionPlanner
 import org.mechdancer.core.LocalPath
 import org.mechdancer.geometry.angle.*
+import org.mechdancer.geometry.transformation.Pose2D
 import org.mechdancer.paint
 import org.mechdancer.paintPoses
 import org.mechdancer.remote.presets.RemoteHub
@@ -62,7 +62,7 @@ class VirtualLightSensorPathFollower(
             is LocalPath.Path    -> invoke(path.path)
         }
 
-    private fun calculateDir(tip: Odometry): Boolean {
+    private fun calculateDir(tip: Pose2D): Boolean {
         val target = (tip.p + tip.d.toVector() * 0.2).toAngle().adjust().asRadian()
         val turn = abs(target) > minTurnRad
         dir = if (turn)
@@ -79,7 +79,7 @@ class VirtualLightSensorPathFollower(
         return Physical(maxSpeed, (-dir * PI / 2).toRad())
     }
 
-    private fun invoke(path: Sequence<Odometry>): Physical? {
+    private fun invoke(path: Sequence<Pose2D>): Physical? {
         // 光感采样
         val bright = sensor.shine(path)
         if (turning && bright.size < PRE_TURN_COUNT) return turn()
