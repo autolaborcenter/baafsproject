@@ -5,6 +5,7 @@ import org.mechdancer.common.Stamped
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.geometry.transformation.Pose2D
+import org.mechdancer.geometry.transformation.plusDelta
 import org.mechdancer.geometry.transformation.pose2D
 
 internal class Predictor(

@@ -44,7 +44,7 @@ class AMCLFilter(
 
     private fun Double.adjust() = Angle(this).adjust().value
     private fun Vector3D.toTrans() = Pose2D(Vector2D(x, y), z.toRad()).toTransformation()
-    private fun Transformation.toPoseVec(): Vector3D = toPose2D().let { Vector3D(it.p.x, it.p.y, it.d.value) }
+    private fun MatrixTransformation.toPoseVec(): Vector3D = toPose2D().let { Vector3D(it.p.x, it.p.y, it.d.value) }
 
     override fun measureMaster(item: Stamped<Pose2D>): Stamped<Pose2D>? {
         val (t, pose) = item

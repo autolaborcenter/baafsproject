@@ -1,14 +1,3 @@
-buildscript {
-    repositories {
-        mavenCentral()
-        jcenter()
-        maven("https://maven.aliyun.com/repository/central")
-        maven("https://maven.aliyun.com/repository/google")
-        maven("https://maven.aliyun.com/repository/gradle-plugin")
-        maven("https://maven.aliyun.com/repository/jcenter")
-    }
-}
-
 plugins {
     kotlin("jvm") version "1.3.61"
 }
@@ -21,6 +10,10 @@ allprojects {
     repositories {
         mavenCentral()
         jcenter()
+        maven("https://maven.aliyun.com/repository/central")
+        maven("https://maven.aliyun.com/repository/google")
+        maven("https://maven.aliyun.com/repository/gradle-plugin")
+        maven("https://maven.aliyun.com/repository/jcenter")
     }
     dependencies {
         // 自动依赖 kotlin 标准库
@@ -58,7 +51,7 @@ allprojects {
 subprojects {
     dependencies {
         // 子项目自动依赖重要数学和定义库
-        implementation(files("../libs/linearalgebra-0.2.7-dev-1.jar"))
+        implementation(files("../libs/linearalgebra-0.2.7-dev-2.jar"))
         implementation(files("../libs/simulator-0.0.3.jar"))
     }
 }

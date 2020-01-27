@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 import org.mechdancer.WatchDog
 import org.mechdancer.algebra.function.vector.div
 import org.mechdancer.algebra.implement.vector.Vector2D
-import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.algebra.implement.vector.vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.common.Stamped
 import org.mechdancer.core.MobileBeacon
@@ -106,7 +106,7 @@ internal constructor(
                                 && z in zRange
                                 && notStatic(x, y, z)
                             ) {
-                                location = Stamped(now - delay, vector2DOf(x, y) / 1000.0)
+                                location = Stamped(now - delay, vector2D(x, y) / 1000.0)
                                 launch {
                                     beaconOnMap.send(location)
                                     exceptions.send(Recovered(dataTimeoutException))

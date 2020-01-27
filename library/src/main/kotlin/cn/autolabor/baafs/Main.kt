@@ -31,7 +31,6 @@ import org.mechdancer.action.PathFollowerBuilderDsl.Companion.pathFollower
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
-import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.shape.Circle
@@ -139,7 +138,7 @@ fun main() {
                 pose = pose2D(-.138, 0, PI / 2)
                 inverse = false
             }
-            val wonder = vector2DOf(+.12, -.14)
+            val wonder = Vector2D(+.12, -.14)
             filter { p ->
                 p euclid wonder > .05 && p !in outlineFilter
             }
@@ -196,7 +195,7 @@ fun main() {
                     robotOnMap = robotOnMap
                 ) {
                     filter {
-                        beaconOnRobot = vector2DOf(-.01, -.02)
+                        beaconOnRobot = Vector2D(-.01, -.02)
                         maxInconsistency = .1
                         convergence { (age, _, d) -> age > .2 && d > .9 }
                         divergence { (age, _, _) -> age < .1 }
@@ -235,7 +234,7 @@ fun main() {
                     }
 
                     obstacles {
-                        obstacleFrame = lidarSet.frame.toGridOf(vector2DOf(.05, .05))
+                        obstacleFrame = lidarSet.frame.toGridOf(Vector2D(.05, .05))
                         remote?.paintVectors("R 聚类", obstacleFrame)
                         obstacleFrame
                     }

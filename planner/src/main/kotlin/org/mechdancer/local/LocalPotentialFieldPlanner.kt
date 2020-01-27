@@ -4,7 +4,7 @@ import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.function.vector.*
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
-import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.algebra.implement.vector.vector2D
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.core.LocalPath
 import org.mechdancer.core.LocalPlanner
@@ -81,11 +81,11 @@ internal constructor(
                                 .toList()
                                 .also { weight = repelWeight / max(minRepelPointsCount, it.size) }
                                 .sumByVector2D()
-                                .let { (x, y) -> vector2DOf(max(x, .0), y) }
+                                .let { (x, y) -> vector2D(max(x, .0), y) }
                                 .let(poseToRobot::invoke)
                                 .to2D() * weight
                         // 计算合力（方向），落入局部势垒则直接前进
-                        val f = (fa + fr).takeIf { it.length > 1E-6 }?.normalize()?.to2D() ?: vector2DOf(1, 0)
+                        val f = (fa + fr).takeIf { it.length > 1E-6 }?.normalize()?.to2D() ?: vector2D(1, 0)
                         // 步进
                         pose = Pose2D(p = p0 + f * stepLength,
                                       d = attractPoints.sumByVector2D { it.d.toVector() }.toAngle())

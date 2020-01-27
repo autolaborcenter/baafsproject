@@ -9,12 +9,12 @@ import org.mechdancer.algebra.implement.matrix.builder.arrayMatrixOfZero
 import org.mechdancer.algebra.implement.matrix.builder.matrix
 import org.mechdancer.algebra.implement.matrix.builder.toArrayMatrix
 import org.mechdancer.algebra.implement.vector.Vector3D
-import org.mechdancer.algebra.implement.vector.vector3DOf
+import org.mechdancer.algebra.implement.vector.vector3DOfZero
 import kotlin.math.*
 import kotlin.random.Random
 
 data class Pdf(
-    var x: Vector3D = vector3DOf(0, 0, 0),
+    var x: Vector3D = vector3DOfZero(),
     var cx: ArrayMatrix = arrayMatrixOfZero(3),
     var cr: ArrayMatrix = arrayMatrixOfZero(3),
     var cd: ArrayMatrix = arrayMatrixOfZero(3, 1)

@@ -4,6 +4,8 @@ import org.mechdancer.algebra.function.vector.euclid
 import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.average
 import org.mechdancer.geometry.transformation.Pose2D
+import org.mechdancer.geometry.transformation.minusState
+import org.mechdancer.geometry.transformation.plusDelta
 import kotlin.math.tanh
 
 /** 位姿推断器 */

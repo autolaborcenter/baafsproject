@@ -3,7 +3,8 @@ package cn.autolabor.pm1.model
 import cn.autolabor.pm1.model.ControlVariable.Physical
 import cn.autolabor.pm1.model.ControlVariable.Wheels
 import org.mechdancer.algebra.function.vector.times
-import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.algebra.implement.vector.Vector2D
+import org.mechdancer.algebra.implement.vector.vector2D
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
@@ -24,7 +25,7 @@ data class ChassisStructure(
         val length = (r + l) / 2
         return when (val theta = (r - l) / width) {
             .0   -> pose2D(length, 0)
-            else -> Pose2D(p = vector2DOf(sin(theta), (1 - cos(theta))) * (length / theta),
+            else -> Pose2D(p = Vector2D(sin(theta), (1 - cos(theta))) * (length / theta),
                            d = theta.toRad())
         }
     }

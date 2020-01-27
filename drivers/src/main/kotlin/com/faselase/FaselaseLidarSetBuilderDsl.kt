@@ -6,10 +6,7 @@ import org.mechdancer.algebra.implement.matrix.builder.toDiagonalMatrix
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.annotations.BuilderDslMarker
 import org.mechdancer.exceptions.ExceptionMessage
-import org.mechdancer.geometry.transformation.Pose2D
-import org.mechdancer.geometry.transformation.Transformation
-import org.mechdancer.geometry.transformation.pose2D
-import org.mechdancer.geometry.transformation.toTransformation
+import org.mechdancer.geometry.transformation.*
 
 /**
  * 砝石雷达系构建器
@@ -45,7 +42,7 @@ class FaselaseLidarSetBuilderDsl private constructor() {
     }
 
     companion object {
-        private val mirror = Transformation(listOf(+1, -1, +1).toDiagonalMatrix())
+        private val mirror = MatrixTransformation(listOf(+1, -1, +1).toDiagonalMatrix())
 
         fun SerialPortManager.registerFaselaseLidarSet(
             exceptions: SendChannel<ExceptionMessage>,
