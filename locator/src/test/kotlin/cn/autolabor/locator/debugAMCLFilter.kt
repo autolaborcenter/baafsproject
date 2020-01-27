@@ -3,7 +3,8 @@ package cn.autolabor.locator
 import cn.autolabor.locator.AMCLFilterDebugerBuilderDsl.Companion.debugAMCLFilter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.mechdancer.algebra.function.vector.euclid
-import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.algebra.implement.vector.Vector2D
+import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.geometry.transformation.pose2D
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
@@ -18,15 +19,15 @@ fun main() = debugAMCLFilter {
     origin = pose2D()
     // 里程计配置
     odometryFrequency = 20.0
-    leftWheel = vector2DOf(0, +.211)
-    rightWheel = vector2DOf(0, -.201)
+    leftWheel = Vector2D(.0, +.211)
+    rightWheel = Vector2D(.0, -.201)
     wheelsWidthMeasure = 0.4
     // 定位配置
     beaconFrequency = 7.0
     beaconLossRate = 0.15 //.15
     beaconSigma = 5E-3 // 5E-3
     beaconDelay = 170L // 170L
-    beaconOnRobot = vector2DOf(0, 0)
+    beaconOnRobot = vector2DOfZero()
     // 定位异常配置
     beaconErrors {
         // 快速恢复的局外点
@@ -53,7 +54,7 @@ fun main() = debugAMCLFilter {
         initWaitNumber = 2
         minCount = 500
         maxCount = 2000
-        tagPosition = vector2DOf(0.0, 0.0)
+        tagPosition = vector2DOfZero()
         dThresh = 0.1
         aThresh = 10 * PI / 180
         alpha1 = 0.2

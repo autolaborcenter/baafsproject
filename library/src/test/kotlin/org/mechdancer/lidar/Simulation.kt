@@ -23,7 +23,6 @@ import org.mechdancer.algebra.function.vector.times
 import org.mechdancer.algebra.function.vector.unaryMinus
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
-import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity
@@ -127,7 +126,7 @@ fun main() {
                 }
 
                 obstacles {
-                    obstacleFrame = lidarSet.frame.toGridOf(vector2DOf(.05, .05))
+                    obstacleFrame = lidarSet.frame.toGridOf(Vector2D(.05, .05))
                     remote.paintVectors("R 聚类", obstacleFrame)
                     obstacleFrame
                 }
@@ -221,7 +220,7 @@ fun main() {
                 while (System.currentTimeMillis() - invokeTime > 2000L) {
                     val frame = lidarSet.frame
                     remote.paintVectors("R 雷达", frame)
-                    remote.paintVectors("R 聚类", frame.toGridOf(vector2DOf(.05, .05)))
+                    remote.paintVectors("R 聚类", frame.toGridOf(Vector2D(.05, .05)))
                     delay(200L)
                 }
                 delay(5000L)

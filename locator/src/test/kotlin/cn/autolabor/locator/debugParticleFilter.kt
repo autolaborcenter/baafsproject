@@ -3,7 +3,7 @@ package cn.autolabor.locator
 import cn.autolabor.locator.ParticleFilterDebugerBuilderDsl.Companion.debugParticleFilter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.mechdancer.algebra.function.vector.euclid
-import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.geometry.transformation.pose2D
 import org.mechdancer.networksInfo
 import org.mechdancer.remote.presets.remoteHub
@@ -18,15 +18,15 @@ fun main() = debugParticleFilter {
     origin = pose2D(3, 4, PI)
     // 里程计配置
     odometryFrequency = 20.0
-    leftWheel = vector2DOf(0, +.21)
-    rightWheel = vector2DOf(0, -.21)
+    leftWheel = Vector2D(.0, +.21)
+    rightWheel = Vector2D(.0, -.21)
     wheelsWidthMeasure = 0.4
     // 定位配置
     beaconFrequency = 7.0
     beaconLossRate = .15
     beaconSigma = 5E-3
     beaconDelay = 170L
-    beaconOnRobot = vector2DOf(-.05, 0)
+    beaconOnRobot = Vector2D(-.05, .0)
     // 定位异常配置
     beaconErrors {
         // 快速恢复的局外点
@@ -50,7 +50,7 @@ fun main() = debugParticleFilter {
     }
     // 滤波器配置
     particleFilter {
-        beaconOnRobot = vector2DOf(-.05, 0)
+        beaconOnRobot = Vector2D(-.05, .0)
         maxInconsistency = .04
         convergence { (age, _, d) -> age > .2 && d > .9 }
         divergence { (age, _, _) -> age < .1 }

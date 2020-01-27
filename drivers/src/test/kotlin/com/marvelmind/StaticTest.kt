@@ -6,7 +6,6 @@ import com.marvelmind.mobilebeacon.SerialPortMobileBeaconBuilderDsl.Companion.re
 import kotlinx.coroutines.ObsoleteCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.mechdancer.algebra.implement.vector.Vector2D
-import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.channel
 import org.mechdancer.common.Stamped
 import org.mechdancer.exceptions.ExceptionMessage
@@ -30,7 +29,7 @@ fun main() {
     runBlocking {
         val list = mutableListOf<Vector2D>()
         for ((_, p) in beaconOnMap) {
-            list += vector2DOf(p.x, p.y)
+            list += Vector2D(p.x, p.y)
             val sigmaX = list.asSequence().map { it.x - list.first().x }.sigma()
             val sigmaY = list.asSequence().map { it.y - list.first().y }.sigma()
             println("$sigmaX $sigmaY")

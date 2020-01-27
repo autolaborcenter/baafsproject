@@ -10,17 +10,13 @@ import org.mechdancer.algebra.function.vector.norm
 import org.mechdancer.algebra.function.vector.plus
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
-import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.algebra.implement.vector.vector2DOfZero
 import org.mechdancer.annotations.BuilderDslMarker
 import org.mechdancer.channel
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.filters.Differential
 import org.mechdancer.geometry.angle.toRad
-import org.mechdancer.geometry.transformation.Pose2D
-import org.mechdancer.geometry.transformation.pose2D
-import org.mechdancer.geometry.transformation.toPose2D
-import org.mechdancer.geometry.transformation.toTransformation
+import org.mechdancer.geometry.transformation.*
 import org.mechdancer.newRandomDriving
 import org.mechdancer.paintPose
 import org.mechdancer.remote.presets.RemoteHub
@@ -78,9 +74,9 @@ class AMCLFilterDebugerBuilderDsl private constructor() {
                     this@BeaconErrorSourcesBuilderDsl
                         .beaconErrors
                         .add(AccidentalBeaconErrorSource(
-                                pStart = pStart,
-                                pStop = pStop,
-                                range = range))
+                            pStart = pStart,
+                            pStop = pStop,
+                            range = range))
                 }
         }
     }
@@ -92,8 +88,8 @@ class AMCLFilterDebugerBuilderDsl private constructor() {
 
     // 里程计配置
     var odometryFrequency = 20.0
-    var leftWheel = vector2DOf(0, +.2)
-    var rightWheel = vector2DOf(0, -.2)
+    var leftWheel = Vector2D(.0, +.2)
+    var rightWheel = Vector2D(.0, -.2)
     var wheelsWidthMeasure = 0.4
     // 滤波器配置
     private var filterConfig: AMCLFilterBuilderDsl.() -> Unit = {}
@@ -177,9 +173,9 @@ class AMCLFilterDebugerBuilderDsl private constructor() {
                     runBlocking {
                         // 任务
                         startLocationFusion(
-                                robotOnOdometry = robotOnOdometry,
-                                beaconOnMap = beaconOnMap,
-                                robotOnMap = robotOnMap
+                            robotOnOdometry = robotOnOdometry,
+                            beaconOnMap = beaconOnMap,
+                            robotOnMap = robotOnMap
                         ) {
                             filter(this@run.filterConfig)
                             painter = this@run.painter
@@ -204,11 +200,9 @@ class AMCLFilterDebugerBuilderDsl private constructor() {
                                 ++beaconTimes
                                 if (Random.nextDouble() > beaconLossRate)
                                     beaconQueue += beaconErrors
-                                        .fold(
-                                                vector2DOf(
-                                                        Normal.next(.0, beaconSigma),
-                                                        Normal.next(.0, beaconSigma)
-                                                )
+                                        .fold(Vector2D(
+                                            Normal.next(.0, beaconSigma),
+                                            Normal.next(.0, beaconSigma))
                                         ) { sum, source -> sum + source.next() }
                                         .let {
                                             Stamped(t, actual.data.toTransformation()(beaconOnRobot).to2D() + it)

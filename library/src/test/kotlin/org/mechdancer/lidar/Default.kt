@@ -6,7 +6,6 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
-import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.channel
 import org.mechdancer.common.Velocity
 import org.mechdancer.common.shape.Circle
@@ -52,17 +51,17 @@ internal object Default {
 
     // 镜像点列表
     private fun List<Vector2D>.mirror() =
-        this + this.map { (x, y) -> vector2DOf(-x, y) }.reversed()
+        this + this.map { (x, y) -> Vector2D(-x, y) }.reversed()
 
     // 机器人内的遮挡
     val cover =
         listOf(Circle(.07).sample().transform(pose2D(-.36)),
-               listOf(vector2DOf(-.10, +.26),
-                      vector2DOf(-.10, +.20),
-                      vector2DOf(-.05, +.20),
-                      vector2DOf(-.05, -.20),
-                      vector2DOf(-.10, -.20),
-                      vector2DOf(-.10, -.26)
+               listOf(Vector2D(-.10, +.26),
+                      Vector2D(-.10, +.20),
+                      Vector2D(-.05, +.20),
+                      Vector2D(-.05, -.20),
+                      Vector2D(-.10, -.20),
+                      Vector2D(-.10, -.26)
                ).mirror().let(::Polygon))
 
     // 构造仿真雷达

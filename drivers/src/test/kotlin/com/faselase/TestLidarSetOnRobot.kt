@@ -3,8 +3,8 @@ package com.faselase
 import cn.autolabor.serialport.manager.SerialPortManager
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.registerFaselaseLidarSet
 import kotlinx.coroutines.*
+import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.algebra.implement.vector.to2D
-import org.mechdancer.algebra.implement.vector.vector2DOf
 import org.mechdancer.channel
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.common.shape.Polygon
@@ -30,20 +30,20 @@ fun main() {
         println(networksInfo())
     }
     val robotOutline = Polygon(listOf(
-            vector2DOf(+.25, +.08),
-            vector2DOf(+.10, +.20),
-            vector2DOf(+.10, +.28),
-            vector2DOf(-.10, +.28),
-            vector2DOf(-.10, +.23),
-            vector2DOf(-.25, +.23),
-            vector2DOf(-.47, +.20),
-            vector2DOf(-.47, -.20),
-            vector2DOf(-.25, -.23),
-            vector2DOf(-.10, -.23),
-            vector2DOf(-.10, -.28),
-            vector2DOf(+.10, -.28),
-            vector2DOf(+.10, -.20),
-            vector2DOf(+.25, -.08)
+        Vector2D(+.25, +.08),
+        Vector2D(+.10, +.20),
+        Vector2D(+.10, +.28),
+        Vector2D(-.10, +.28),
+        Vector2D(-.10, +.23),
+        Vector2D(-.25, +.23),
+        Vector2D(-.47, +.20),
+        Vector2D(-.47, -.20),
+        Vector2D(-.25, -.23),
+        Vector2D(-.10, -.23),
+        Vector2D(-.10, -.28),
+        Vector2D(+.10, -.28),
+        Vector2D(+.10, -.20),
+        Vector2D(+.25, -.08)
     ))
     GlobalScope.launch {
         val blindA = Circle(.15).sample().transform(pose2D(+.113))

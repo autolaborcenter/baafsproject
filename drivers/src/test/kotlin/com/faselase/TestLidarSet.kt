@@ -3,7 +3,7 @@ package com.faselase
 import cn.autolabor.serialport.manager.SerialPortManager
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.registerFaselaseLidarSet
 import kotlinx.coroutines.*
-import org.mechdancer.algebra.implement.vector.vector2DOf
+import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.channel
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.common.shape.Polygon
@@ -20,10 +20,10 @@ fun main() {
         println(networksInfo())
     }
     val blind = Polygon(listOf(
-            vector2DOf(+.0, +.0),
-            vector2DOf(+.0, +.3),
-            vector2DOf(+.3, +.3),
-            vector2DOf(+.2, -.3)
+        Vector2D(+.0, +.0),
+        Vector2D(+.0, +.3),
+        Vector2D(+.3, +.3),
+        Vector2D(+.2, -.3)
     ))
     GlobalScope.launch {
         val `10cm` = Circle(.10).sample()
