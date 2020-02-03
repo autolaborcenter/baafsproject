@@ -37,7 +37,6 @@ import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.transformation.Pose2D
 import org.mechdancer.geometry.transformation.pose2D
-import org.mechdancer.geometry.transformation.toTransformation
 import org.mechdancer.lidar.Default.commands
 import org.mechdancer.lidar.Default.remote
 import org.mechdancer.lidar.Default.simulationLidar
@@ -104,8 +103,8 @@ fun main() {
                 localFirst {
                     it.p.length < .01
                     || (it.p.length < localRadius
-                        && it.p.toAngle().asRadian() in -PI / 3..+PI / 3
-                        && it.d.asRadian() in -PI / 3..+PI / 3)
+                        && it.p.toAngle().rad in -PI / 3..+PI / 3
+                        && it.d.rad in -PI / 3..+PI / 3)
                 }
             }
         var obstacleFrame = emptyList<Vector2D>()
@@ -167,7 +166,7 @@ fun main() {
                         .let { pathFollower.plan(it) }
                         ?.also { exceptions.send(Recovered(FollowFailedException)) }
                         ?.let(struct::toVelocity)
-                        ?.let { (v, w) -> Velocity.velocity(v, w.asRadian()) }
+                        ?.let { (v, w) -> Velocity.velocity(v, w.rad) }
                     ?: run {
                         exceptions.send(Occurred(FollowFailedException))
                         Velocity.velocity(.0, .0)
@@ -240,8 +239,8 @@ fun main() {
                 robotOnMap.send(actual)
             // 激光雷达采样
             if (lidarSampler.trySample(t)) {
-                val robotToMap = actual.data.toTransformation()
-                remote.paintVectors("过滤", lidarSet.frame.map { robotToMap(it).to2D() })
+                val robotToMap = actual.data
+                remote.paintVectors("过滤", lidarSet.frame.map(robotToMap::times))
             }
         }
     }

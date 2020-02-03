@@ -286,13 +286,13 @@ class SerialPortChassis internal constructor(
 
     // 更新里程计
     private fun updateOdometry(t: Long, l: Angle, r: Angle) {
-        val `ln-1` = ecuL.position.data.asRadian()
-        val `rn-1` = ecuR.position.data.asRadian()
+        val `ln-1` = ecuL.position.data.rad
+        val `rn-1` = ecuR.position.data.rad
         ecuL.position = Stamped(t, l)
         ecuR.position = Stamped(t, r)
         val delta = structure.toDeltaOdometry(
-            (l.asRadian() - `ln-1`).toRad(),
-            (r.asRadian() - `rn-1`).toRad())
+            (l.rad - `ln-1`).toRad(),
+            (r.rad - `rn-1`).toRad())
         odometry = Stamped(t, odometry.data plusDelta delta)
     }
 

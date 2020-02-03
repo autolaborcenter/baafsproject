@@ -5,7 +5,6 @@ import cn.autolabor.baafs.robotOutline
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.mechdancer.algebra.implement.vector.Vector2D
-import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.channel
 import org.mechdancer.common.Velocity
 import org.mechdancer.common.shape.Circle
@@ -14,7 +13,6 @@ import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.geometry.transformation.Pose2D
 import org.mechdancer.geometry.transformation.pose2D
-import org.mechdancer.geometry.transformation.toTransformation
 import org.mechdancer.lidar.Default.cover
 import org.mechdancer.lidar.Default.remote
 import org.mechdancer.networksInfo
@@ -74,10 +72,8 @@ internal object Default {
             errorSigma = 1E-2)
 }
 
-internal fun Polygon.transform(pose: Pose2D): Polygon {
-    val tf = pose.toTransformation()
-    return Polygon(vertex.map { tf(it).to2D() })
-}
+internal fun Polygon.transform(pose: Pose2D) =
+    Polygon(vertex.map(pose::times))
 
 internal fun RemoteHub.paintRobot(robotOnMap: Pose2D) {
     // 绘制机器人外轮廓和遮挡物

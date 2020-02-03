@@ -14,7 +14,10 @@ import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toRad
 import org.mechdancer.geometry.angle.toVector
-import org.mechdancer.geometry.transformation.*
+import org.mechdancer.geometry.transformation.Pose2D
+import org.mechdancer.geometry.transformation.minusState
+import org.mechdancer.geometry.transformation.plusDelta
+import org.mechdancer.geometry.transformation.pose2D
 import org.mechdancer.simulation.random.Normal
 import kotlin.math.*
 
@@ -137,7 +140,7 @@ class ParticleFilter(
                     val (lastMeasure, lastState) = last
                     val deltaState = state minusState lastState
                     val lengthM = measure euclid lastMeasure
-                    val lengthS = deltaState.toTransformation()(locatorOnRobot) euclid locatorOnRobot
+                    val lengthS = deltaState * locatorOnRobot euclid locatorOnRobot
                     // 计算不一致性
                     abs(lengthM - lengthS)
                         .takeIf { it < maxInconsistency }
@@ -155,7 +158,7 @@ class ParticleFilter(
                 // 计算每个粒子对应的信标坐标
                 val limitedMaxAge =
                     max(3, (maxAge * particles.qualityBy(maxAge, maxInconsistency).direction).roundToInt())
-                val beacons = particles.map { (p, _) -> Pose2D(p.toTransformation()(locatorOnRobot).to2D(), p.d) }
+                val beacons = particles.map { (p, _) -> Pose2D(p * locatorOnRobot, p.d) }
                 val distances = beacons.map { (p, _) -> p euclid measure }
                 val ages = particles.zip(distances) { (_, age), distance ->
                     if (distance < maxInconsistency) min(limitedMaxAge, age + 1) else age - 1
@@ -186,7 +189,7 @@ class ParticleFilter(
                 eP = (eP + measure * measureWeight) / (weightsSum + measureWeight)
                 eD /= weightsSum
                 val eAngle = eD.toAngle()
-                val angle = eAngle.asRadian()
+                val angle = eAngle.rad
                 // 对偏差较大的粒子进行随机方向的重采样
                 particles = particles.zip(ages) { (p, _), age ->
                     if (age < 1)
@@ -213,7 +216,7 @@ class ParticleFilter(
     }
 
     private fun robotPoseBy(p: Vector2D, d: Angle) =
-        Pose2D(Pose2D(p, d).toTransformation()(-locatorOnRobot).to2D(), d)
+        Pose2D(Pose2D(p, d) * -locatorOnRobot, d)
 
     // 重新初始化
     private fun initialize(t: Long, measure: Vector2D, state: Pose2D) {
@@ -223,7 +226,7 @@ class ParticleFilter(
         val step = 2 * PI / count
         particles = List(count) {
             val d = (it * step).toRad()
-            val p = Pose2D(measure, d).toTransformation()(-locatorOnRobot).to2D()
+            val p = Pose2D(measure, d) * -locatorOnRobot.to2D()
             Pose2D(p, d) to 0
         }
     }

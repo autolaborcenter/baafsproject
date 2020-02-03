@@ -36,9 +36,9 @@ class VirtualLightSensorPathFollower(
     private var dir = 0
     private var turning = false
 
-    private val cosMinTip = cos(minTipAngle.asRadian())
-    private val minTurnRad = minTurnAngle.asRadian()
-    private val turnThresholdRad = turnThreshold.asRadian()
+    private val cosMinTip = cos(minTipAngle.rad)
+    private val minTurnRad = minTurnAngle.rad
+    private val turnThresholdRad = turnThreshold.rad
 
     private companion object {
         const val PRE_TURN_COUNT = 4
@@ -52,10 +52,10 @@ class VirtualLightSensorPathFollower(
             LocalPath.Failure    -> null
             is LocalPath.KeyPose -> {
                 val d = path.pose.d
-                if (abs(d.asDegree()) < 10)
+                if (abs(d.degree) < 10)
                     Physical.static
                 else {
-                    dir = d.asRadian().sign.toInt()
+                    dir = d.rad.sign.toInt()
                     turn()
                 }
             }
@@ -63,7 +63,7 @@ class VirtualLightSensorPathFollower(
         }
 
     private fun calculateDir(tip: Pose2D): Boolean {
-        val target = (tip.p + tip.d.toVector() * 0.2).toAngle().adjust().asRadian()
+        val target = (tip.p + tip.d.toVector() * 0.2).toAngle().adjust().rad
         val turn = abs(target) > minTurnRad
         dir = if (turn)
             when (turnThresholdRad) {

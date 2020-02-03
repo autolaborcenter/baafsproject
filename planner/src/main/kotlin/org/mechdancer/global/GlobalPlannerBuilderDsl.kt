@@ -32,7 +32,7 @@ private constructor() {
             GlobalPlannerBuilderDsl()
                 .apply(block)
                 .apply {
-                    require(minTip.asRadian() in .0..PI)
+                    require(minTip.rad in .0..PI)
                     require(searchCount > 0)
                     require(localFirst(pose2D()))
                 }

@@ -15,9 +15,9 @@ internal class Optimizer(
     maxAccelerate: Double,    // 最大线加速度
     controlPeriod: Long       // 控制周期
 ) {
-    private val maxWheelSpeedRad = maxWheelSpeed.asRadian()
-    private val maxWRad = maxW.asRadian()
-    private val optimizeWidthRad = optimizeWidth.asRadian()
+    private val maxWheelSpeedRad = maxWheelSpeed.rad
+    private val maxWRad = maxW.rad
+    private val optimizeWidthRad = optimizeWidth.rad
     private val maxSpeedIncremental = maxAccelerate * 2 * controlPeriod / 1000
 
     data class Optimized(
@@ -36,7 +36,7 @@ internal class Optimizer(
             is ControlVariable.Wheels   -> target.let(structure::toPhysical)
             is ControlVariable.Velocity -> target.let(structure::toPhysical)
         }
-        if (!physical.rudder.value.isFinite()) return Optimized(.0, zeroAngle, zeroAngle, null)
+        if (!physical.rudder.rad.isFinite()) return Optimized(.0, zeroAngle, zeroAngle, null)
         // 计算限速系数
         val kl: Double
         val kr: Double
@@ -68,7 +68,7 @@ internal class Optimizer(
                 // 不改变目标轨迹的限速
                 val k0 = sequenceOf(1.0, kl, kr, kv, kw).map(::abs).min()!!
                 // 因为目标轨迹无法实现产生的限速
-                val k1 = 1 - abs(rudder.asRadian() - current.rudder.asRadian()) / optimizeWidthRad
+                val k1 = 1 - abs(rudder.rad - current.rudder.rad) / optimizeWidthRad
                 // 实际可行的目标轮速
                 val actual = (speed * k0 * max(.0, k1)).clamp(current.speed)
                 // 实际可行的控制量
@@ -82,11 +82,11 @@ internal class Optimizer(
 
     // 计算轮速域限速系数
     private fun Angle.wheelSpeedLimit() =
-        maxWheelSpeedRad / this.asRadian()
+        maxWheelSpeedRad / this.rad
 
     // 计算速度域限速系数
     private fun ControlVariable.Velocity.limit() =
-        maxV / this.v to maxWRad / this.w.asRadian()
+        maxV / this.v to maxWRad / this.w.rad
 
     // 计算缓起缓停
     private fun Double.clamp(current: Double): Double {

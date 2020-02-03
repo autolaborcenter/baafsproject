@@ -2,6 +2,7 @@ package com.faselase
 
 import org.mechdancer.common.Polar
 import org.mechdancer.common.Stamped
+import org.mechdancer.geometry.angle.toRad
 import java.util.*
 import java.util.concurrent.locks.ReentrantReadWriteLock
 import kotlin.concurrent.read
@@ -16,7 +17,7 @@ class PolarFrameCollectorQueue {
     fun get(): List<Stamped<Polar>> = lock.read { queue.toList() }
 
     private fun innerRefresh(theta: Double) {
-        val head = theta - 2 * PI
+        val head = (theta - 2 * PI).toRad()
         while (queue.peek()?.data?.angle?.let { it < head } == true) queue.poll()
     }
 
@@ -26,7 +27,7 @@ class PolarFrameCollectorQueue {
 
     operator fun plusAssign(data: Stamped<Polar>) {
         lock.write {
-            innerRefresh(data.data.angle)
+            innerRefresh(data.data.angle.rad)
             queue.offer(data)
         }
     }

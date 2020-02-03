@@ -13,6 +13,7 @@ import org.mechdancer.exceptions.DataTimeoutException
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
+import org.mechdancer.geometry.angle.toRad
 import kotlin.math.PI
 
 /**
@@ -88,7 +89,7 @@ internal class FaselaseLidar(
             is LidarPack.Data    -> {
                 dataWatchDog.feed()
                 val (rho, theta) = pack
-                queue += Stamped.stamp(Polar(rho, theta.onPeriod()))
+                queue += Stamped.stamp(Polar(rho, theta.onPeriod().toRad()))
                 true
             }
         }

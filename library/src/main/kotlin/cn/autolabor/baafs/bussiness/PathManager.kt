@@ -40,7 +40,7 @@ class PathManager(private val localFirst: (Pose2D) -> Boolean) {
 
     /** 将路径存储到文件 */
     fun save(fileName: String, path: List<Pose2D>) =
-        path.joinToString("\n") { (p, d) -> "${p.x},${p.y},${d.asRadian()}" }
+        path.joinToString("\n") { (p, d) -> "${p.x},${p.y},${d.rad}" }
             .let { File(fileName).writeText(it) }
 
     override fun toString() =

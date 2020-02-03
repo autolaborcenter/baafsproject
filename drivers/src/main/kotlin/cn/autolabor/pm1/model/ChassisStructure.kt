@@ -4,7 +4,6 @@ import cn.autolabor.pm1.model.ControlVariable.Physical
 import cn.autolabor.pm1.model.ControlVariable.Wheels
 import org.mechdancer.algebra.function.vector.times
 import org.mechdancer.algebra.implement.vector.Vector2D
-import org.mechdancer.algebra.implement.vector.vector2D
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toDegree
 import org.mechdancer.geometry.angle.toRad
@@ -20,8 +19,8 @@ data class ChassisStructure(
     val length: Double
 ) {
     fun toDeltaOdometry(dl: Angle, dr: Angle): Pose2D {
-        val l = dl.asRadian() * leftRadius
-        val r = dr.asRadian() * rightRadius
+        val l = dl.rad * leftRadius
+        val r = dr.rad * rightRadius
         val length = (r + l) / 2
         return when (val theta = (r - l) / width) {
             .0   -> pose2D(length, 0)
@@ -35,20 +34,20 @@ data class ChassisStructure(
 
     fun toWheels(physical: Physical) =
         when {
-            physical.speed == .0        -> {
+            physical.speed == .0      -> {
                 // 对于舵轮来说是奇点，无法恢复
                 Wheels.static
             }
-            physical.rudder.value == .0 -> {
+            physical.rudder.rad == .0 -> {
                 // 直走
                 Wheels(physical.speed, physical.speed)
             }
-            else                        -> {
+            else                      -> {
                 // 圆弧
-                val r = -length / tan(physical.rudder.asRadian())
+                val r = -length / tan(physical.rudder.rad)
                 val k = (r + width / 2) / (r - width / 2)
                 // 右转，左轮线速度快
-                if (physical.rudder.asRadian() > 0)
+                if (physical.rudder.rad > 0)
                     Wheels(physical.speed, physical.speed * k)
                 // 左转，右轮线速度快
                 else
@@ -82,7 +81,7 @@ data class ChassisStructure(
     }
 
     fun toWheels(velocity: ControlVariable.Velocity) =
-        (width / 2 * velocity.w.asRadian())
+        (width / 2 * velocity.w.rad)
             .let { dv -> Wheels(velocity.v - dv, velocity.v + dv) }
 
     fun toVelocity(wheels: Wheels) =

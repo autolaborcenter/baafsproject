@@ -212,8 +212,8 @@ fun main() {
                     pathInterval = .05
                     localFirst {
                         it.p.norm() < localRadius
-                        && it.p.toAngle().asRadian() in -PI / 3..+PI / 3
-                        && it.d.asRadian() in -PI / 3..+PI / 3
+                        && it.p.toAngle().rad in -PI / 3..+PI / 3
+                        && it.d.rad in -PI / 3..+PI / 3
                     }
                 }
             var obstacleFrame = emptyList<Vector2D>()

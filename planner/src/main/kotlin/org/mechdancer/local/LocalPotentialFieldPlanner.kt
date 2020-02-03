@@ -12,7 +12,6 @@ import org.mechdancer.geometry.angle.toAngle
 import org.mechdancer.geometry.angle.toVector
 import org.mechdancer.geometry.transformation.Pose2D
 import org.mechdancer.geometry.transformation.pose2D
-import org.mechdancer.geometry.transformation.toTransformation
 import java.util.*
 import kotlin.math.max
 
@@ -47,8 +46,7 @@ internal constructor(
                     val list: Queue<Vector2D> = LinkedList()
                     var pose = pose2D()
                     while (true) {
-                        val poseToRobot = pose.toTransformation()
-                        val robotToPose = poseToRobot.inverse()
+                        val robotToPose = pose.inverse()
                         val (p0, _) = pose
                         // 从全局生产
                         while (attractPoints.size < lookAhead)
@@ -75,14 +73,14 @@ internal constructor(
                         val fr =
                             obstacles
                                 .asSequence()
-                                .map(robotToPose::invoke)
+                                .map(robotToPose::times)
                                 .map(Vector::to2D)
                                 .map(repelField)
                                 .toList()
                                 .also { weight = repelWeight / max(minRepelPointsCount, it.size) }
                                 .sumByVector2D()
                                 .let { (x, y) -> vector2D(max(x, .0), y) }
-                                .let(poseToRobot::invoke)
+                                .let(pose::times)
                                 .to2D() * weight
                         // 计算合力（方向），落入局部势垒则直接前进
                         val f = (fa + fr).takeIf { it.length > 1E-6 }?.normalize()?.to2D() ?: vector2D(1, 0)

@@ -3,10 +3,8 @@ package cn.autolabor.baafs.collisionpredictor
 import kotlinx.coroutines.*
 import org.mechdancer.SimpleLogger
 import org.mechdancer.algebra.implement.vector.Vector2D
-import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.common.shape.Polygon
 import org.mechdancer.geometry.transformation.Pose2D
-import org.mechdancer.geometry.transformation.toTransformation
 import org.mechdancer.paint
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.RemoteHub
@@ -32,8 +30,8 @@ internal constructor(
     fun predict(path: (Long) -> Pose2D) =
         runBlocking(Dispatchers.Default) {
             val getting = async { obstacleSource() }
-            val delta = path(predictingTime).toTransformation()
-            val outline = Polygon(origin.map { delta(it).to2D() })
+            val delta = path(predictingTime)
+            val outline = Polygon(origin.map { delta * it })
             val points = getting.await()
             count =
                 if (points.none { it in outline })

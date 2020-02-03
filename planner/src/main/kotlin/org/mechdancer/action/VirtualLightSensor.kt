@@ -12,7 +12,7 @@ import org.mechdancer.common.shape.Polygon
 import org.mechdancer.common.shape.Shape
 import org.mechdancer.geometry.angle.toVector
 import org.mechdancer.geometry.transformation.Pose2D
-import org.mechdancer.geometry.transformation.toTransformation
+import org.mechdancer.geometry.transformation.toMatrixTransformation
 import org.mechdancer.geometry.transformation.transform
 
 /**
@@ -30,10 +30,10 @@ class VirtualLightSensor(
         is AnalyticalShape -> lightRange.sample().vertex
         else               -> throw IllegalArgumentException()
     }
-    private val robotToSensor = onRobot.toTransformation().inverse()
+    private val robotToSensor = onRobot.toMatrixTransformation().inverse()
 
     @DebugTemporary(DELETE)
-    private val sensorToRobot = onRobot.toTransformation()
+    private val sensorToRobot = onRobot.toMatrixTransformation()
     @DebugTemporary(DELETE)
     var area: Polygon? = null
         private set
@@ -75,7 +75,7 @@ class VirtualLightSensor(
                 .let(::Polygon)
         this.area = area.vertex.map { sensorToRobot(it).to2D() }.let(::Polygon)
         // 计算误差
-        return 2 * (0.5 - area.size / lightRange.size)
+        return 2 * (0.5 - area.area / lightRange.area)
     }
 
     private companion object {

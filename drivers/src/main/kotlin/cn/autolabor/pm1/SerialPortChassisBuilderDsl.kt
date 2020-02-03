@@ -47,10 +47,10 @@ class SerialPortChassisBuilderDsl private constructor() {
                     require(length > 0)
 
                     require(odometryInterval > 0)
-                    require(maxWheelSpeed.value > 0)
+                    require(maxWheelSpeed.rad > 0)
                     require(maxV > 0)
-                    require(maxW.value > 0)
-                    require(optimizeWidth.asDegree() in 0.0..90.0)
+                    require(maxW.rad > 0)
+                    require(optimizeWidth.degree in 0.0..90.0)
                     require(maxAccelerate > 0)
 
                     require(retryInterval > 0)

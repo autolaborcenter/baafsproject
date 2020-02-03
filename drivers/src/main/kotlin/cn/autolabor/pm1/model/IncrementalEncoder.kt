@@ -9,5 +9,5 @@ import kotlin.math.roundToInt
 internal class IncrementalEncoder(pulsesPerRound: Int) {
     private val toRad = 2 * PI / pulsesPerRound
     fun toAngular(pulses: Number) = (pulses.toDouble() * toRad).toRad()
-    fun toPulses(angle: Angle) = (angle.asRadian() / toRad).roundToInt()
+    fun toPulses(angle: Angle) = (angle.rad / toRad).roundToInt()
 }

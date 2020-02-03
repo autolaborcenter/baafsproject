@@ -6,7 +6,10 @@ import org.mechdancer.algebra.implement.matrix.builder.toDiagonalMatrix
 import org.mechdancer.algebra.implement.vector.Vector2D
 import org.mechdancer.annotations.BuilderDslMarker
 import org.mechdancer.exceptions.ExceptionMessage
-import org.mechdancer.geometry.transformation.*
+import org.mechdancer.geometry.transformation.MatrixTransformation
+import org.mechdancer.geometry.transformation.Pose2D
+import org.mechdancer.geometry.transformation.pose2D
+import org.mechdancer.geometry.transformation.toMatrixTransformation
 
 /**
  * 砝石雷达系构建器
@@ -65,7 +68,7 @@ class FaselaseLidarSetBuilderDsl private constructor() {
                                 tag = config.tag ?: "Lidar${i++}",
                                 dataTimeout = dataTimeout
                             ).also(manager::register)
-                        val tf = config.pose.toTransformation()
+                        val tf = config.pose.toMatrixTransformation()
                         lidar to if (config.inverse) tf * mirror else tf
                     }
                     .let { LidarSet(it.associate { (lidar, tf) -> lidar::frame to tf }, filter) }

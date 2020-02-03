@@ -14,7 +14,7 @@ internal class Predictor(
     private val controlPeriod: Long,
     rudderSpeed: Angle
 ) {
-    private val rudderDeltaRad = rudderSpeed.asRadian() * controlPeriod / 1000
+    private val rudderDeltaRad = rudderSpeed.rad * controlPeriod / 1000
 
     private infix fun Double.clamp(current: Double): Double {
         val min = current - rudderDeltaRad
@@ -57,10 +57,10 @@ internal class Predictor(
                         val (`tn-1`, `pn-1`) = cache.last()
                         // 更新后轮转角
                         val rudder =
-                            if (!physical.rudder.value.isFinite())
+                            if (!physical.rudder.rad.isFinite())
                                 sn.rudder
                             else
-                                (physical.rudder.asRadian() clamp sn.rudder.asRadian()).toRad()
+                                (physical.rudder.rad clamp sn.rudder.rad).toRad()
                         // 如常执行优化
                         val (speed, _, _, _) = optimizer(target, sn.copy(rudder = rudder))
                         // 保存状态
@@ -69,7 +69,7 @@ internal class Predictor(
                         val (v, w) = sn.let(structure::toVelocity)
                         val delta =
                             org.mechdancer.common.Velocity
-                                .NonOmnidirectional(v, w.asRadian())
+                                .NonOmnidirectional(v, w.rad)
                                 .toDeltaOdometry(controlPeriod / 1000.0)
                         // 更新缓存
                         val tn = `tn-1` + controlPeriod

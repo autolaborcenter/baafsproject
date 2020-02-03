@@ -3,13 +3,11 @@ package org.mechdancer.lidar
 import cn.autolabor.baafs.outlineFilter
 import com.faselase.LidarSet
 import kotlinx.coroutines.*
-import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.common.Stamped
 import org.mechdancer.common.Velocity
 import org.mechdancer.common.Velocity.NonOmnidirectional
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.geometry.transformation.pose2D
-import org.mechdancer.geometry.transformation.toTransformation
 import org.mechdancer.lidar.Default.commands
 import org.mechdancer.lidar.Default.remote
 import org.mechdancer.lidar.Default.simulationLidar
@@ -61,25 +59,25 @@ fun main() = runBlocking(Dispatchers.Default) {
         // 激光雷达采样
         if (t > lidarSampleCount * lidarSamplePeriod) {
             ++lidarSampleCount
-            val robotToMap = actual.data.toTransformation()
-            val frontLidarToMap = robotToMap * front.toRobot
+            val robotToMap = actual.data
+            val frontLidarToMap = robotToMap * front.onRobot
             val frontPoints =
                 front.frame
                     .map { (_, polar) ->
-                        val (x, y) = frontLidarToMap(polar.toVector2D()).to2D()
+                        val (x, y) = frontLidarToMap * polar.toVector2D()
                         x to y
                     }
-            val backLidarToMap = robotToMap * back.toRobot
+            val backLidarToMap = robotToMap * back.onRobot
             val backPoints =
                 back.frame
                     .map { (_, polar) ->
-                        val (x, y) = backLidarToMap(polar.toVector2D()).to2D()
+                        val (x, y) = backLidarToMap * polar.toVector2D()
                         x to y
                     }
             val filteredPoints =
                 lidarSet.frame
                     .map {
-                        val (x, y) = robotToMap(it).to2D()
+                        val (x, y) = robotToMap * it
                         x to y
                     }
             remote.paintFrame2("前雷达", frontPoints)

@@ -61,7 +61,7 @@ class AMCLFusionModuleBuilderDsl private constructor() {
                                 .takeIf { it != null }
                                 ?.also { robotOnMap.send(it) }
                                 ?.also { (_, data) ->
-                                    logger?.log(data.p.x, data.p.y, data.d.asRadian())
+                                    logger?.log(data.p.x, data.p.y, data.d.rad)
                                     painter?.run {
                                         paintPose("粒子滤波", data)
                                         with(filter.pf.set.samples) {

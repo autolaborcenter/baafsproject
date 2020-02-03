@@ -27,8 +27,8 @@ private constructor() {
             PathFollowerBuilderDsl()
                 .apply(block)
                 .apply {
-                    require(minTipAngle.asRadian() in .0..PI)
-                    require(minTurnAngle.asRadian() in .0..PI)
+                    require(minTipAngle.rad in .0..PI)
+                    require(minTurnAngle.rad in .0..PI)
                     require(maxSpeed > 0)
                 }
                 .run {

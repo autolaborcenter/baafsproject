@@ -4,24 +4,20 @@ import cn.autolabor.serialport.manager.SerialPortManager
 import com.faselase.FaselaseLidarSetBuilderDsl.Companion.registerFaselaseLidarSet
 import kotlinx.coroutines.*
 import org.mechdancer.algebra.implement.vector.Vector2D
-import org.mechdancer.algebra.implement.vector.to2D
 import org.mechdancer.channel
 import org.mechdancer.common.shape.Circle
 import org.mechdancer.common.shape.Polygon
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.geometry.transformation.Pose2D
 import org.mechdancer.geometry.transformation.pose2D
-import org.mechdancer.geometry.transformation.toTransformation
 import org.mechdancer.networksInfo
 import org.mechdancer.paint
 import org.mechdancer.paintVectors
 import org.mechdancer.remote.presets.remoteHub
 import kotlin.math.PI
 
-private fun Polygon.transform(pose: Pose2D): Polygon {
-    val tf = pose.toTransformation()
-    return Polygon(vertex.map { tf(it).to2D() })
-}
+private fun Polygon.transform(pose: Pose2D) =
+    Polygon(vertex.map(pose::times))
 
 @ObsoleteCoroutinesApi
 fun main() {

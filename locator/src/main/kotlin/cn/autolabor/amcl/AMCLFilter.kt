@@ -38,19 +38,19 @@ class AMCLFilter(
 
     private var lastUpdateOdom = pose2D()
     private var odom2baselinkTrans =
-        Stamped(-1L, pose2D().toTransformation())
+        Stamped(-1L, pose2D().toMatrixTransformation())
     private var map2odomTrans =
-        Stamped(-1L, pose2D().toTransformation())
+        Stamped(-1L, pose2D().toMatrixTransformation())
 
-    private fun Double.adjust() = Angle(this).adjust().value
-    private fun Vector3D.toTrans() = Pose2D(Vector2D(x, y), z.toRad()).toTransformation()
-    private fun MatrixTransformation.toPoseVec(): Vector3D = toPose2D().let { Vector3D(it.p.x, it.p.y, it.d.value) }
+    private fun Double.adjust() = Angle(this).adjust().rad
+    private fun Vector3D.toTrans() = Pose2D(Vector2D(x, y), z.toRad()).toMatrixTransformation()
+    private fun MatrixTransformation.toPoseVec(): Vector3D = toPose2D().let { Vector3D(it.p.x, it.p.y, it.d.rad) }
 
     override fun measureMaster(item: Stamped<Pose2D>): Stamped<Pose2D>? {
         val (t, pose) = item
         matcher.add1(item)
         synchronized(pf) {
-            odom2baselinkTrans = Stamped(t, pose.toTransformation())
+            odom2baselinkTrans = Stamped(t, pose.toMatrixTransformation())
             if (initFlag && needUpdate(item.data)) {
                 updateAction(item.data) // 所有粒子按照里程计推演
                 lastUpdateOdom = item.data
@@ -75,7 +75,7 @@ class AMCLFilter(
     }
 
     override fun get(item: Stamped<Pose2D>): Stamped<Pose2D>? {
-        return Stamped(item.time, (map2odomTrans.data * item.data.toTransformation()).toPose2D())
+        return Stamped(item.time, (map2odomTrans.data * item.data.toMatrixTransformation()).toPose2D())
     }
 
     private fun initRandSample(mean: Vector2D, std: Vector2D) =
@@ -83,10 +83,10 @@ class AMCLFilter(
                  y = randomGaussian(mean.y, std.y),
                  z = Random.nextDouble(-PI, PI))
 
-    private fun initSample(pf: PFInfo, positionMean: Vector2D, cov: Vector2D, tagPosition: Vector2D): Unit {
+    private fun initSample(pf: PFInfo, positionMean: Vector2D, cov: Vector2D, tagPosition: Vector2D) {
         pf.set.kdTree.clear()
         val std = Vector2D(sqrt(cov.x), sqrt(cov.y))
-        val tagPositionInverse = Pose2D(-tagPosition, Angle(0.0)).toTransformation()
+        val tagPositionInverse = Pose2D(-tagPosition, Angle(0.0)).toMatrixTransformation()
         repeat(pf.maxSamples) {
             val sample =
                 (initRandSample(positionMean, std).toTrans() * tagPositionInverse)
@@ -120,7 +120,7 @@ class AMCLFilter(
 
     private fun needUpdate(odom: Pose2D): Boolean {
         val (p, d) = odom.minusState(lastUpdateOdom)
-        return p.norm() > dThresh || abs(d.adjust().value) > aThresh
+        return p.norm() > dThresh || abs(d.adjust().rad) > aThresh
     }
 
     // 每个粒子按照运动模型演变
@@ -128,7 +128,7 @@ class AMCLFilter(
         val diff = odom.minusState(lastUpdateOdom)
         val deltaTrans = diff.p.norm(2)
         val deltaRot1 = if (deltaTrans < 0.01) 0.0 else atan2(diff.p.y, diff.p.x)
-        val deltaRot2 = (diff.d.value - deltaRot1).adjust()
+        val deltaRot2 = (diff.d.rad - deltaRot1).adjust()
         val deltaRot1Noise = min(abs(deltaRot1), abs((deltaRot1 - PI).adjust()))
         val deltaRot2Noise = min(abs(deltaRot2), abs((deltaRot2 - PI).adjust()))
         pf.set.samples = pf.set.samples.map { (v, w) ->
@@ -156,9 +156,9 @@ class AMCLFilter(
     }
 
     // 根据观测修改每个粒子权重
-    private fun updateWeight(pf: PFInfo, position: Stamped<Vector2D>): Unit {
+    private fun updateWeight(pf: PFInfo, position: Stamped<Vector2D>) {
         // println("updateWeight")
-        val tagPosition = Pose2D(tagPosition, Angle(0.0)).toTransformation()
+        val tagPosition = Pose2D(tagPosition, Angle(0.0)).toMatrixTransformation()
         val p1 = 1 / sqrt(2 * PI) / weightSigma
         val p2 = -1.0 / 2 / (weightSigma * weightSigma)
         var totalWeight = 0.0
@@ -213,7 +213,7 @@ class AMCLFilter(
     }
 
     // 判断粒子是否收敛
-    private fun updateConverged(pf: PFInfo): Unit {
+    private fun updateConverged(pf: PFInfo) {
         var meanX = .0
         var meanY = .0
         for (sample in pf.set.samples) {
@@ -242,7 +242,7 @@ class AMCLFilter(
             ?.apply {
                 map2odomTrans = Stamped(
                     System.currentTimeMillis(),
-                    this.value.mean.toTrans() * lastUpdateOdom.toTransformation().inverse())
+                    this.value.mean.toTrans() * lastUpdateOdom.toMatrixTransformation().inverse())
             }
     }
 

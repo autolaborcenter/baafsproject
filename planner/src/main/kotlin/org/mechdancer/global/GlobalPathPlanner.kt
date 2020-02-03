@@ -8,8 +8,6 @@ import org.mechdancer.core.LocalPath
 import org.mechdancer.geometry.angle.Angle
 import org.mechdancer.geometry.angle.toVector
 import org.mechdancer.geometry.transformation.Pose2D
-import org.mechdancer.geometry.transformation.toTransformation
-import org.mechdancer.geometry.transformation.transform
 import org.mechdancer.paintPoses
 import org.mechdancer.remote.presets.RemoteHub
 import java.util.concurrent.locks.ReentrantReadWriteLock
@@ -35,7 +33,7 @@ internal constructor(
     // 尖点序号缓存（区段末尾序号）
     private val tipsIndex by lazy {
         // 尖点判断条件
-        val cosMinTip = cos(minTip.asRadian())
+        val cosMinTip = cos(minTip.rad)
         // 缓存尖点序号
         var dn = path.first().d.toVector()
         path.asSequence()
@@ -75,7 +73,7 @@ internal constructor(
     var painter: RemoteHub? = null
 
     override suspend fun plan(pose: Pose2D): LocalPath {
-        val onRobot = pose.toTransformation().inverse()::transform
+        fun onRobot(p: Pose2D) = pose.inverse() * p
         return lock.write {
             // 若路径已全部完成
             if (index == lastIndex)
@@ -89,7 +87,7 @@ internal constructor(
             // 当前区间末尾在尖点表里的序号
             val tipIndexIndex = tipsIndex.indices.first { tipsIndex[it] >= last }
             // 确定是否向下一区间转移
-            val nextArea = if (last == tipsIndex[tipIndexIndex] && !get(last).let(onRobot).let(localFirst)) 1 else 0
+            val nextArea = if (last == tipsIndex[tipIndexIndex] && !get(last).let(::onRobot).let(localFirst)) 1 else 0
             // 搜索范围
             val area =
                 (last + nextArea)..when {
@@ -98,7 +96,7 @@ internal constructor(
                 }
             // 在候选范围查找起始点
             area.asSequence()
-                .map { i -> i to get(i).let(onRobot) }
+                .map { i -> i to get(i).let(::onRobot) }
                 .firstOrNull { (_, pose) -> localFirst(pose) }
                 ?.first
                 ?.let { begin ->
@@ -107,13 +105,13 @@ internal constructor(
                     searchAll = false
                     subList(begin, tipsIndex.first { it >= begin } + 1)
                 }
-                ?.map(onRobot)
+                ?.map(::onRobot)
                 ?.also { painter?.paintPoses("R 全局路径", it.take(200)) }
                 ?.let { LocalPath.Path(it.asSequence()) }
             ?: if (searchAll) LocalPath.Failure
             else subList(area.first, area.last + 1)
                 .asSequence()
-                .map(onRobot)
+                .map(::onRobot)
                 .let(LocalPath::Path)
         }
     }
