@@ -12,7 +12,7 @@ internal class Serial4BytesParser(bits: ByteArray) {
     private val buffer =
         ByteArrayOutputStream(Int.SIZE_BYTES)
             .apply {
-                writeBytes(bits)
+                write(bits)
                 for (i in 1..Int.SIZE_BYTES - bits.size) write(0)
             }
             .toByteArray()

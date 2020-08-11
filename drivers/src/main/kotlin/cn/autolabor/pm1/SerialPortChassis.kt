@@ -52,6 +52,7 @@ class SerialPortChassis internal constructor(
     Chassis<ControlVariable> {
     // 解析引擎
     private val engine = engine()
+
     // 无状态计算模型
     private val controlPeriod = odometryInterval / 2
     private val wheelsEncoder = IncrementalEncoder(wheelEncodersPulsesPerRound)
@@ -59,20 +60,23 @@ class SerialPortChassis internal constructor(
     private val structure = ChassisStructure(width, leftRadius, rightRadius, length)
     private val optimizer = Optimizer(structure, maxWheelSpeed, maxV, maxW, optimizeWidth, maxAccelerate, controlPeriod)
     private val predictor = Predictor(structure, optimizer, controlPeriod, 30.toDegree())
+
     // 里程计
     private val wheelsEncoderMatcher = ClampMatcher<Stamped<Int>, Stamped<Int>>(false)
+
     // 节点状态
     private val ecuL = CanNode.ECU(0)
     private val ecuR = CanNode.ECU(1)
     private val tcu = CanNode.TCU(0)
     private val vcu = CanNode.VCU(0)
+
     // 内部状态
     private val controlWatchDog =
         WatchDog(GlobalScope, 10 * odometryInterval)
         { enabled = false }
     private var lastPhysical =
         Physical.static
-    private var externalCommands =
+    private val externalCommands =
         Channel<ByteArray>(UNLIMITED)
 
     /** 驱动使能 */
@@ -82,16 +86,23 @@ class SerialPortChassis internal constructor(
             field = value
         }
 
+    /** 电池电量 */
+    val battery get() = vcu.batteryPercent
+
     override var odometry = Stamped(0L, Odometry.pose())
         private set
 
-    override var target: ControlVariable =
-        Physical.static
+    override var target: ControlVariable = Physical.static
         set(value) {
-            enabled = true
-            controlWatchDog.feed()
-            field = value
+//            enabled = true
+//            controlWatchDog.feed()
+            if (enabled)
+                field = value
         }
+
+    fun unLockJava() {
+        runBlocking { unLock() }
+    }
 
     // 轨迹预测
     override fun predict(target: ControlVariable) =
@@ -158,7 +169,8 @@ class SerialPortChassis internal constructor(
             val msg =
                 listOf(CanNode.EveryNode.stateTx to 1000L,
                        CanNode.ECU().currentPositionTx to odometryInterval,
-                       tcu.currentPositionTx to odometryInterval / 2
+                       tcu.currentPositionTx to odometryInterval / 2,
+                       vcu.batteryCurrentTx to 5000L
                 ).map { (head, t) -> head.pack().asList() to t }
             val flags =
                 System.currentTimeMillis().let {

@@ -71,6 +71,19 @@ class SerialPortManager(
         return (waitingListCertain + waitingListNormal).map { it.tag }
     }
 
+    @Synchronized
+    fun reset() {
+        waitingListCertain.clear()
+        waitingListNormal.clear()
+        runBlocking {
+            for ((port, job) in devices) {
+                job.cancelAndJoin()
+                port.closePort()
+            }
+        }
+        devices.clear()
+    }
+
     @ObsoleteCoroutinesApi
     private fun SerialPort.certificate(device: SerialPortDevice): Boolean {
         print("searching ${device.tag} on $systemPortName -> $descriptivePortName")

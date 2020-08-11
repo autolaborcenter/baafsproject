@@ -24,9 +24,9 @@ internal sealed class AutoCANPackageHead {
             require(data.size <= 8)
             return ByteArrayOutputStream(14)
                 .apply {
-                    writeBytes(stub)
+                    write(stub)
                     write(frameId.toInt())
-                    writeBytes(data)
+                    write(data)
                     for (i in 1..8 - data.size) write(0)
                 }
                 .fillCrc8()
@@ -50,7 +50,7 @@ internal sealed class AutoCANPackageHead {
         private fun build(reserve: Byte): ByteArray =
             ByteArrayOutputStream(6)
                 .apply {
-                    writeBytes(stub)
+                    write(stub)
                     write(reserve.toInt())
                 }
                 .fillCrc8()
