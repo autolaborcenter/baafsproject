@@ -94,8 +94,8 @@ class SerialPortChassis internal constructor(
 
     override var target: ControlVariable = Physical.static
         set(value) {
-//            enabled = true
-//            controlWatchDog.feed()
+            enabled = true
+            controlWatchDog.feed()
             if (enabled)
                 field = value
         }

@@ -12,7 +12,7 @@ buildscript {
 }
 
 plugins {
-    kotlin("jvm") version "1.3.72"
+    kotlin("jvm") version "1.4.10"
 }
 
 // 包括主项目的构建脚本
@@ -38,17 +38,9 @@ allprojects {
     tasks.withType<JavaCompile> {
         sourceCompatibility = "1.8"
         targetCompatibility = "1.8"
+        options.encoding = "UTF-8"
     }
-    // 源码导出任务
-    with("sourcesJar") {
-        tasks["jar"].dependsOn(this)
-        tasks.register<Jar>(this) {
-            group = JavaBasePlugin.BUILD_TASK_NAME
-            description = "create sources jar"
-            archiveClassifier.set("sources")
-            from(sourceSets.main.get().allSource)
-        }
-    }
+    java { withSourcesJar() }
 }
 
 // 排除主项目的构建脚本

@@ -2,6 +2,7 @@ import AutolaborScript.ScriptConfiguration
 import kotlinx.coroutines.*
 import java.io.File
 import kotlin.script.experimental.api.ScriptDiagnostic.Severity
+import kotlin.script.experimental.api.ScriptDiagnostic.Severity.ERROR
 import kotlin.script.experimental.api.onFailure
 import kotlin.script.experimental.api.onSuccess
 import kotlin.script.experimental.host.toScriptSource
@@ -26,8 +27,8 @@ fun main(args: Array<String>) {
         }
         with(BasicJvmScriptingHost()) {
             compiler(
-                    file.toScriptSource(),
-                    ScriptConfiguration
+                file.toScriptSource(),
+                ScriptConfiguration
             ).onSuccess {
                 job.cancelAndJoin()
                 println("done")
@@ -36,7 +37,7 @@ fun main(args: Array<String>) {
                 job.cancelAndJoin()
                 println()
                 result.reports
-                    .filter { (_, level) -> level == Severity.ERROR }
+                    .filter { it.severity == ERROR }
                     .forEach { System.err.println(it) }
             }
         }

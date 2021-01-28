@@ -1,13 +1,13 @@
 import AutolaborScript.ScriptConfiguration
+import org.jetbrains.kotlin.mainKts.Import
 import org.jetbrains.kotlin.mainKts.MainKtsConfigurator
 import org.jetbrains.kotlin.mainKts.MainKtsEvaluationConfiguration
-import org.jetbrains.kotlin.script.util.DependsOn
-import org.jetbrains.kotlin.script.util.Import
-import org.jetbrains.kotlin.script.util.Repository
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.ScriptCompilationConfiguration
 import kotlin.script.experimental.api.defaultImports
 import kotlin.script.experimental.api.refineConfiguration
+import kotlin.script.experimental.dependencies.DependsOn
+import kotlin.script.experimental.dependencies.Repository
 import kotlin.script.experimental.jvm.dependenciesFromClassContext
 import kotlin.script.experimental.jvm.jvm
 
