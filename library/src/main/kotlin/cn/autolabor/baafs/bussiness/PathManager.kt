@@ -45,6 +45,6 @@ class PathManager(private val localFirst: (Odometry) -> Boolean) {
     override fun toString() =
         buildString {
             for ((name, path) in globals)
-                appendln("$name:\t${path.progress * 100}%/${path.size}")
+                appendLine("$name:\t${path.progress * 100}%/${path.size}")
         }
 }

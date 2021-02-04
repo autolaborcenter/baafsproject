@@ -16,7 +16,7 @@ class SimpleLogger(vararg names: String) {
 
     /** 记录一行无时间的日志 */
     infix fun logWithoutStamp(msg: String) {
-        synchronized(buffer) { buffer.appendln(msg) }
+        synchronized(buffer) { buffer.appendLine(msg) }
         if (buffer.length >= period) flush()
     }
 
@@ -25,7 +25,7 @@ class SimpleLogger(vararg names: String) {
         synchronized(buffer) {
             buffer.append("${SimpleDateFormat("HH:mm:ss:SSS").format(Date())}\t")
             buffer.append("${System.currentTimeMillis()}\t")
-            buffer.appendln(msg.joinToString("\t"))
+            buffer.appendLine(msg.joinToString("\t"))
         }
         if (buffer.length >= period) flush()
     }

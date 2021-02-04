@@ -84,8 +84,8 @@ class VirtualLightSensor(
             val (p, d) = pose
             val dir = d.toVector()
             val references = mapIndexed { i, v -> i to v - p }
-            return if (reverse) references.minBy { (_, v) -> v.normalize() dot dir }!!.first
-            else references.maxBy { (_, v) -> v.normalize() dot dir }!!.first
+            return if (reverse) references.minByOrNull { (_, v) -> v.normalize() dot dir }!!.first
+            else references.maxByOrNull { (_, v) -> v.normalize() dot dir }!!.first
         }
     }
 }

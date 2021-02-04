@@ -11,7 +11,7 @@ class WatchDog(
     private val block: suspend () -> Unit
 ) : CoroutineScope by scope {
     private val lastFeed = AtomicLong(0)
-    private val job = AtomicReference<Job>(launch { })
+    private val job = AtomicReference(launch { })
 
     fun feed() {
         lastFeed.set(System.currentTimeMillis())

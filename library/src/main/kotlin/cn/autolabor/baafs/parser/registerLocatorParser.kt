@@ -10,12 +10,12 @@ fun registerParticleFilterParser(
     parser["fusion state"] = {
         buildString {
             val now = System.currentTimeMillis()
-            appendln(particleFilter.lastQuery
-                         ?.let { (t, pose) -> "last locate at $pose ${now - t}ms ago" }
-                     ?: "never query pose before")
+            appendLine(particleFilter.lastQuery
+                           ?.let { (t, pose) -> "last locate at $pose ${now - t}ms ago" }
+                       ?: "never query pose before")
             val (t, quality) = particleFilter.quality
-            appendln("particles last update ${now - t}ms ago")
-            appendln("now system is ${if (particleFilter.isConvergent) "" else "not "}ready for work")
+            appendLine("particles last update ${now - t}ms ago")
+            appendLine("now system is ${if (particleFilter.isConvergent) "" else "not "}ready for work")
             append("quality = $quality")
         }
     }

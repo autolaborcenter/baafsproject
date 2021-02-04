@@ -66,7 +66,7 @@ internal class Optimizer(
         val optimized = physical
             .run {
                 // 不改变目标轨迹的限速
-                val k0 = sequenceOf(1.0, kl, kr, kv, kw).map(::abs).min()!!
+                val k0 = sequenceOf(1.0, kl, kr, kv, kw).map(::abs).minOrNull()!!
                 // 因为目标轨迹无法实现产生的限速
                 val k1 = 1 - abs(rudder.asRadian() - current.rudder.asRadian()) / optimizeWidthRad
                 // 实际可行的目标轮速

@@ -187,7 +187,7 @@ class SerialPortChassis internal constructor(
                     }
                     .toList()
                     .also { toDevice.send(it) }
-                delay(max(1, flags.min()!! - now + 1))
+                delay(max(1, flags.minOrNull()!! - now + 1))
             }
         }
         scope.launch {

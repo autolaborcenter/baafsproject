@@ -239,7 +239,7 @@ class AMCLFilter(
 
     private fun updateTrans(pf: PFInfo) {
         pf.set.clusters
-            .maxBy { (_, cluster) -> cluster.weight }
+            .maxByOrNull { (_, cluster) -> cluster.weight }
             ?.takeIf { it.value.weight > 0 }
             ?.apply {
                 map2odomTrans = Stamped(

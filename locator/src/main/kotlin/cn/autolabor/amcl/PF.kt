@@ -45,20 +45,20 @@ class PFSampleSet(var maxClusterCount: Int) {
     var converged: Boolean = false
 
     override fun toString() = buildString {
-        appendln("MEAN : ${mean.format()}")
-        appendln("COV: ${cov.format()}")
-        appendln("SET(${samples.size}) :")
+        appendLine("MEAN : ${mean.format()}")
+        appendLine("COV: ${cov.format()}")
+        appendLine("SET(${samples.size}) :")
         this@PFSampleSet.samples
             .toList()
             .sortedByDescending { it.weight }
             .take(5)
-            .forEach { (particle, weight) -> appendln("$weight -> ${particle.format()}") }
-        appendln("CLUSTER(${clusters.size}) :")
+            .forEach { (particle, weight) -> appendLine("$weight -> ${particle.format()}") }
+        appendLine("CLUSTER(${clusters.size}) :")
         this@PFSampleSet.clusters
             .toList()
             .sortedByDescending { it.second.count }
             .take(5)
-            .forEach { (id, cluster) -> appendln("${id.format("%-4d")} -> $cluster") }
+            .forEach { (id, cluster) -> appendLine("${id.format("%-4d")} -> $cluster") }
     }
 }
 
