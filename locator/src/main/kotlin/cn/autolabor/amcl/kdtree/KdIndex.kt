@@ -16,7 +16,7 @@ internal class KdIndex(values: List<Int>) : List<Int> by values {
     infix fun mostDifferentDimWith(others: KdIndex) =
         zip(others) { a, b -> abs(a - b) }
             .withIndex()
-            .maxBy { (_, value) -> value }!!
+            .maxByOrNull { (_, value) -> value }!!
             .index
 
     fun neighbors(): List<KdIndex> =
