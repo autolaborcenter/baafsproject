@@ -1,3 +1,5 @@
+import org.gradle.api.file.DuplicatesStrategy.INCLUDE
+
 // 全部依赖
 dependencies {
     // 导出子模块
@@ -32,6 +34,7 @@ dependencies {
         group = JavaBasePlugin.BUILD_TASK_NAME
         description = "pack jar to run program directly"
         archiveClassifier.set(name)
+        duplicatesStrategy = INCLUDE
         from(sourceSets.main.get().output,
              configurations.runtimeClasspath.get()
                  .map { if (it.isDirectory) it else zipTree(it) })

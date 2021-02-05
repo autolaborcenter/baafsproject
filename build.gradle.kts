@@ -1,3 +1,4 @@
+import org.gradle.api.file.DuplicatesStrategy.INCLUDE
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 buildscript {
@@ -69,6 +70,7 @@ dependencies {
         group = JavaBasePlugin.BUILD_TASK_NAME
         description = "pack jar to run script"
         archiveClassifier.set(name)
+        duplicatesStrategy = INCLUDE
         from(sourceSets.main.get().output,
              configurations.runtimeClasspath.get()
                  .map { if (it.isDirectory) it else zipTree(it) })
