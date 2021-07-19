@@ -46,25 +46,33 @@ class ParticleFilter(
 ) : Mixer<Stamped<Odometry>, Stamped<Vector2D>, Stamped<Odometry>> {
     // 无状态计算模型
     private val gauss = Gauss(.0, maxInconsistency / 3)
+
     // 匹配器
     private val matcher = ClampMatcher<Stamped<Odometry>, Stamped<Vector2D>>(true)
+
     // 匹配步进状态
     private var stepMemory: Pair<Vector2D, Odometry>? = null
+
     // 融合步进状态
     private lateinit var updatingMemory: Odometry
+
     // 粒子群：位姿 - 寿命
     private var particles = emptyList<Pair<Odometry, Int>>()
+
     // 预测器
     private var visionary = Visionary(Odometry.pose(), Odometry.pose(), .0)
 
     // 过程记录器
     @DebugTemporary(DELETE)
     val stepFeedbacks = mutableListOf<(Stamped<StepState>) -> Unit>()
+
     // 质量状态
     var quality = Stamped(0L, FusionQuality.zero)
         private set
+
     // 是否收敛
     val isConvergent get() = predicate.state
+
     // 最后一次查询结果
     var lastQuery: Stamped<Odometry>? = null
         private set
@@ -74,7 +82,8 @@ class ParticleFilter(
     data class StepState(
         val measureWeight: Double,
         val particleWeight: Double,
-        val quality: FusionQuality)
+        val quality: FusionQuality
+    )
 
     override fun measureMaster(item: Stamped<Odometry>) =
         matcher.add1(item).let {
@@ -104,10 +113,11 @@ class ParticleFilter(
         newExpectation: Odometry
     ) {
         visionary = visionary.fusion(
-                newMarkOnOdometry,
-                newExpectation,
-                2.0,
-                maxInconsistency)
+            newMarkOnOdometry,
+            newExpectation,
+            2.0,
+            maxInconsistency
+        )
     }
 
     @Synchronized
@@ -168,16 +178,16 @@ class ParticleFilter(
                 }
                 // 计算粒子总权重，若过低，直接重新初始化
                 val weightsSum = weights.sum()
-                                     .takeIf { it > 1 }
-                                 ?: run {
-                                     // 写入当前寿命
-                                     particles = particles.zip(ages) { (p, _), age -> p to max(age, 0) }
-                                     // 计算定位质量
-                                     quality = Stamped(t, particles.qualityBy(maxAge, maxInconsistency))
-                                     // 重新初始化
-                                     if (!predicate.update(quality.data)) initialize(t, measure, state)
-                                     return@forEach
-                                 }
+                    .takeIf { it > 1 }
+                    ?: run {
+                        // 写入当前寿命
+                        particles = particles.zip(ages) { (p, _), age -> p to max(age, 0) }
+                        // 计算定位质量
+                        quality = Stamped(t, particles.qualityBy(maxAge, maxInconsistency))
+                        // 重新初始化
+                        if (!predicate.update(quality.data)) initialize(t, measure, state)
+                        return@forEach
+                    }
                 // 计算期望
                 var eP = vector2DOfZero()
                 var eD = vector2DOfZero()
@@ -204,10 +214,12 @@ class ParticleFilter(
                 @DebugTemporary(DELETE)
                 synchronized(stepFeedbacks) {
                     val msg = Stamped(
-                            t, StepState(
+                        t, StepState(
                             measureWeight = measureWeight,
                             particleWeight = weightsSum,
-                            quality = quality.data))
+                            quality = quality.data
+                        )
+                    )
                     for (callback in stepFeedbacks)
                         callback(msg)
                 }
@@ -247,9 +259,9 @@ class ParticleFilter(
             val size = size
             val eP = location / size
             return FusionQuality(
-                    age = ageSum.toDouble() / (size * maxAge),
-                    location = max(.0, 1 - sumByDouble { (pose, _) -> pose.p euclid eP } / (size * maxInconsistent)),
-                    direction = direction.norm() / size
+                age = ageSum.toDouble() / (size * maxAge),
+                location = max(.0, 1 - sumOf { (pose, _) -> pose.p euclid eP } / (size * maxInconsistent)),
+                direction = direction.norm() / size
             )
         }
     }

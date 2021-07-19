@@ -13,7 +13,7 @@ buildscript {
 }
 
 plugins {
-    kotlin("jvm") version "1.4.30"
+    kotlin("jvm") version "1.5.21"
 }
 
 // 包括主项目的构建脚本

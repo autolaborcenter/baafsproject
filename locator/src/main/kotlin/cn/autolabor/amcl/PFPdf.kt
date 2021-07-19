@@ -61,7 +61,7 @@ fun tred2(v: ArrayMatrix, d: ArrayMatrix, e: ArrayMatrix): Unit {
     // Householder reduction to tridiagonal form.
     for (i in n - 1 downTo 1) {
         // println("[$i]->v : ${v.format()}")
-        val scale = d.data.take(i).sumByDouble(::abs)
+        val scale = d.data.take(i).sumOf(::abs)
         h = 0.0
         if (scale == 0.0) {
             e.data[i] = d.data[i - 1]

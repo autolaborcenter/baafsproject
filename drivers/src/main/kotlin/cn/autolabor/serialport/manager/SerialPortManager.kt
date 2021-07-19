@@ -12,6 +12,7 @@ import org.mechdancer.exceptions.DeviceOfflineException
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
 import org.mechdancer.exceptions.ExceptionMessage.Recovered
+import java.util.*
 
 /** 串口管理器 */
 class SerialPortManager(
@@ -47,7 +48,7 @@ class SerialPortManager(
             SerialPort.getCommPorts()
                 .asSequence()
                 .filter { port ->
-                    val name = port.systemPortName.toLowerCase()
+                    val name = port.systemPortName.lowercase(Locale.getDefault())
                     "com" in name || "ttyusb" in name || "ttyacm" in name
                 }
                 .filter { port ->

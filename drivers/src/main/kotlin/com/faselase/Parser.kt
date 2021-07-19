@@ -30,7 +30,7 @@ private val crcBits = intArrayOf(
         4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8)
 
 private fun crcCheck(`package`: List<Byte>): Boolean {
-    val value0 = (1..3).sumBy { crcBits[`package`[it].toIntUnsigned()] }.toByte() and 7
+    val value0 = (1..3).sumOf { crcBits[`package`[it].toIntUnsigned()] }.toByte() and 7
     val value1 = (`package`[0].toIntUnsigned() shr 4).toByte() and 7
     return value0 == value1
 }

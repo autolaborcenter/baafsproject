@@ -3,6 +3,7 @@ package com.marvelmind
 import java.io.EOFException
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.*
 import kotlin.experimental.xor
 
 internal fun Byte.toIntUnsigned(): Int =
@@ -93,7 +94,7 @@ internal fun ByteArray.dataEquals(other: ByteArray): Boolean {
 // 按十六进制转换字节数组
 internal fun ByteArray.toHexString()  =
     this.joinToString(" ") {
-        val s =Integer.toHexString(it.toIntUnsigned()).takeLast(2).toUpperCase()
+        val s = Integer.toHexString(it.toIntUnsigned()).takeLast(2).uppercase(Locale.getDefault())
         if (s.length == 1)
             "0$s"
         else
