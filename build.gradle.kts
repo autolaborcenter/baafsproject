@@ -1,30 +1,14 @@
 import org.gradle.api.file.DuplicatesStrategy.INCLUDE
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
-buildscript {
-    repositories {
-        mavenCentral()
-        jcenter()
-        maven("https://maven.aliyun.com/repository/central")
-        maven("https://maven.aliyun.com/repository/google")
-        maven("https://maven.aliyun.com/repository/gradle-plugin")
-        maven("https://maven.aliyun.com/repository/jcenter")
-    }
-}
-
-plugins {
-    kotlin("jvm") version "1.5.21"
-}
+plugins { kotlin("jvm") version "1.5.21" }
 
 // 包括主项目的构建脚本
 allprojects {
     apply(plugin = "kotlin")
     group = "cn.autolabor"
     version = "v0.1.1"
-    repositories {
-        mavenCentral()
-        jcenter()
-    }
+    repositories { mavenCentral() }
     dependencies {
         // 自动依赖 kotlin 标准库
         implementation(kotlin("stdlib-jdk8"))
@@ -32,14 +16,6 @@ allprojects {
         // 单元测试
         testImplementation("junit", "junit", "+")
         testImplementation(kotlin("test-junit"))
-    }
-    tasks.withType<KotlinCompile> {
-        kotlinOptions { jvmTarget = "1.8" }
-    }
-    tasks.withType<JavaCompile> {
-        sourceCompatibility = "1.8"
-        targetCompatibility = "1.8"
-        options.encoding = "UTF-8"
     }
     java { withSourcesJar() }
 }
