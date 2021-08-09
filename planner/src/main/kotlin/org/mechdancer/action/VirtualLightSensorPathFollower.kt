@@ -86,10 +86,10 @@ class VirtualLightSensorPathFollower(
         // 处理异常
         var pn =
             bright.firstOrNull()
-            ?: return when {
-                dir != 0 -> turn()
-                else     -> null
-            }
+                ?: return when {
+                    dir != 0 -> turn()
+                    else     -> null
+                }
         // 查找尖点
         val (tip, i) =
             bright
@@ -101,7 +101,7 @@ class VirtualLightSensorPathFollower(
                     pn = it
                     pn.d.toVector() dot `pn-1`.d.toVector() < cosMinTip
                 }
-            ?: (bright.last() to bright.lastIndex)
+                ?: (bright.last() to bright.lastIndex)
         // 处理尖点
         when {
             i > PRE_TURN_COUNT     -> dir = 0

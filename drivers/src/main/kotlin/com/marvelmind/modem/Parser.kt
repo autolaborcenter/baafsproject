@@ -18,7 +18,6 @@ internal sealed class Command(
         priority.compareTo(other.priority).takeIf { it != 0 }
             ?: subPriority.compareTo(other.subPriority)
 
-
     // 读取版本指令
     class CommandVersionR(
         override val address: Byte
@@ -224,6 +223,7 @@ internal class Device(
     var voltage = -1
     var sleep = false
     val cmd = Command.CommandStateR(id)
+
     // 解析
     fun parse(data: ByteArray) {
         ByteArrayInputStream(data.copyOfRange(7, 9))
@@ -238,14 +238,14 @@ internal class Device(
                 val volL = stream.read().toByte().toIntUnsigned()
                 val volH = stream.read().toByte().toIntUnsigned()
                 sleep = (rssi + 1 == unk
-                        && unk + 1 == temp
-                        && temp + 1 == volL
-                        && volL + 1 == volH)
-                        || (rssi == 0
-                        && unk == 0
-                        && temp == 0
-                        && volL == 0
-                        && volH == 0)
+                    && unk + 1 == temp
+                    && temp + 1 == volL
+                    && volL + 1 == volH)
+                    || (rssi == 0
+                    && unk == 0
+                    && temp == 0
+                    && volL == 0
+                    && volH == 0)
             }
     }
 
@@ -275,12 +275,11 @@ internal class Map(pathName: String) {
                         if (mirror && num in 1..8) {
                             for (j in 0 until num) {
                                 val y = -shortLEOf(submaps.last()[31 + 4 * j], submaps.last()[31 + 4 * j + 1])
-                                submaps.last()[31 + 4 * j] = (y.toInt() and 0xFF).toByte()
-                                submaps.last()[31 + 4 * j + 1] = ((y.toInt() shr 8) and 0xFF).toByte()
+                                submaps.last()[31 + 4 * j] = (y and 0xFF).toByte()
+                                submaps.last()[31 + 4 * j + 1] = ((y shr 8) and 0xFF).toByte()
                             }
                         }
-                    }
-                    else if (it[i] == 1.toByte())
+                    } else if (it[i] == 1.toByte())
                         for (j in 1..80 step 14)
                             if (it[i + j].toIntUnsigned() > 0)
                                 beacons.add(Pair(it[i + j], it.copyOfRange(i + j + 1, i + j + 13)))

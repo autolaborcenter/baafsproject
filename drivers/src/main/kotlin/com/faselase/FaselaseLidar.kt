@@ -28,6 +28,7 @@ internal class FaselaseLidar(
 ) : SerialPortDeviceBase(tag, 460800, 64, portName) {
     // 解析
     private val engine = engine()
+
     // 缓存
     private val queue = PolarFrameCollectorQueue()
 

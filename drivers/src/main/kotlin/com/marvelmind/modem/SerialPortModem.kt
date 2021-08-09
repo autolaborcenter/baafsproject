@@ -5,7 +5,6 @@ import cn.autolabor.serialport.manager.SerialPortDeviceBase
 import com.marvelmind.dataEquals
 import com.marvelmind.mobilebeacon.MobileBeaconData
 import com.marvelmind.shortLEOfU
-import com.marvelmind.toHexString
 import com.marvelmind.toIntUnsigned
 import com.thermometer.Humiture
 import kotlinx.coroutines.*
@@ -13,7 +12,6 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
 import org.mechdancer.SimpleLogger
 import org.mechdancer.common.Stamped
-import java.security.PrivateKey
 import java.util.concurrent.PriorityBlockingQueue
 import kotlin.math.roundToInt
 
@@ -35,34 +33,49 @@ internal constructor(
 ) : SerialPortDeviceBase(NAME, 115200, 1024, portName) {
     // 协议解析引擎
     private var engine = engine()
+
     // 设备状态列表
     private var devices = emptyArray<Device>()
+
     // 所有标签id列表
     private var idList = ByteArray(0)
+
     // 固定标签id列表
     private var beaconIdList = ByteArray(0)
+
     // 设备状态日志
     private val deviceLogger = SimpleLogger("device_state_log").apply { period = 1 }
+
     // 地图
     private var map = Map("marvelmind.map")
+
     // 数据记录
     private var dataLoggers = emptyArray<SimpleLogger>()
+
     // 原始距离
     private var rawDistances = IntArray(0)
+
     // 温湿度
     private var humiture = Humiture(DEFAULT_VAL, DEFAULT_VAL)
+
     // 路由设置温度
     private var tempModem = DEFAULT_VAL.toInt()
+
     // 上一个定位数据
     private var lastLocation = emptyArray<Stamped<MobileBeaconData>?>()
+
     // 路由版本（认证串口）
     private var version = 0
+
     // submap编号(由于submap返回数据中没有编号，则在发送请求时记录编号)
     private var submapNumber = -1
+
     // submap验证记录
     private var submapOkList = mutableListOf<Byte>()
+
     // device序号(用于对应收发)
     private var deviceIndex = -1
+
     // 数据请求队列
     private val requestQueue = PriorityBlockingQueue<Command>()
 
@@ -124,7 +137,7 @@ internal constructor(
                             append("${y}\t")
                             append("${z}\t")
                             append("${if (available) 1 else 0}\t")
-                            append("${quality?:-1}\t")
+                            append("${quality ?: -1}\t")
                             rawDistance?.forEach { (address, value) ->
                                 append("${address.toIntUnsigned()}\t${value}\t")
                             } ?: run {
@@ -155,12 +168,16 @@ internal constructor(
                     ) {
                         val address = it.address.toIntUnsigned()
                         when (it) {
-                            is Command.CommandSubmapR -> submapNumber = address
-                            is Command.CommandStateR  -> deviceIndex = idList.indexOf(it.address)
-                            is Command.CommandAddSubmapW -> log(logger, "add submap${address}", LogType.WritePrint)
-                            is Command.CommandSubmapW -> log(logger, "set submap${address}", LogType.WritePrint)
-                            is Command.CommandWakeW -> log(logger, "wake beacon${address}", LogType.WritePrint)
-                            is Command.CommandCoordinateW -> log(logger, "set coordinate of beacon${address}", LogType.WritePrint)
+                            is Command.CommandSubmapR     -> submapNumber = address
+                            is Command.CommandStateR      -> deviceIndex = idList.indexOf(it.address)
+                            is Command.CommandAddSubmapW  -> log(logger, "add submap${address}", LogType.WritePrint)
+                            is Command.CommandSubmapW     -> log(logger, "set submap${address}", LogType.WritePrint)
+                            is Command.CommandWakeW       -> log(logger, "wake beacon${address}", LogType.WritePrint)
+                            is Command.CommandCoordinateW -> log(
+                                logger,
+                                "set coordinate of beacon${address}",
+                                LogType.WritePrint
+                            )
                         }
                         toDevice.send(it.data.asList())
                         delayMs =

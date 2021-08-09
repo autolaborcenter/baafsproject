@@ -40,12 +40,14 @@ internal constructor(
     MobileBeacon {
     // 协议解析引擎
     private val engine = engine()
+
     // 超时异常监控
     private val dataTimeoutException =
         DataTimeoutException(NAME, dataTimeout)
     private val dataWatchDog =
         WatchDog(timeout = dataTimeout)
         { exceptions.send(Occurred(dataTimeoutException)) }
+
     // 数据过滤
     private val delayRange = 1..delayLimit
     private val zRange = (heightRange.start * 1000).roundToInt()..(heightRange.endInclusive * 1000).roundToInt()

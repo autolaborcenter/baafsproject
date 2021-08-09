@@ -23,28 +23,30 @@ internal class MobileBeaconDataCollector {
                 this.coordinate = coordinate
                 rawDistance = null
                 quality = null
-                Stamped(t, MobileBeaconData(
+                Stamped(
+                    t, MobileBeaconData(
                         address = a.address,
                         x = a.x,
                         y = a.y,
                         z = a.z,
                         available = a.available,
                         quality = c?.qualityPercent,
-                        rawDistance = b?.toList())
+                        rawDistance = b?.toList()
+                    )
                 )
             }
         }
 
     @Synchronized
     fun updateRawDistance(rawDistance: Stamped<RawDistance>)
-            : Stamped<MobileBeaconData>? {
+        : Stamped<MobileBeaconData>? {
         this.rawDistance = rawDistance
         return collect()
     }
 
     @Synchronized
     fun updateQuality(quality: Stamped<Quality>)
-            : Stamped<MobileBeaconData>? {
+        : Stamped<MobileBeaconData>? {
         this.quality = quality
         return collect()
     }
@@ -57,14 +59,17 @@ internal class MobileBeaconDataCollector {
             coordinate = null
             rawDistance = null
             quality = null
-            return Stamped(ta, MobileBeaconData(
+            return Stamped(
+                ta, MobileBeaconData(
                     address = a.address,
                     x = a.x,
                     y = a.y,
                     z = a.z,
                     available = a.available,
                     quality = c.qualityPercent,
-                    rawDistance = b.toList()))
+                    rawDistance = b.toList()
+                )
+            )
         }
         return null
     }

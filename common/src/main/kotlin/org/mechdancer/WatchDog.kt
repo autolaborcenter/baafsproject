@@ -1,6 +1,9 @@
 package org.mechdancer
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
@@ -17,15 +20,15 @@ class WatchDog(
         lastFeed.set(System.currentTimeMillis())
         job.updateAndGet { last ->
             last.takeIf { it.isActive }
-            ?: launch {
-                delay(timeout)
-                while (true)
-                    (lastFeed.get() + timeout - System.currentTimeMillis())
-                        .takeIf { it > 0 }
-                        ?.let { delay(it) }
-                    ?: break
-                block()
-            }
+                ?: launch {
+                    delay(timeout)
+                    while (true)
+                        (lastFeed.get() + timeout - System.currentTimeMillis())
+                            .takeIf { it > 0 }
+                            ?.let { delay(it) }
+                            ?: break
+                    block()
+                }
         }
     }
 }

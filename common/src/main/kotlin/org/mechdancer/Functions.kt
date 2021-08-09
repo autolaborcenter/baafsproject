@@ -19,18 +19,21 @@ fun <T> channel() = Channel<T>(Channel.CONFLATED)
 
 private fun averageVectors(list: Iterable<Pair<Vector2D, Double>>): Vector2D =
     list.fold(vector2DOfZero()) { sum, (v, w) -> sum + v * w } /
-    list.sumByDouble { (_, w) -> w }
+        list.sumOf { (_, w) -> w }
 
 /** 里程的加权平均 */
-fun average(a: Pair<Odometry, Double>,
-            b: Pair<Odometry, Double>): Odometry {
+fun average(
+    a: Pair<Odometry, Double>,
+    b: Pair<Odometry, Double>
+): Odometry {
     val (x0, r0) = a
     val (x1, r1) = b
     val (p0, d0) = x0
     val (p1, d1) = x1
     return Odometry(
         p = averageVectors(listOf(p0 to r0, p1 to r1)),
-        d = averageVectors(listOf(d0.toVector() to r0, d1.toVector() to r1)).toAngle())
+        d = averageVectors(listOf(d0.toVector() to r0, d1.toVector() to r1)).toAngle()
+    )
 }
 
 /** 数值积分 */
@@ -43,7 +46,7 @@ fun integral(
     doubleEquals(x0, x1) -> .0
     x0 > x1              -> -integral(x1, x0, stepLength, function)
     else                 -> {
-        val step = stepLength ?: (x1 - x0) * 1E-4
+        val step = stepLength ?: ((x1 - x0) * 1E-4)
         var xn = x0 + step
         var yn = function(x0)
         var sum = .0

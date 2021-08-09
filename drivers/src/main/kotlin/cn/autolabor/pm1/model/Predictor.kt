@@ -24,8 +24,9 @@ internal class Predictor(
         }
     }
 
-    fun predict(target: ControlVariable,
-                current: ControlVariable.Physical
+    fun predict(
+        target: ControlVariable,
+        current: ControlVariable.Physical
     ): (Long) -> Odometry {
         val physical = when (target) {
             is ControlVariable.Physical -> target

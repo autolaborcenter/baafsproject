@@ -29,7 +29,8 @@ fun main() {
         openAllNetworks()
         println(networksInfo())
     }
-    val robotOutline = Polygon(listOf(
+    val robotOutline = Polygon(
+        listOf(
             vector2DOf(+.25, +.08),
             vector2DOf(+.10, +.20),
             vector2DOf(+.10, +.28),
@@ -44,7 +45,8 @@ fun main() {
             vector2DOf(+.10, -.28),
             vector2DOf(+.10, -.20),
             vector2DOf(+.25, -.08)
-    ))
+        )
+    )
     GlobalScope.launch {
         val blindA = Circle(.15).sample().transform(pose(+.113))
         val blindB = Circle(.15).sample().transform(pose(-.138))

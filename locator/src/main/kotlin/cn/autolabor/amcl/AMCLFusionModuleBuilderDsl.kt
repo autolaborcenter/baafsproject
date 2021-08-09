@@ -58,19 +58,21 @@ class AMCLFusionModuleBuilderDsl private constructor() {
                         for (item in robotOnOdometry) {
                             painter?.paintPose("里程计", item.data)
                             filter.measureMaster(item)
-                                .takeIf { it != null }
-                                ?.also { robotOnMap.send(it) }
-                                ?.also { (_, data) ->
+                                .also { robotOnMap.send(it) }
+                                .also { (_, data) ->
                                     logger?.log(data.p.x, data.p.y, data.d.asRadian())
                                     painter?.run {
                                         paintPose("粒子滤波", data)
                                         with(filter.pf.set.samples) {
                                             paintPoses(
-                                                    "粒子群",
-                                                    map { (p, _) ->
-                                                        Odometry(Vector2D(p.x, p.y),
-                                                                 Angle(p.z))
-                                                    }.take(200))
+                                                "粒子群",
+                                                map { (p, _) ->
+                                                    Odometry(
+                                                        Vector2D(p.x, p.y),
+                                                        Angle(p.z)
+                                                    )
+                                                }.take(200)
+                                            )
                                         }
                                     }
                                 }

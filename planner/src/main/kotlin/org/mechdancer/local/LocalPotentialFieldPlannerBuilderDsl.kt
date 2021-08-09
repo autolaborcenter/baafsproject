@@ -41,12 +41,13 @@ private constructor() {
                 }
                 .run {
                     LocalPotentialFieldPlanner(
-                            repelField = repelField,
-                            repelWeight = repelWeight,
-                            stepLength = stepLength,
-                            lookAhead = lookAhead,
-                            minRepelPointsCount = minRepelPointsCount,
-                            obstacleSource = obstacleSource)
+                        repelField = repelField,
+                        repelWeight = repelWeight,
+                        stepLength = stepLength,
+                        lookAhead = lookAhead,
+                        minRepelPointsCount = minRepelPointsCount,
+                        obstacleSource = obstacleSource
+                    )
                 }
     }
 }

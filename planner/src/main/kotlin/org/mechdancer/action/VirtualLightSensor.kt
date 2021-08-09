@@ -34,6 +34,7 @@ class VirtualLightSensor(
 
     @DebugTemporary(DELETE)
     private val sensorToRobot = onRobot.toTransformation()
+
     @DebugTemporary(DELETE)
     var area: Polygon? = null
         private set
@@ -47,15 +48,15 @@ class VirtualLightSensor(
     fun shine(path: Sequence<Odometry>): List<Odometry> {
         var first: Odometry? = null
         return path.onEach { if (first == null) first = it }
-                   .map { pose -> pose to robotToSensor(pose.p).to2D() }
-                   .dropWhile { (_, p) ->
-                       p !in lightRange
-                   }
-                   .takeWhile { (_, p) -> p in lightRange }
-                   .map { (pose, _) -> pose }
-                   .toList()
-                   .takeUnless { first != null && it.isEmpty() }
-               ?: listOf(first!!)
+            .map { pose -> pose to robotToSensor(pose.p).to2D() }
+            .dropWhile { (_, p) ->
+                p !in lightRange
+            }
+            .takeWhile { (_, p) -> p in lightRange }
+            .map { (pose, _) -> pose }
+            .toList()
+            .takeUnless { first != null && it.isEmpty() }
+            ?: listOf(first!!)
     }
 
     /** 虚拟光值计算 */

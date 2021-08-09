@@ -24,15 +24,18 @@ class FaselaseLidarSetBuilderDsl private constructor() {
     data class FaselaseLidarConfig internal constructor(
         var tag: String? = null,
         var pose: Odometry = Odometry.pose(),
-        var inverse: Boolean = false)
+        var inverse: Boolean = false
+    )
 
     fun lidar(block: FaselaseLidarConfig.() -> Unit) {
         require(configs.isEmpty())
         autoDetect = FaselaseLidarConfig().apply(block)
     }
 
-    fun lidar(port: String,
-              block: FaselaseLidarConfig.() -> Unit) {
+    fun lidar(
+        port: String,
+        block: FaselaseLidarConfig.() -> Unit
+    ) {
         require(autoDetect == null)
         require(configs.putIfAbsent(port, FaselaseLidarConfig().apply(block)) == null) {
             "faselase lidar on $port is already added"
@@ -62,10 +65,10 @@ class FaselaseLidarSetBuilderDsl private constructor() {
                     .map { (portName, config) ->
                         val lidar =
                             FaselaseLidar(
-                                    exceptions = exceptions,
-                                    portName = portName,
-                                    tag = config.tag ?: "Lidar${i++}",
-                                    dataTimeout = dataTimeout
+                                exceptions = exceptions,
+                                portName = portName,
+                                tag = config.tag ?: "Lidar${i++}",
+                                dataTimeout = dataTimeout
                             ).also(manager::register)
                         val tf = config.pose.toTransformation()
                         lidar to if (config.inverse) tf * mirror else tf

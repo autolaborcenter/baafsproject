@@ -30,12 +30,12 @@ private constructor() {
                 }
                 .run {
                     SerialPortTemperX(
-                            temperatures = temperatures,
-                            exceptions = exceptions,
+                        temperatures = temperatures,
+                        exceptions = exceptions,
 
-                            portName = portName,
-                            period = period,
-                            dataTimeout = dataTimeout
+                        portName = portName,
+                        period = period,
+                        dataTimeout = dataTimeout
                     ).also { it.logger = logger }
                 }
                 .also(this::register)

@@ -20,7 +20,7 @@ data class Pdf(
     var cd: ArrayMatrix = arrayMatrixOfZero(3, 1)
 ) {
     constructor(mean: Vector3D, cov: ArrayMatrix)
-            : this(x = mean, cx = cov) {
+        : this(x = mean, cx = cov) {
         matrixUnitary(cr, cd, cx)
     }
 }
@@ -51,7 +51,7 @@ fun matrixUnitary(r: ArrayMatrix, d: ArrayMatrix, a: ArrayMatrix) {
     eigenDecomposition(aa, r, d)
 }
 
-fun tred2(v: ArrayMatrix, d: ArrayMatrix, e: ArrayMatrix): Unit {
+fun tred2(v: ArrayMatrix, d: ArrayMatrix, e: ArrayMatrix) {
     val n = v.row
     var f: Double
     var g: Double
@@ -150,7 +150,7 @@ fun hypot2(x: Double, y: Double): Double {
     return sqrt(x * x + y * y)
 }
 
-fun tql2(v: ArrayMatrix, d: ArrayMatrix, e: ArrayMatrix): Unit {
+fun tql2(v: ArrayMatrix, d: ArrayMatrix, e: ArrayMatrix) {
     var f = 0.0
     var tst1 = 0.0
     val eps = 2.0.pow(-52.0)

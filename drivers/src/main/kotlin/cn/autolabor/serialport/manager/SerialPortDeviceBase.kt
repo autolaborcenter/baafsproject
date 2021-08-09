@@ -9,7 +9,7 @@ abstract class SerialPortDeviceBase(
 ) : SerialPortDevice {
     override val openCondition =
         portName?.let(OpenCondition::Certain)
-        ?: OpenCondition.None
+            ?: OpenCondition.None
 
     protected abstract class CertificatorBase(
         private val timeout: Long

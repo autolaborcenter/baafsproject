@@ -7,7 +7,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.channels.actor
 import kotlinx.coroutines.channels.consumeEach
-import org.mechdancer.channel
 import org.mechdancer.exceptions.DeviceOfflineException
 import org.mechdancer.exceptions.ExceptionMessage
 import org.mechdancer.exceptions.ExceptionMessage.Occurred
@@ -111,7 +110,7 @@ class SerialPortManager(
                     return false
                 }
                 val result = certificator(buffer.take(actual))
-                             ?: continue
+                    ?: continue
                 if (result) break
                 else {
                     closePort()

@@ -26,5 +26,5 @@ internal class AccidentalBeaconErrorSource(
                     error
             }
         }.also { error = it }
-        ?: vector2DOfZero()
+            ?: vector2DOfZero()
 }

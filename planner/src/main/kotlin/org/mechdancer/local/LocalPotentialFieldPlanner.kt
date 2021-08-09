@@ -87,7 +87,8 @@ internal constructor(
                         val f = (fa + fr).takeIf { it.length > 1E-6 }?.normalize()?.to2D() ?: vector2DOf(1, 0)
                         // 步进
                         pose = Odometry(p = p0 + f * stepLength,
-                                        d = attractPoints.sumByVector2D { it.d.toVector() }.toAngle())
+                                        d = attractPoints.sumByVector2D { it.d.toVector() }.toAngle()
+                        )
                         if (list.any { (it euclid pose.p) < .01 }) break
                         if (list.size >= lookAhead) list.poll()
                         list.offer(pose.p)

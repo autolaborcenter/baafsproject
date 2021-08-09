@@ -92,7 +92,7 @@ internal fun ByteArray.dataEquals(other: ByteArray): Boolean {
 }
 
 // 按十六进制转换字节数组
-internal fun ByteArray.toHexString()  =
+internal fun ByteArray.toHexString() =
     this.joinToString(" ") {
         val s = Integer.toHexString(it.toIntUnsigned()).takeLast(2).uppercase(Locale.getDefault())
         if (s.length == 1)

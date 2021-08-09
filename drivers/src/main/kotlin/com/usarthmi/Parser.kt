@@ -20,13 +20,13 @@ internal sealed class HMIPackage {
 internal fun engine(): ParseEngine<Byte, HMIPackage> =
     ParseEngine { buffer ->
         val size = buffer.size
-            // 找到一个帧头
+        // 找到一个帧头
         var head = buffer.indexOfFirst { it == head }.takeUnless { it < 0 }
-                   ?: return@ParseEngine ParseInfo(size, size, HMIPackage.Nothing)
+            ?: return@ParseEngine ParseInfo(size, size, HMIPackage.Nothing)
         // 确定帧长度
         val `package` = (head + 7).takeIf { it <= size }
-                            ?.let { buffer.subList(head, it) }
-                        ?: return@ParseEngine ParseInfo(head, size, HMIPackage.Nothing)
+            ?.let { buffer.subList(head, it) }
+            ?: return@ParseEngine ParseInfo(head, size, HMIPackage.Nothing)
         // 校验
         val result =
             if (`package`.takeLast(3).all { it == end }) {

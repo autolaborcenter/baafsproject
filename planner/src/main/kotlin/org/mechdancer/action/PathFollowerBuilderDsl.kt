@@ -32,13 +32,14 @@ private constructor() {
                 }
                 .run {
                     VirtualLightSensorPathFollower(
-                            sensor = VirtualLightSensor(
-                                    onRobot = sensorPose,
-                                    lightRange = lightRange),
-                            minTipAngle = minTipAngle,
-                            minTurnAngle = minTurnAngle,
-                            turnThreshold = turnThreshold,
-                            maxSpeed = maxSpeed
+                        sensor = VirtualLightSensor(
+                            onRobot = sensorPose,
+                            lightRange = lightRange
+                        ),
+                        minTipAngle = minTipAngle,
+                        minTurnAngle = minTurnAngle,
+                        turnThreshold = turnThreshold,
+                        maxSpeed = maxSpeed
                     ).also { it.painter = painter }
                 }
     }

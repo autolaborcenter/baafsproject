@@ -28,10 +28,13 @@ internal constructor(
 ) : GlobalPlanner, List<Odometry> by path {
     // 当前位置
     private var index = 0
+
     // 允许搜索全部路径
     private var searchAll = true
+
     // 进度推进锁
     private val lock = ReentrantReadWriteLock()
+
     // 尖点序号缓存（区段末尾序号）
     private val tipsIndex by lazy {
         // 尖点判断条件
@@ -81,9 +84,9 @@ internal constructor(
             if (index == lastIndex)
                 if (isLoopOn) index = 0
                 else return@write onRobot(last())
-                                      .takeIf(localFirst)
-                                      ?.let(LocalPath::KeyPose)
-                                  ?: LocalPath.Finish
+                    .takeIf(localFirst)
+                    ?.let(LocalPath::KeyPose)
+                    ?: LocalPath.Finish
             // 之前的进度
             val last = index
             // 当前区间末尾在尖点表里的序号
@@ -110,11 +113,11 @@ internal constructor(
                 ?.map(onRobot)
                 ?.also { painter?.paintPoses("R 全局路径", it.take(200)) }
                 ?.let { LocalPath.Path(it.asSequence()) }
-            ?: if (searchAll) LocalPath.Failure
-            else subList(area.first, area.last + 1)
-                .asSequence()
-                .map(onRobot)
-                .let(LocalPath::Path)
+                ?: if (searchAll) LocalPath.Failure
+                else subList(area.first, area.last + 1)
+                    .asSequence()
+                    .map(onRobot)
+                    .let(LocalPath::Path)
         }
     }
 }

@@ -14,8 +14,10 @@ import org.mechdancer.exceptions.ExceptionMessage
 class SerialPortMobileBeaconBuilderDsl private constructor() {
     // 指定串口名字
     var portName: String? = null
+
     // 数据接收参数
     var dataTimeout: Long = 2000L
+
     // 数据过滤参数
     var delayLimit: Long = 400L
     var heightRange: ClosedFloatingPointRange<Double> =
@@ -40,13 +42,14 @@ class SerialPortMobileBeaconBuilderDsl private constructor() {
             }
             .run {
                 SerialPortMobilBeacon(
-                        beaconOnMap = beaconOnMap,
-                        beaconData = beaconData,
-                        exceptions = exceptions,
-                        portName = portName,
-                        dataTimeout = dataTimeout,
-                        delayLimit = delayLimit,
-                        heightRange = heightRange)
+                    beaconOnMap = beaconOnMap,
+                    beaconData = beaconData,
+                    exceptions = exceptions,
+                    portName = portName,
+                    dataTimeout = dataTimeout,
+                    delayLimit = delayLimit,
+                    heightRange = heightRange
+                )
             }
             .also(this::register)
     }

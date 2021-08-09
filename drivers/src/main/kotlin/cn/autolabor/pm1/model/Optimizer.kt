@@ -24,11 +24,13 @@ internal class Optimizer(
         val speed: Double,
         val left: Angle,
         val right: Angle,
-        val rudder: Angle?)
+        val rudder: Angle?
+    )
 
     // 生成目标控制量 -> 等轨迹限速 -> 变轨迹限速 -> 生成轮速域控制量
-    operator fun invoke(target: ControlVariable,
-                        current: ControlVariable.Physical
+    operator fun invoke(
+        target: ControlVariable,
+        current: ControlVariable.Physical
     ): Optimized {
         // 处理奇点
         val physical = when (target) {

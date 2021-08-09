@@ -4,9 +4,8 @@ import org.mechdancer.algebra.core.Vector
 import org.mechdancer.algebra.function.vector.div
 
 /** 平面格 */
-class PlaneIndex(values: List<Int>)
-    : GridIndex<PlaneIndex>,
-      List<Int> by values {
+class PlaneIndex(values: List<Int>) : GridIndex<PlaneIndex>,
+                                      List<Int> by values {
     init {
         require(isNotEmpty())
     }

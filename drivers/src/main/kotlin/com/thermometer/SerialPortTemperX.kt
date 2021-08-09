@@ -26,6 +26,7 @@ internal constructor(
 ) : SerialPortDeviceBase(NAME, 9600, 32, portName) {
     // 协议解析引擎
     private val engine = engine()
+
     // 超时异常监控
     private val dataTimeoutException =
         DataTimeoutException(NAME, dataTimeout)

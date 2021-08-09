@@ -24,8 +24,8 @@ object FaselaseTest {
     @JvmStatic
     fun Array<String>.main() {
         SerialPortFinder.findSerialPort(
-                candidates = SerialPort.getCommPorts().toList(),
-                engine = com.faselase.engine()
+            candidates = SerialPort.getCommPorts().toList(),
+            engine = com.faselase.engine()
         ) {
             baudRate = 460800
             timeoutMs = 5000

@@ -23,8 +23,10 @@ data class ChassisStructure(
         val length = (r + l) / 2
         return when (val theta = (r - l) / width) {
             .0   -> Odometry.pose(length, 0)
-            else -> Odometry(p = vector2DOf(sin(theta), (1 - cos(theta))) * (length / theta),
-                             d = theta.toRad())
+            else -> Odometry(
+                p = vector2DOf(sin(theta), (1 - cos(theta))) * (length / theta),
+                d = theta.toRad()
+            )
         }
     }
 
@@ -84,8 +86,10 @@ data class ChassisStructure(
             .let { dv -> Wheels(velocity.v - dv, velocity.v + dv) }
 
     fun toVelocity(wheels: Wheels) =
-        ControlVariable.Velocity(v = (wheels.r + wheels.l) / 2,
-                                 w = ((wheels.r - wheels.l) / width).toRad())
+        ControlVariable.Velocity(
+            v = (wheels.r + wheels.l) / 2,
+            w = ((wheels.r - wheels.l) / width).toRad()
+        )
 
     fun toPhysical(velocity: ControlVariable.Velocity): Physical =
         velocity.let(::toWheels).let(::toPhysical)

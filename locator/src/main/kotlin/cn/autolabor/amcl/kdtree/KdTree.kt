@@ -23,7 +23,7 @@ class KdTree {
     fun insert(pose: Vector3D, value: Double) {
         val key = pose.sample()
         root = root?.let { insertNode(it, key, value) }
-               ?: leaf(key, value)
+            ?: leaf(key, value)
     }
 
     /** 计算聚类 */
@@ -42,7 +42,7 @@ class KdTree {
     fun getCluster(pose: Vector3D) =
         findNode(root!!, pose.sample())
             ?.let { leaf -> leaves[leaf] }
-        ?: -1
+            ?: -1
 
     /** 清空 */
     fun clear() {
@@ -57,9 +57,11 @@ class KdTree {
     // 采样
     private fun Vector3D.sample(): KdIndex {
         val (x, y, theta) = this
-        return indexOf((x / blockSize).roundToInt(),
-                       (y / blockSize).roundToInt(),
-                       (theta / angleBlockSize).roundToInt() % angleBlockCount)
+        return indexOf(
+            (x / blockSize).roundToInt(),
+            (y / blockSize).roundToInt(),
+            (theta / angleBlockSize).roundToInt() % angleBlockCount
+        )
     }
 
     // 插入节点
@@ -79,13 +81,17 @@ class KdTree {
                 val copy = leaf(node.key, node.value)
 
                 if (key[pivotDim] > pivotValue)
-                    Branch(node.key, node.value,
-                           pivotDim, pivotValue,
-                           new, copy)
+                    Branch(
+                        node.key, node.value,
+                        pivotDim, pivotValue,
+                        new, copy
+                    )
                 else
-                    Branch(node.key, node.value,
-                           pivotDim, pivotValue,
-                           copy, new)
+                    Branch(
+                        node.key, node.value,
+                        pivotDim, pivotValue,
+                        copy, new
+                    )
             }
         }
         is Branch ->

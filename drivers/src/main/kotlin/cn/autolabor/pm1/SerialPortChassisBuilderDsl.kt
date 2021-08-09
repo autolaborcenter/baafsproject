@@ -74,7 +74,8 @@ class SerialPortChassisBuilderDsl private constructor() {
                         maxV = maxV,
                         maxW = maxW,
                         optimizeWidth = optimizeWidth,
-                        maxAccelerate = maxAccelerate)
+                        maxAccelerate = maxAccelerate
+                    )
                 }
                 .also(this::register)
     }

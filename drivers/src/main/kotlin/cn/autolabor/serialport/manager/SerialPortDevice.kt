@@ -21,7 +21,9 @@ interface SerialPortDevice {
     fun buildCertificator(): Certificator?
 
     /** 启动 */
-    fun setup(scope: CoroutineScope,
-              toDevice: SendChannel<List<Byte>>,
-              fromDevice: ReceiveChannel<List<Byte>>)
+    fun setup(
+        scope: CoroutineScope,
+        toDevice: SendChannel<List<Byte>>,
+        fromDevice: ReceiveChannel<List<Byte>>
+    )
 }

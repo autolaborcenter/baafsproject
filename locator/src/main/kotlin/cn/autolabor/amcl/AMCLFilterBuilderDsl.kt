@@ -40,17 +40,17 @@ class AMCLFilterBuilderDsl private constructor() {
                 }
                 .run {
                     AMCLFilter(
-                            initWaitNumber = initWaitNumber,
-                            minCount = minCount,
-                            maxCount = maxCount,
-                            tagPosition = tagPosition,
-                            dThresh = dThresh,
-                            aThresh = aThresh,
-                            alpha1 = alpha1,
-                            alpha2 = alpha2,
-                            alpha3 = alpha3,
-                            alpha4 = alpha4,
-                            weightSigma = weightSigma
+                        initWaitNumber = initWaitNumber,
+                        minCount = minCount,
+                        maxCount = maxCount,
+                        tagPosition = tagPosition,
+                        dThresh = dThresh,
+                        aThresh = aThresh,
+                        alpha1 = alpha1,
+                        alpha2 = alpha2,
+                        alpha3 = alpha3,
+                        alpha4 = alpha4,
+                        weightSigma = weightSigma
                     )
                 }
     }

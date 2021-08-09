@@ -115,9 +115,11 @@ class SerialPortChassis internal constructor(
     override fun buildCertificator(): Certificator =
         object : CertificatorBase(1000L) {
             override val activeBytes =
-                sequenceOf(CanNode.ECU().currentPositionTx,
-                           CanNode.TCU(0).currentPositionTx,
-                           CanNode.VCU(0).batteryPercentTx)
+                sequenceOf(
+                    CanNode.ECU().currentPositionTx,
+                    CanNode.TCU(0).currentPositionTx,
+                    CanNode.VCU(0).batteryPercentTx
+                )
                     .map(AutoCANPackageHead.WithoutData::pack)
                     .map(ByteArray::asList)
                     .flatten()
@@ -167,10 +169,11 @@ class SerialPortChassis internal constructor(
     ) {
         scope.launch {
             val msg =
-                listOf(CanNode.EveryNode.stateTx to 1000L,
-                       CanNode.ECU().currentPositionTx to odometryInterval,
-                       tcu.currentPositionTx to odometryInterval / 2,
-                       vcu.batteryCurrentTx to 5000L
+                listOf(
+                    CanNode.EveryNode.stateTx to 1000L,
+                    CanNode.ECU().currentPositionTx to odometryInterval,
+                    tcu.currentPositionTx to odometryInterval / 2,
+                    vcu.batteryCurrentTx to 5000L
                 ).map { (head, t) -> head.pack().asList() to t }
             val flags =
                 System.currentTimeMillis().let {
@@ -226,11 +229,13 @@ class SerialPortChassis internal constructor(
                                             ?.takeIf(::checkInterval)
                                             ?.takeIf { (new, _, _) -> new > ecuR.position }
                                             ?.let(::interpolateMatcher)
-                                        ?: return@engine
+                                            ?: return@engine
                                     val (r, l) = data
-                                    updateOdometry(t = t,
-                                                   l = l.let(wheelsEncoder::toAngular),
-                                                   r = r.let(wheelsEncoder::toAngular))
+                                    updateOdometry(
+                                        t = t,
+                                        l = l.let(wheelsEncoder::toAngular),
+                                        r = r.let(wheelsEncoder::toAngular)
+                                    )
                                     scope.launch { robotOnOdometry.send(odometry) }
                                 }
                                 // 右轮编码器
@@ -241,11 +246,13 @@ class SerialPortChassis internal constructor(
                                             ?.takeIf(::checkInterval)
                                             ?.takeIf { (new, _, _) -> new > ecuL.position }
                                             ?.let(::interpolateMatcher)
-                                        ?: return@engine
+                                            ?: return@engine
                                     val (l, r) = data
-                                    updateOdometry(t = t,
-                                                   l = l.let(wheelsEncoder::toAngular),
-                                                   r = r.let(wheelsEncoder::toAngular))
+                                    updateOdometry(
+                                        t = t,
+                                        l = l.let(wheelsEncoder::toAngular),
+                                        r = r.let(wheelsEncoder::toAngular)
+                                    )
                                     scope.launch { robotOnOdometry.send(odometry) }
                                 }
                                 // 舵轮编码器
@@ -302,7 +309,8 @@ class SerialPortChassis internal constructor(
         ecuR.position = Stamped(t, r)
         val delta = structure.toDeltaOdometry(
             (l.asRadian() - `ln-1`).toRad(),
-            (r.asRadian() - `rn-1`).toRad())
+            (r.asRadian() - `rn-1`).toRad()
+        )
         odometry = Stamped(t, odometry.data plusDelta delta)
     }
 

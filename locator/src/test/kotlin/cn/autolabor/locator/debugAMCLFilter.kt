@@ -65,8 +65,8 @@ fun main() = debugAMCLFilter {
     // 数据分析
     analyze { t, actual, odometry ->
         displayOnConsole(
-                "时间" to t / 1000.0,
-                "误差" to (actual.p euclid odometry.p)
+            "时间" to t / 1000.0,
+            "误差" to (actual.p euclid odometry.p)
         )
     }
     // 绘图

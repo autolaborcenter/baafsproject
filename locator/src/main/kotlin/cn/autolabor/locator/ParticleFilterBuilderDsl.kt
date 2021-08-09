@@ -13,19 +13,26 @@ import kotlin.math.PI
 class ParticleFilterBuilderDsl private constructor() {
     // 粒子数
     var count: Int = 128
+
     // 信标位置
     var beaconOnRobot: Vector2D = vector2DOfZero()
+
     // 信标最大权重
     var beaconWeight: Double? = null
-        get() = field ?: .5 * count
+        get() = field ?: (.5 * count)
+
     // 夹逼配对最大间隔
     var maxInterval: Long = 500L
+
     // 融合双方最大不一致性
     var maxInconsistency: Double = .10
+
     // 例子最大寿命
     var maxAge: Int = 50
+
     // 重采样方向标准差
     var sigma: Double = .10 * PI
+
     // 收敛判定
     private var convergence: (FusionQuality) -> Boolean = { true }
     private var divergence: (FusionQuality) -> Boolean = { (age, _, _) -> age < .05 }
@@ -54,16 +61,19 @@ class ParticleFilterBuilderDsl private constructor() {
                     require(sigma > 0)
                 }
                 .run {
-                    ParticleFilter(count = count,
-                                   locatorOnRobot = beaconOnRobot,
-                                   locatorWeight = beaconWeight!!,
-                                   maxInterval = maxInterval,
-                                   maxInconsistency = maxInconsistency,
-                                   maxAge = maxAge,
-                                   sigma = sigma,
-                                   predicate = Schmitt(
-                                       positive = convergence,
-                                       negative = divergence))
+                    ParticleFilter(
+                        count = count,
+                        locatorOnRobot = beaconOnRobot,
+                        locatorWeight = beaconWeight!!,
+                        maxInterval = maxInterval,
+                        maxInconsistency = maxInconsistency,
+                        maxAge = maxAge,
+                        sigma = sigma,
+                        predicate = Schmitt(
+                            positive = convergence,
+                            negative = divergence
+                        )
+                    )
                 }
     }
 }

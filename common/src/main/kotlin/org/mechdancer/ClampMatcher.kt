@@ -12,11 +12,12 @@ import java.util.concurrent.PriorityBlockingQueue
 class ClampMatcher<T1, T2>(
     private val consume: Boolean
 ) : Matcher<T1, T2>
-        where T1 : Comparable<T2>,
-              T2 : Comparable<T1> {
+    where T1 : Comparable<T2>,
+          T2 : Comparable<T1> {
 
     // 第一类对象队列
     private val queue1 = PriorityBlockingQueue<T1>()
+
     // 第二类对象队列
     private val queue2 = PriorityBlockingQueue<T2>()
 
@@ -43,8 +44,8 @@ class ClampMatcher<T1, T2>(
             queue2: Queue<T2>,
             consumeFrom1: Boolean
         ): Triple<T1, T2, T2>?
-                where T1 : Comparable<T2>,
-                      T2 : Comparable<T1> {
+            where T1 : Comparable<T2>,
+                  T2 : Comparable<T1> {
             while (true) {
                 val a = queue1.peek() ?: return null
                 val b = queue2.poll() ?: return null

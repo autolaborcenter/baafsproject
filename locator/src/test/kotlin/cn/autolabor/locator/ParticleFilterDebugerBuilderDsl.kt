@@ -35,24 +35,32 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
     // 仿真配置
     // 倍速仿真
     var speed = 1
+
     // 仿真器工作频率
     var frequency = 50L
+
     // 机器人起始位姿
     var origin = Odometry.pose()
+
     // 里程计配置
     var odometryFrequency = 20.0
     var leftWheel = vector2DOf(0, +.2)
     var rightWheel = vector2DOf(0, -.2)
     var wheelsWidthMeasure = 0.4
+
     // 定位配置
     // 定位频率
     var beaconFrequency = 7.0
+
     // 丢包率
     var beaconLossRate = .05
+
     // 定位噪声标准差
     var beaconSigma = 1E-3
+
     // 定位平均延时
     var beaconDelay = 170L
+
     // 定位标签位置
     var beaconOnRobot = vector2DOfZero()
 
@@ -62,7 +70,8 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
     internal constructor(
         var pStart: Double = .0,
         var pStop: Double = 1.0,
-        var range: Double = .0)
+        var range: Double = .0
+    )
 
     @BuilderDslMarker
     class BeaconErrorSourcesBuilderDsl internal constructor() {
@@ -85,7 +94,8 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                                 pStart = pStart,
                                 pStop = pStop,
                                 range = range
-                            ))
+                            )
+                        )
                 }
         }
     }
@@ -107,7 +117,8 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
         { t, actual, odometry ->
             displayOnConsole(
                 "时间" to t / 1000.0,
-                "误差" to (actual.p - odometry.p).norm())
+                "误差" to (actual.p - odometry.p).norm()
+            )
         }
 
     fun analyze(block: (Long, Odometry, Odometry) -> Unit) {
@@ -179,7 +190,8 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                         startLocationFusion(
                             robotOnOdometry = robotOnOdometry,
                             beaconOnMap = beaconOnMap,
-                            robotOnMap = robotOnMap) {
+                            robotOnMap = robotOnMap
+                        ) {
                             filter(this@run.filterConfig)
                             painter = this@run.painter
                         }
@@ -206,7 +218,8 @@ class ParticleFilterDebugerBuilderDsl private constructor() {
                                         .fold(
                                             vector2DOf(
                                                 Normal.next(.0, beaconSigma),
-                                                Normal.next(.0, beaconSigma))
+                                                Normal.next(.0, beaconSigma)
+                                            )
                                         ) { sum, source -> sum + source.next() }
                                         .let {
                                             Stamped(t, actual.data.toTransformation()(beaconOnRobot).to2D() + it)

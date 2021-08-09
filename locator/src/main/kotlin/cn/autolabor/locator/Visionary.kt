@@ -36,8 +36,9 @@ data class Visionary(
         val r1 = (1 - r0 * gauss1.p(conjecture.p euclid newExpectation.p))
         // 生成新的推断关系
         return Visionary(
-                newMarkOnOdometry,
-                average(conjecture to r0, newExpectation to r1),
-                tanh(2 * r1 / (r0 + r1)))
+            newMarkOnOdometry,
+            average(conjecture to r0, newExpectation to r1),
+            tanh(2 * r1 / (r0 + r1))
+        )
     }
 }

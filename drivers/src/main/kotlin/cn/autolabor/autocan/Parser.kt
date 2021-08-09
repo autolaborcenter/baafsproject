@@ -10,12 +10,16 @@ internal sealed class PM1Pack {
 
     object Failed : PM1Pack()
 
-    class WithData(val head: AutoCANPackageHead.WithData,
-                   val frameId: Byte,
-                   val data: ByteArray) : PM1Pack()
+    class WithData(
+        val head: AutoCANPackageHead.WithData,
+        val frameId: Byte,
+        val data: ByteArray
+    ) : PM1Pack()
 
-    class WithoutData(val head: AutoCANPackageHead.WithoutData,
-                      val reserve: Byte) : PM1Pack()
+    class WithoutData(
+        val head: AutoCANPackageHead.WithoutData,
+        val reserve: Byte
+    ) : PM1Pack()
 }
 
 /** 构造解析引擎 */
@@ -26,7 +30,7 @@ internal fun engine() =
             buffer
                 .indexOfFirst { it == 0xfe.toByte() }
                 .takeIf { it >= 0 }
-            ?: return@ParseEngine ParseInfo(size, size, PM1Pack.Nothing)
+                ?: return@ParseEngine ParseInfo(size, size, PM1Pack.Nothing)
 
         val stream =
             (begin + 4)
@@ -34,7 +38,7 @@ internal fun engine() =
                 ?.let { buffer.subList(begin + 1, it - 1) }
                 ?.toByteArray()
                 ?.let(::Serial4BytesInputStream)
-            ?: return@ParseEngine ParseInfo(begin, size, PM1Pack.Nothing)
+                ?: return@ParseEngine ParseInfo(begin, size, PM1Pack.Nothing)
 
         val network = stream.readUnsigned(2).toByte()
         val dataField = stream.readUnsigned(1) > 0
@@ -48,7 +52,8 @@ internal fun engine() =
         val result = if (dataField) {
             val lastIndex = 13
             val head = AutoCANPackageHead.WithData(
-                    network, priority, nodeType, nodeIndex, messageType)
+                network, priority, nodeType, nodeIndex, messageType
+            )
             val frameId = buffer[begin + 4]
             val data = buffer.subList(begin + 5, begin + lastIndex).toByteArray()
             if (head.pack(frameId, data).last() == buffer[begin + lastIndex])
@@ -58,7 +63,8 @@ internal fun engine() =
         } else {
             val lastIndex = 5
             val head = AutoCANPackageHead.WithoutData(
-                    network, priority, nodeType, nodeIndex, messageType)
+                network, priority, nodeType, nodeIndex, messageType
+            )
             val reserve = buffer[begin + 4]
             if (head.pack(reserve).last() == buffer[begin + lastIndex])
                 PM1Pack.WithoutData(head, reserve)

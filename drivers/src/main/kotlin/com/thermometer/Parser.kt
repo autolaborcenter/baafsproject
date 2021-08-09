@@ -5,7 +5,8 @@ import cn.autolabor.serialport.parser.ParseEngine.ParseInfo
 
 data class Humiture(
     val temperature: Double,
-    val humidity: Double)
+    val humidity: Double
+)
 
 internal fun engine() =
     ParseEngine<Byte, Humiture?> { buffer ->
@@ -22,7 +23,7 @@ private fun parse(text: String): ParseInfo<Humiture?> {
     val size = text.length
     // 找前缀
     val head = text.indexOf(PREFIX.first()).takeUnless { it < 0 }
-               ?: return ParseInfo(size, size, null)
+        ?: return ParseInfo(size, size, null)
     val maybe = text.substring(head)
     when {
         maybe.length < PREFIX.length ->
@@ -32,22 +33,22 @@ private fun parse(text: String): ParseInfo<Humiture?> {
     }
     // 找后缀
     val tail = maybe.indexOf(POSTFIX)
-                   .takeIf { it > MIN_LENGTH }
-                   ?.let { it + head + POSTFIX.length }
-               ?: return ParseInfo(head, size, null)
+        .takeIf { it > MIN_LENGTH }
+        ?.let { it + head + POSTFIX.length }
+        ?: return ParseInfo(head, size, null)
     // 构造数据包
     val (t1, t2) =
         maybe.substring(PREFIX.length, tail - head - POSTFIX.length)
             .split(INFIX)
             .takeIf { it.size == 2 }
-        ?: return ParseInfo(head + PREFIX.length, tail, null)
+            ?: return ParseInfo(head + PREFIX.length, tail, null)
     // 解析数字
     val temperature =
         t1.toDoubleOrNull()
-        ?: return ParseInfo(tail, tail, null)
+            ?: return ParseInfo(tail, tail, null)
     val humidity =
         t2.toDoubleOrNull()
-        ?: return ParseInfo(tail, tail, null)
+            ?: return ParseInfo(tail, tail, null)
     // 成功
     return ParseInfo(tail, tail, Humiture(temperature, humidity))
 }

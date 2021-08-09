@@ -19,12 +19,14 @@ fun main() {
         openAllNetworks()
         println(networksInfo())
     }
-    val blind = Polygon(listOf(
+    val blind = Polygon(
+        listOf(
             vector2DOf(+.0, +.0),
             vector2DOf(+.0, +.3),
             vector2DOf(+.3, +.3),
             vector2DOf(+.2, -.3)
-    ))
+        )
+    )
     GlobalScope.launch {
         val `10cm` = Circle(.10).sample()
         val `15cm` = Circle(.15).sample()

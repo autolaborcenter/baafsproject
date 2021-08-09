@@ -82,7 +82,7 @@ class SerialPortFinder<T> private constructor() {
                                 }
                                 result
                             }
-                        ?: throw RuntimeException(exceptionMessages.joinToString("\n"))
+                            ?: throw RuntimeException(exceptionMessages.joinToString("\n"))
                     }
     }
 }

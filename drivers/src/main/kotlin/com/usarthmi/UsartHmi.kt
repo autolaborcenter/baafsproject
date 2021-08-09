@@ -53,6 +53,7 @@ class UsartHmi(
 
         @Suppress("ObjectPropertyName", "NonAsciiCharacters", "Unused")
         const val 字库大 = "等待定位初始化连接记录运行关闭保存退出正在异常发现障碍离开路线其他"
+
         @Suppress("ObjectPropertyName", "NonAsciiCharacters", "Unused")
         const val 字库小 = "0123456789点已保存"
 

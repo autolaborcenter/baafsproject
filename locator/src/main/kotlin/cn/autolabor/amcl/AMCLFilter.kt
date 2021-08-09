@@ -48,7 +48,7 @@ class AMCLFilter(
     private fun Vector3D.toTrans() = Transformation.fromPose(Vector2D(this.x, this.y), Angle(this.z))
     private fun Transformation.toPoseVec(): Vector3D = this.toPose().let { Vector3D(it.p.x, it.p.y, it.d.value) }
 
-    override fun measureMaster(item: Stamped<Odometry>): Stamped<Odometry>? {
+    override fun measureMaster(item: Stamped<Odometry>): Stamped<Odometry> {
         val (t, pose) = item
         matcher.add1(item)
         synchronized(pf) {
@@ -76,16 +76,17 @@ class AMCLFilter(
         }
     }
 
-    override fun get(item: Stamped<Odometry>): Stamped<Odometry>? {
-        return Stamped(item.time, (map2odomTrans.data * item.data.toTransformation()).toPose())
-    }
+    override fun get(item: Stamped<Odometry>) =
+        Stamped(item.time, (map2odomTrans.data * item.data.toTransformation()).toPose())
 
     private fun initRandSample(mean: Vector2D, std: Vector2D) =
-        Vector3D(x = randomGaussian(mean.x, std.x),
-                 y = randomGaussian(mean.y, std.y),
-                 z = Random.nextDouble(-PI, PI))
+        Vector3D(
+            x = randomGaussian(mean.x, std.x),
+            y = randomGaussian(mean.y, std.y),
+            z = Random.nextDouble(-PI, PI)
+        )
 
-    private fun initSample(pf: PFInfo, positionMean: Vector2D, cov: Vector2D, tagPosition: Vector2D): Unit {
+    private fun initSample(pf: PFInfo, positionMean: Vector2D, cov: Vector2D, tagPosition: Vector2D) {
         pf.set.kdTree.clear()
         val std = Vector2D(sqrt(cov.x), sqrt(cov.y))
         val tagPositionInverse = Transformation.fromPose(-tagPosition, Angle(0.0))
@@ -136,29 +137,37 @@ class AMCLFilter(
         pf.set.samples = pf.set.samples.map { (v, w) ->
             val deltaRot1Hat =
                 (deltaRot1 - randomGaussian(
-                        sqrt(alpha1 * deltaRot1Noise * deltaRot1Noise
-                             + alpha2 * deltaTrans * deltaTrans)
+                    sqrt(
+                        alpha1 * deltaRot1Noise * deltaRot1Noise
+                            + alpha2 * deltaTrans * deltaTrans
+                    )
                 )).adjust()
             val deltaTransHat =
                 deltaTrans - randomGaussian(
-                        sqrt(alpha3 * deltaTrans * deltaTrans
-                             + alpha4 * deltaRot1Noise * deltaRot1Noise
-                             + alpha4 * deltaRot2Noise * deltaRot2Noise)
+                    sqrt(
+                        alpha3 * deltaTrans * deltaTrans
+                            + alpha4 * deltaRot1Noise * deltaRot1Noise
+                            + alpha4 * deltaRot2Noise * deltaRot2Noise
+                    )
                 )
             val deltaRot2Hat =
                 (deltaRot2 - randomGaussian(
-                        sqrt(alpha1 * deltaRot2Noise * deltaRot2Noise
-                             + alpha2 * deltaTrans * deltaTrans)
+                    sqrt(
+                        alpha1 * deltaRot2Noise * deltaRot2Noise
+                            + alpha2 * deltaTrans * deltaTrans
+                    )
                 )).adjust()
 
-            Vector3D(x = v.x + deltaTransHat * cos(v.z + deltaRot1Hat),
-                     y = v.y + deltaTransHat * sin(v.z + deltaRot1Hat),
-                     z = v.z + deltaRot1Hat + deltaRot2Hat) to w
+            Vector3D(
+                x = v.x + deltaTransHat * cos(v.z + deltaRot1Hat),
+                y = v.y + deltaTransHat * sin(v.z + deltaRot1Hat),
+                z = v.z + deltaRot1Hat + deltaRot2Hat
+            ) to w
         }.toMutableList()
     }
 
     // 根据观测修改每个粒子权重
-    private fun updateWeight(pf: PFInfo, position: Stamped<Vector2D>): Unit {
+    private fun updateWeight(pf: PFInfo, position: Stamped<Vector2D>) {
         // println("updateWeight")
         val tagPosition = Transformation.fromPose(tagPosition, Angle(0.0))
         val p1 = 1 / sqrt(2 * PI) / weightSigma
@@ -215,7 +224,7 @@ class AMCLFilter(
     }
 
     // 判断粒子是否收敛
-    private fun updateConverged(pf: PFInfo): Unit {
+    private fun updateConverged(pf: PFInfo) {
         var meanX = .0
         var meanY = .0
         for (sample in pf.set.samples) {
@@ -243,8 +252,9 @@ class AMCLFilter(
             ?.takeIf { it.value.weight > 0 }
             ?.apply {
                 map2odomTrans = Stamped(
-                        System.currentTimeMillis(),
-                        this.value.mean.toTrans() * lastUpdateOdom.toTransformation().inverse())
+                    System.currentTimeMillis(),
+                    this.value.mean.toTrans() * lastUpdateOdom.toTransformation().inverse()
+                )
             }
     }
 

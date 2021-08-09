@@ -21,7 +21,8 @@ class PFInfo(
     var popErr: Double = 0.01, var popZ: Double = 3.0,
     var set: PFSampleSet = PFSampleSet(maxSamples),
     val distThreshold: Double = 0.2,
-    var converged: Boolean = false)
+    var converged: Boolean = false
+)
 
 fun Number.format(fmt: String): String =
     String.format(fmt, this)
@@ -72,10 +73,10 @@ class PFCluster(
 ) {
     override fun toString() =
         "PFCluster(count: ${count.format("%-3d")} " +
-        "weight: ${weight.format("%4.2f")}   " +
-        "mean: ${mean.format()}   " +
-        "cov: ${cov.format()}   " +
-        "m: ${m.format()}" + ")"
+            "weight: ${weight.format("%4.2f")}   " +
+            "mean: ${mean.format()}   " +
+            "cov: ${cov.format()}   " +
+            "m: ${m.format()}" + ")"
 }
 
 private fun pose2matrix(pose: Vector3D) =
