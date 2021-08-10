@@ -22,8 +22,10 @@ import kotlin.math.PI
 
 private val obstacles =
     List(10) { i ->
-        listOf(Circle(.14, 32).sample().transform(Odometry.pose(i * .3, +.5)),
-               Circle(.14, 32).sample().transform(Odometry.pose(i * .3, -.5)))
+        listOf(
+            Circle(.14, 32).sample().transform(Odometry.pose(i * .3, +.5)),
+            Circle(.14, 32).sample().transform(Odometry.pose(i * .3, -.5))
+        )
     }.flatten()
 
 @ExperimentalCoroutinesApi
@@ -32,11 +34,14 @@ fun main() = runBlocking(Dispatchers.Default) {
     val front = simulationLidar(Odometry.pose(x = +.113))
     val back = simulationLidar(Odometry.pose(x = -.138))
     val lidarSet =
-        LidarSet(mapOf(front::frame to front.toRobot,
-                       back::frame to back.toRobot)
+        LidarSet(
+            mapOf(
+                front::frame to front.toRobot,
+                back::frame to back.toRobot
+            )
         ) { it !in outlineFilter }
 
-    val buffer = AtomicReference<NonOmnidirectional>(Velocity.velocity(0, 0))
+    val buffer = AtomicReference(Velocity.velocity(0, 0))
     launch {
         for (command in commands)
             buffer.set(Velocity.velocity(0.2 * command.v, PI / 5 * command.w))
@@ -53,7 +58,8 @@ fun main() = runBlocking(Dispatchers.Default) {
     // 运行仿真
     for ((t, v) in speedSimulation { buffer.get() }) {
         // 控制机器人行驶
-        val actual = chassis.drive(v)
+        val actual = chassis.drive(v, t)
+        println(actual)
         // 更新激光雷达
         front.update(actual, obstacles)
         back.update(actual, obstacles)
